@@ -2,3 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# hypertune folder
+regional_clarity/xg_models/hypertune/
+
+# some file types that we generally don't want to track
+**.DS_Store
+**.csv
+**.feather
