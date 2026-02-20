@@ -1,8 +1,9 @@
-library(feather)
 library(tidyverse)
 library(xgboost)
 library(Metrics)
 library(ggthemes)
+library(here)
+library(arrow)
 
 # basic theme for all ggplots, if Roboto is not installed, just use default, but message
 if ({
@@ -25,11 +26,15 @@ if ({
           plot.subtitle = element_text(hjust = 0.5)) 
 }
 
-NW_RS <- read_feather("../NW-CLP-RS/b_site_RS_data_acquisition/out/NW_Poudre_Historical_collated_DSWE1_point_meta_v2024-10-10.feather") %>% 
+CLP_RS <- read_feather(here("../NW-CLP-RS/b_site_RS_data_acquisition/out/NW_Poudre_Historical_collated_DSWE1_point_meta_v2024-10-10.feather")) %>% 
   mutate(across(c(pCount_dswe1, pCount_dswe_gt0, prop_clouds, 
                   med_Red, med_Blue, med_Green, med_Nir, med_Swir1, med_Swir2),
                 ~ as.numeric(.))) %>% 
-  filter(pCount_dswe1/pCount_dswe_gt0 > .5 & pCount_dswe1 > 8 & prop_clouds == 0) 
+  filter(pCount_dswe1/pCount_dswe_gt0 > .5 & 
+           pCount_dswe1 > 8 & 
+           prop_clouds == 0 &
+           CLOUD_COVER < 50 &
+           grepl("CLP", data_group)) 
 
 # apply corrections -------------------------------------------------------
 
@@ -44,7 +49,7 @@ jg_corr <- read_csv("~/OneDrive - Colostate/misc/gardner_data/LC02_Corr_Coef.csv
               values_from = value)
 
 # apply coefficients to timeseries data
-NW_RS_corr <- NW_RS %>% 
+CLP_RS_corr <- CLP_RS %>% 
   mutate(sat = case_when(mission == "LANDSAT_4" ~ "LT05", # landsat 4 is roughly the same as 5
                          mission == "LANDSAT_5" ~ "LT05",
                          mission == "LANDSAT_7" ~ "LE07",
@@ -61,7 +66,7 @@ NW_RS_corr <- NW_RS %>%
   select(-c(all_of(names(jg_corr))))
 
 ## add indices ----
-NW_RS_ml <- NW_RS_corr %>% 
+CLP_RS_ml <- CLP_RS_corr %>% 
   mutate(NR = nir_corr7/red_corr7, 
          BR = blue_corr7/red_corr7,
          GR = green_corr7/red_corr7,
@@ -114,118 +119,52 @@ NW_RS_ml <- NW_RS_corr %>%
          GN_GN = (green_corr7- nir_corr7)/(green_corr7 + nir_corr7)) %>% 
   filter_all(all_vars(!is.infinite(.)))
 
-feats <-  NW_RS_ml %>% 
+feats <-  CLP_RS_ml %>% 
   select(red_corr7:GN_GN) %>% 
   names(.)
 
-dNW <- xgb.DMatrix(data = as.matrix(NW_RS_ml[,feats]))
+dCLP <- xgb.DMatrix(data = as.matrix(CLP_RS_ml[,feats]))
 
 
 # load models -------------------------------------------------------------
 
-xgb.1 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb1_noNW.model")
-xgb.2 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb2_noNW.model")
-xgb.3 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb3_noNW.model")
-xgb.4 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb4_noNW.model")
+xgb.1 <- xgb.load("regional_clarity/xg_models/prelim/xgb1_noNW.model")
+xgb.2 <- xgb.load("regional_clarity/xg_models/prelim/xgb2_noNW.model")
+xgb.3 <- xgb.load("regional_clarity/xg_models/prelim/xgb3_noNW.model")
+xgb.4 <- xgb.load("regional_clarity/xg_models/prelim/xgb4_noNW.model")
 
-NW_pred <- NW_RS_ml %>% 
-  mutate(pred1 = predict(xgb.1, dNW),
-         pred2 = predict(xgb.2, dNW),
-         pred3 = predict(xgb.3, dNW),
-         pred4 = predict(xgb.4, dNW)) %>% 
+CLP_pred <- CLP_RS_ml %>% 
+  mutate(pred1 = predict(xgb.1, dCLP),
+         pred2 = predict(xgb.2, dCLP),
+         pred3 = predict(xgb.3, dCLP),
+         pred4 = predict(xgb.4, dCLP)) %>% 
   rowwise() %>% 
-  mutate(mean = sum(pred1, pred2, pred3, pred4)/4) %>% 
+  mutate(mean_sdd = sum(pred1, pred2, pred3, pred4)/4) %>% 
   ungroup() %>% 
-  select(rowid, r_id, date, mission, permanent_identifier,gnis_name, data_group,
-         pred1, pred2, pred3, pred4, mean) %>% 
-  filter(grepl("NW", data_group) | grepl("ROSS", data_group))
+  select(rowid, r_id, date, mission, permanent_identifier, gnis_name, data_group,
+         red_corr7, green_corr7, blue_corr7, nir_corr7, swir1_corr7, swir2_corr7,
+         pred1, pred2, pred3, pred4, mean_sdd)
 
 # filter for waterbodies of interest
-these_res <- c("Grand Lake", "Horsetooth Reservoir", "Seaman Reservoir", "Halligan Reservoir",
-               "Chambers Lake", "Barnes Meadow Reservoir")
+these_res <- CLP_pred %>% 
+  filter(grepl("ROSS_CLP", data_group)) %>% 
+  pull(gnis_name) %>% 
+  unique() %>% 
+  .[!(. %in% c("Horsetooth Reservoir", 
+               "Shadow Mountain Lake",
+               "Grand Lake"))]
 
-
-# read in harmonized secchi -----------------------------------------------
-
-NW_sdd <- read_csv("data/waterQuality/harmonized/Secchi_data_NW_harmonized_2024-01-01.csv") %>% 
-  mutate(GNIS_Name = case_when(feature == "Carter Lake" ~ "Carter Lake Reservoir",
-                               feature == "Shadow Mountain Reservoir" ~ "Shadow Mountain Lake",
-                               feature == "Granby Reservoir" ~ "Lake Granby", 
-                               TRUE ~ feature)) %>% 
-  filter(GNIS_Name %in% these_res) 
-  
-NW_pred_fewer <- NW_pred %>% 
+CLP_focus <- CLP_pred %>% 
   filter(gnis_name %in% these_res)
 
-NW_pred_less <- NW_pred_fewer %>% 
-  select(c(date, pred1, pred2, pred3, pred4, mean, gnis_name)) %>% 
-  left_join(., NW_sdd %>% select(gnis_name = GNIS_Name, feature) %>% unique()) %>% 
-  summarise(estimated = mean(mean), .by = c(date, gnis_name, feature))
+# do a quick look - limit to may through october to reduce ice risk
+# Halligan and Seaman have data year-round for some reason.
 
-NW_obs_less <- NW_sdd %>% 
-  filter(GNIS_Name %in% unique(NW_pred_less$gnis_name)) %>% 
-  summarize(observed = mean(value), .by = c(date, GNIS_Name, feature)) %>% 
-  rename(gnis_name = GNIS_Name)
+CLP_focus %>% 
+  filter(between(month(date), 5, 10)) %>% 
+  ggplot(., aes(x = yday(date), y = mean_sdd)) +
+  geom_point() +
+  facet_grid(gnis_name ~ .)
 
-full_join(NW_pred_less, NW_obs_less) %>% 
-ggplot(., aes(x = observed, y = estimated, color = gnis_name)) +
-  geom_point(size = 2.5, alpha = 0.8) +
-  scale_y_continuous(limits = c(0, 8)) +
-  scale_x_continuous(limits = c(0, 8)) +
-  labs(x = "measured SDD (m)",
-       y = "estimated SDD (m)") +
-  geom_abline(slope = 1, intercept = 0, color = "grey") +
-  theme_bw() +
-  scale_color_manual(values = c("#002EA3", "#E70870", "#256BF5", 
-                                "#745CFB", "#1E4D2B", "#56104E", "black")) +
-  ROSS_theme +
-  theme(legend.position = "bottom")
-
-evals_NW <- full_join(NW_pred_less, NW_obs_less) %>% 
-  filter(!is.na(observed&estimated)) %>%
-  summarise(rmse = rmse(observed, estimated),
-            mae = mae(observed, estimated),
-            mape = mape(observed, estimated),
-            bias = bias(observed, estimated),
-            p.bias = percent_bias(observed, estimated),
-            smape = smape(observed, estimated),
-            r2 = cor(observed, estimated)^2)
-evals_NW
-
-NW_pred_obs <- full_join(NW_pred_less, NW_obs_less) %>% 
-  pivot_longer(c(estimated, observed),
-               names_to = "mean",
-               values_to = "values") %>% 
-  mutate(mean = if_else(mean == "estimated",
-                        "estimated from remote sensing",
-                        "measured"))
-
-NW_pred_obs %>% 
-  filter(year(date) >= 2015, between(month(date), 5, 10)) %>% 
-  ggplot(., aes(x = date, y = values, color = mean)) +
-  geom_point(size = 2.5, alpha = 0.5) +
-  scale_color_manual(values = c("#002EA3", "#E70870", "#256BF5", 
-                       "#745CFB", "#1E4D2B", "#56104E")) +
-  facet_grid(gnis_name ~ ., labeller = label_wrap_gen(10)) +
-  labs(x = NULL, y = "Secchi Depth (m)", color = "data origin") +
-  theme_bw() +
-  ROSS_theme +
-  theme(legend.position = "bottom")+
-  coord_cartesian(ylim = c(8, 0)) +
-  scale_y_reverse()
-
-NW_pred_obs %>% 
-  filter(year(date) >= 2015, between(month(date), 5, 10), mean == 'measured') %>% 
-  ggplot(., aes(x = date, y = values, color = mean)) +
-  geom_point(size = 2.5, alpha = 0.5) +
-  scale_color_manual(values = c("#E70870", "#256BF5", 
-                                "#745CFB", "#1E4D2B", "#56104E")) +
-  facet_grid(gnis_name ~ ., labeller = label_wrap_gen(10)) +
-  labs(x = NULL, y = "Secchi Depth (m)", color = "data origin") +
-  theme_bw() +
-  ROSS_theme +
-  theme(legend.position = "bottom")+
-  coord_cartesian(ylim = c(8, 0)) +
-  scale_y_reverse()
-
+write_parquet(CLP_focus, here("data/derived/remote_sensing/landsat_sdd/CLP_SDD_estimate_v2024-10-10.parquet"))
 
