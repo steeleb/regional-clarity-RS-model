@@ -128,10 +128,10 @@ dCLP <- xgb.DMatrix(data = as.matrix(CLP_RS_ml[,feats]))
 
 # load models -------------------------------------------------------------
 
-xgb.1 <- xgb.load("regional_clarity/xg_models/prelim/xgb1_noNW.model")
-xgb.2 <- xgb.load("regional_clarity/xg_models/prelim/xgb2_noNW.model")
-xgb.3 <- xgb.load("regional_clarity/xg_models/prelim/xgb3_noNW.model")
-xgb.4 <- xgb.load("regional_clarity/xg_models/prelim/xgb4_noNW.model")
+xgb.1 <- xgb.load(here("regional_clarity/xg_models/prelim/xgb1.model"))
+xgb.2 <- xgb.load(here("regional_clarity/xg_models/prelim/xgb2.model"))
+xgb.3 <- xgb.load(here("regional_clarity/xg_models/prelim/xgb3.model"))
+xgb.4 <- xgb.load(here("regional_clarity/xg_models/prelim/xgb4.model"))
 
 CLP_pred <- CLP_RS_ml %>% 
   mutate(pred1 = predict(xgb.1, dCLP),

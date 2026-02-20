@@ -123,16 +123,16 @@ dNW <- xgb.DMatrix(data = as.matrix(NW_RS_ml[,feats]))
 
 # load models -------------------------------------------------------------
 
-xgb.1 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb1_noNW.model")
-xgb.2 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb2_noNW.model")
-xgb.3 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb3_noNW.model")
-xgb.4 <- xgb.load("modeling/regional_clarity/xg_models/prelim/xgb4_noNW.model")
+xgb.1 <- xgb.load("regional_clarity/xg_models/prelim/xgb1_noNW.model")
+xgb.2 <- xgb.load("regional_clarity/xg_models/prelim/xgb2_noNW.model")
+xgb.3 <- xgb.load("regional_clarity/xg_models/prelim/xgb3_noNW.model")
+xgb.4 <- xgb.load("regional_clarity/xg_models/prelim/xgb4_noNW.model")
 
 NW_pred <- NW_RS_ml %>% 
-  mutate(pred1 = predict(xgb1, dNW),
-         pred2 = predict(xgb2, dNW),
-         pred3 = predict(xgb3, dNW),
-         pred4 = predict(xgb4, dNW)) %>% 
+  mutate(pred1 = predict(xgb.1, dNW),
+         pred2 = predict(xgb.2, dNW),
+         pred3 = predict(xgb.3, dNW),
+         pred4 = predict(xgb.4, dNW)) %>% 
   rowwise() %>% 
   mutate(mean = sum(pred1, pred2, pred3, pred4)/4) %>% 
   ungroup() %>% 
