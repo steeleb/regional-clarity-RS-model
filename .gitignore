@@ -5,8 +5,6 @@
 
 # hypertune folder
 regional_clarity/xg_models/hypertune/
-# scratch folder
-scratch/
 
 # some file types that we generally don't want to track
 **.DS_Store
