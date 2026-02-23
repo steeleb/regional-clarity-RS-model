@@ -5,6 +5,7 @@ library(sf)
 library(tmap)
 library(EDIutils)
 
+# using EDIutils, grab the files
 package_identifier <- "edi.2254.1"
 
 # get aquasat siteSR entity information
@@ -15,7 +16,11 @@ siteSR_entities_d1 <- siteSR_entities %>%
   filter(grepl("confident", entityName) &
            !grepl("algal", entityName))
 
+# and this is how to read into the environment...
 read_feather(read_data_entity(packageId = package_identifier, entityId = siteSR_entities_d1$entityId[1]))
+# and this is where I stopped updating this script.
+
+
 # jot down file paths, these are pretty big and it's more efficient to load interatively 
 # and get matches from each file.
 LS4_fp <- "scratch/siteSR_collated_point_meta_LANDSAT_4_DSWE1_v2024-08-27.feather"
