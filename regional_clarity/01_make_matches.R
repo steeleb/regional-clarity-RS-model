@@ -1,16 +1,26 @@
-library(AquaMatchr)
+# This code creates matchups between the AquaMatch SDD files and the siteSR files
+# we use a generous 5-day window to work from for future steps.
+# Author: B Steele, Colorado State University, ROSSyndicate
+# last updated Aug 11, 2026
+
+
+# load libraries
+library(AquaMatchr) # if install needed: remotes::install_github(repo = "AquaSat/AquaMatchr")
 library(data.table)
 library(arrow)
 library(sf)
 library(tmap)
-library(EDIutils)
 library(AquaMatchr)
 library(tidyverse)
 
-# login to EDI
+# login to EDI - this is a work around for error popping up in AquaMatchr
+# requires EDIutils, which is required by AquaMatchr, so probably no issue here
 EDIutils::login(key = Sys.getenv('EDI_API_key'))
 
-# location for file storage
+
+## AquaMatch data ----
+
+# note location for file storage when downloading via AquaMatchr
 aquamatch_dir <- "aquamatch_files"
 dir.create(aquamatch_dir)
 
@@ -24,7 +34,8 @@ siteSR <- download_siteSR(save_location = aquamatch_dir)
 
 # sites
 sites <- read_csv(file.path(siteSR[grepl("sites_with_NHD_info", siteSR)]))
-                            
+    
+# just grab some info for SDD filtering and plotting                        
 sites_less <- sites %>% 
   select(siteSR_id, 
          OrganizationIdentifier = org_id, 
@@ -45,12 +56,13 @@ site_summary <- sdd_sites_less %>%
 # get unique site types here
 unique(sdd_sites$ResolvedMonitoringLocationTypeName)
 
-# let's limit to Lake data for time purposes
+# let's limit to Lake data for our purposes
 lakes_only <- sdd_sites %>% 
-  filter(grepl("Lake|Reservoir", MonitoringLocationTypeName)) %>% 
+  filter(grepl("Lake|Reservoir", MonitoringLocationTypeName)) %>%
+  # remove the great lakes for this matching process
   filter(!grepl("Great", MonitoringLocationTypeName))
 
-# and then get fewer cols to match with sat data
+# and then reduce cols to match with sat data
 lakes_for_sat <- lakes_only %>% 
   select(siteSR_id, harmonized_utc, subgroup_id)
 
@@ -60,7 +72,8 @@ lake_locs <- sites %>%
   st_as_sf(., coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
 
 tmap_mode("plot")
-tm_shape(lake_locs) + tm_dots()
+tm_shape(lake_locs) + 
+  tm_dots()
 
 # let's drop the ones that are outside the CONUS for the purposes of this
 states <- tigris::states() %>% 
@@ -77,7 +90,8 @@ tm_shape(lake_locs_CONUS) + tm_dots()
 lakes_for_sat <- lakes_for_sat %>% 
   filter(siteSR_id %in% lake_locs_CONUS$siteSR_id)
 
-#### NOW LETS START PAIRING! ########
+## Make matchups ----
+
 
 make_matchups <- function(sat_data_fp, wq_data) {
   # data
@@ -87,7 +101,7 @@ make_matchups <- function(sat_data_fp, wq_data) {
   sat_data <- read_feather(sat_data_fp)  %>% 
     filter(siteSR_id %in% unique(wq_data$siteSR_id)) 
   
-  # reduce satellite data
+  # reduce columns in satellite data 
   sat_less <- sat_data %>% 
     select(siteSR_id, sat_id, 
            sat_date = date) %>% 
@@ -104,6 +118,7 @@ make_matchups <- function(sat_data_fp, wq_data) {
     on = .(siteSR_id), 
     allow.cartesian = TRUE
   ][
+    # and filter to window of 5 days
     abs(as.integer(difftime(wq_date, 
                             sat_date, 
                             units = "days"))) <= 5
@@ -113,32 +128,32 @@ make_matchups <- function(sat_data_fp, wq_data) {
   left_join(matches, sat_data)
 }
 
+# apply function
 five_day_matches <- map2(.x = siteSR[grepl("feather", siteSR)],
                          .y = list(lakes_for_sat),
                          make_matchups) %>% 
   bind_rows()
 
+# join with SDD data
 five_day_matches <- five_day_matches %>% 
   left_join(., sdd)
 
+# export
 write_feather(five_day_matches, "aquamatch_files/five_day_sdd_matches.feather")
 
+## Summary and Figures ----
 
+# summarize by number of matches per site
 five_day_summary <- five_day_matches %>% 
   summarize(n = n(),
             .by = siteSR_id)
 
-five_day_summary_sensor <- five_day_matches %>% 
-  summarize(n = n(),
-            .by = c(siteSR_id, mission))
-
+# add in spatial data
 lake_locs_with_matches <- lake_locs_CONUS %>% 
   filter(siteSR_id %in% unique(five_day_matches$siteSR_id)) %>% 
   left_join(., five_day_summary)
 
-states <- states[lake_locs_with_matches %>% st_transform(crs = st_crs(states)), ]
-
-tmap_mode("plot")
+# plot all missions
 tm_shape(states) +
   tm_polygons() +
   tm_shape(lake_locs_with_matches, bbox = states) +
@@ -152,14 +167,13 @@ tm_shape(states) +
             legend.bg.color = "white",
             legend.frame = TRUE)
 
+
+# and per site per mission
 five_day_summary_sensor <- five_day_matches %>% 
   summarize(n = n(),
             .by = c(siteSR_id, mission))
 
-five_day_summary_sensor <- five_day_matches %>% 
-  summarize(n = n(),
-            .by = c(siteSR_id, mission)) 
-
+# add spatial data and label info
 lake_locs_by_mission <- lake_locs_with_matches %>% 
   select(siteSR_id, geometry) %>% 
   right_join(five_day_summary_sensor, by = "siteSR_id") %>% 
@@ -167,6 +181,7 @@ lake_locs_by_mission <- lake_locs_with_matches %>%
                           levels = c("LT04", "LT05", "LE07", "LC08", "LC09"),
                           labels = c("Landsat 4", "Landsat 5", "Landsat 7", "Landsat 8", "Landsat 9")))%>% 
   arrange(n)
+
 # Compute totals per mission before faceting
 mission_stats <- lake_locs_by_mission %>% 
   st_drop_geometry() %>% 
@@ -174,6 +189,7 @@ mission_stats <- lake_locs_by_mission %>%
             total_sites = n_distinct(siteSR_id),
             .by = mission)
 
+# and prep for viz
 lake_locs_by_mission <- lake_locs_by_mission %>% 
   left_join(mission_stats, by = "mission") %>% 
   mutate(mission_label = paste0(mission, ", ",
@@ -181,6 +197,7 @@ lake_locs_by_mission <- lake_locs_by_mission %>%
                                 format(total_sites, big.mark = ","), " sites")) %>% 
   arrange(n)   # keep your draw-order fix from before
 
+# plot!
 tm_shape(states) +
   tm_polygons() +
   tm_shape(lake_locs_by_mission, bbox = states) +
