@@ -1,56 +1,49 @@
+library(AquaMatchr)
 library(data.table)
-library(tidyverse)
-library(feather)
+library(arrow)
 library(sf)
 library(tmap)
 library(EDIutils)
+library(AquaMatchr)
+library(tidyverse)
 
-# using EDIutils, grab the files
-package_identifier <- "edi.2254.1"
+# login to EDI
+EDIutils::login(key = Sys.getenv('EDI_API_key'))
 
-# get aquasat siteSR entity information
-siteSR_entities <- read_data_entity_names(package_identifier)
+# location for file storage
+aquamatch_dir <- "aquamatch_files"
+dir.create(aquamatch_dir)
 
-# reduce to DSWE1 feather files
-siteSR_entities_d1 <- siteSR_entities %>% 
-  filter(grepl("confident", entityName) &
-           !grepl("algal", entityName))
+# use AquaMatchr for data gathering
+sdd <- download_parameters("sdd", "newest")
+# get it out of a list
+sdd <- sdd[[1]]
 
-# and this is how to read into the environment...
-read_feather(read_data_entity(packageId = package_identifier, entityId = siteSR_entities_d1$entityId[1]))
-# and this is where I stopped updating this script.
+# and grab site SR
+siteSR <- download_siteSR(save_location = aquamatch_dir)
 
-
-# jot down file paths, these are pretty big and it's more efficient to load interatively 
-# and get matches from each file.
-LS4_fp <- "scratch/siteSR_collated_point_meta_LANDSAT_4_DSWE1_v2024-08-27.feather"
-LS5_fp <- "scratch/siteSR_collated_point_meta_LANDSAT_5_DSWE1_v2024-08-27.feather"
-LS7_fp <- "scratch/siteSR_collated_point_meta_LANDSAT_7_DSWE1_v2024-08-27.feather"
-LS8_fp <- "scratch/siteSR_collated_point_meta_LANDSAT_8_DSWE1_v2024-08-27.feather"
-LS9_fp <- "scratch/siteSR_collated_point_meta_LANDSAT_9_DSWE1_v2024-08-27.feather"
-
-# read in site file
-sites <- read_csv("scratch/visible_sites.csv")
-
+# sites
+sites <- read_csv(file.path(siteSR[grepl("sites_with_NHD_info", siteSR)]))
+                            
 sites_less <- sites %>% 
-  select(rowid, OrganizationIdentifier, OrganizationFormalName, MonitoringLocationIdentifier)
-
-# load SDD data
-sdd <- read_feather("../AquaMatch_harmonize_WQP/3_harmonize/out/sdd_harmonized_group.feather")
+  select(siteSR_id, 
+         OrganizationIdentifier = org_id, 
+         MonitoringLocationIdentifier = loc_id) 
 
 # just grab those which are visible
-sdd_sites <- left_join(sites_less, sdd, relationship = "many-to-many")
+sdd_sites <- left_join(sites_less, sdd, 
+                       relationship = "many-to-many")
 
 # reduce for matching
 sdd_sites_less <- sdd_sites %>% 
-  select(rowid, harmonized_utc, subgroup_id)
+  select(siteSR_id, harmonized_utc, subgroup_id)
 
 # do a quick summary 
 site_summary <- sdd_sites_less %>% 
-  summarise(n = n(), .by = rowid)
+  summarise(n = n(), .by = siteSR_id)
 
 # get unique site types here
-unique(sdd_sites$MonitoringLocationTypeName)
+unique(sdd_sites$ResolvedMonitoringLocationTypeName)
 
 # let's limit to Lake data for time purposes
 lakes_only <- sdd_sites %>% 
@@ -59,11 +52,11 @@ lakes_only <- sdd_sites %>%
 
 # and then get fewer cols to match with sat data
 lakes_for_sat <- lakes_only %>% 
-  select(rowid, harmonized_utc, subgroup_id)
+  select(siteSR_id, harmonized_utc, subgroup_id)
 
 # look at those real quick
 lake_locs <- sites %>% 
-  filter(rowid %in% unique(lakes_for_sat$rowid)) %>% 
+  filter(siteSR_id %in% unique(lakes_for_sat$siteSR_id)) %>% 
   st_as_sf(., coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
 
 tmap_mode("plot")
@@ -71,7 +64,7 @@ tm_shape(lake_locs) + tm_dots()
 
 # let's drop the ones that are outside the CONUS for the purposes of this
 states <- tigris::states() %>% 
-  filter(!grepl("AK|AS|MP|VI|HI|PR", STUSPS))
+  filter(!grepl("AK|AS|MP|VI|HI|PR|GU", STUSPS))
 
 lake_locs_CONUS <- lake_locs %>% 
   st_transform(., st_crs(states)) %>% 
@@ -82,59 +75,120 @@ tm_shape(lake_locs_CONUS) + tm_dots()
 
 # that's better, now let's reduce lakes for sat pairing with that info
 lakes_for_sat <- lakes_for_sat %>% 
-  filter(rowid %in% lake_locs_CONUS$rowid)
+  filter(siteSR_id %in% lake_locs_CONUS$siteSR_id)
 
 #### NOW LETS START PAIRING! ########
 
-make_matchups <- function(sat_fp, data) {
-  data <- data %>% 
+make_matchups <- function(sat_data_fp, wq_data) {
+  # data
+  wq_data <- wq_data %>% 
     mutate(harmonized_utc = force_tz(harmonized_utc, "UTC"),
-           date = ymd(format(harmonized_utc, "%Y-%m-%d")))
-  sat <- read_feather(sat_fp) %>% 
-    select(-c(rowid, date)) %>% 
-    mutate(rowid = as.numeric(r_id), 
-           calc_date = ymd(str_sub(system.index, -8, -1))) %>% 
-    rowid_to_column('sat_data_id') %>% 
-    filter(rowid %in% unique(data$rowid))
+           wq_date = ymd(format(harmonized_utc, "%Y-%m-%d")))
+  sat_data <- read_feather(sat_data_fp)  %>% 
+    filter(siteSR_id %in% unique(wq_data$siteSR_id)) 
   
-  sat_less <- sat %>% 
-    select(sat_data_id, rowid, calc_date) 
+  # reduce satellite data
+  sat_less <- sat_data %>% 
+    select(siteSR_id, sat_id, 
+           sat_date = date) %>% 
+    mutate(sat_date = ymd(sat_date))
   
   # coerce to data.table
-  setDT(data)
+  setDT(wq_data)
   setDT(sat_less)
-  setDT(sat)
+  setDT(sat_data)
   
-  # overjoin using data.table syntax (cause this is biiiiiiig) and also filter in one step (also because of size)
-  matches <- sat_less[data, on = .(rowid), allow.cartesian = TRUE][abs(as.integer(difftime(date, calc_date, units = "days"))) <= 5]
+  # overjoin using data.table syntax (this is biiiiiiig) 
+  matches <- sat_less[
+    wq_data, 
+    on = .(siteSR_id), 
+    allow.cartesian = TRUE
+  ][
+    abs(as.integer(difftime(wq_date, 
+                            sat_date, 
+                            units = "days"))) <= 5
+  ]
   
   # add the sat data back in
-  left_join(matches, sat)
+  left_join(matches, sat_data)
 }
 
-five_day_matches <- map2(.x = list(LS4_fp, LS5_fp, LS7_fp, LS8_fp, LS9_fp),
-     .y = list(lakes_for_sat),
-     make_matchups) %>% 
+five_day_matches <- map2(.x = siteSR[grepl("feather", siteSR)],
+                         .y = list(lakes_for_sat),
+                         make_matchups) %>% 
   bind_rows()
 
 five_day_matches <- five_day_matches %>% 
   left_join(., sdd)
 
-write_feather(five_day_matches, "scratch/five_day_sdd_matches.feather")
+write_feather(five_day_matches, "aquamatch_files/five_day_sdd_matches.feather")
 
+
+five_day_summary <- five_day_matches %>% 
+  summarize(n = n(),
+            .by = siteSR_id)
+
+five_day_summary_sensor <- five_day_matches %>% 
+  summarize(n = n(),
+            .by = c(siteSR_id, mission))
 
 lake_locs_with_matches <- lake_locs_CONUS %>% 
-  filter(rowid %in% unique(five_day_matches$rowid)) %>% 
+  filter(siteSR_id %in% unique(five_day_matches$siteSR_id)) %>% 
   left_join(., five_day_summary)
 
 states <- states[lake_locs_with_matches %>% st_transform(crs = st_crs(states)), ]
+
+tmap_mode("plot")
 tm_shape(states) +
   tm_polygons() +
-  tm_shape(lake_locs_with_matches) + 
-  tm_dots("n_matches", 
-          fill.scale = tm_scale(breaks = c(1, 10, 25, 50, 75, 100, 
-                                           500, 1000, 2000, 3000, 
-                                           4000, 5000),
+  tm_shape(lake_locs_with_matches, bbox = states) +
+  tm_dots("n",
+          fill.scale = tm_scale(breaks = c(1, 10, 25, 50, 75, 100,
+                                           500, 1000, 1500),
                                 values = "viridis"),
           size = 0.5,
-          fill_alpha = 0.5)
+          fill_alpha = 0.5) +
+  tm_layout(legend.position = tm_pos_in("right", "bottom"),
+            legend.bg.color = "white",
+            legend.frame = TRUE)
+
+five_day_summary_sensor <- five_day_matches %>% 
+  summarize(n = n(),
+            .by = c(siteSR_id, mission))
+
+five_day_summary_sensor <- five_day_matches %>% 
+  summarize(n = n(),
+            .by = c(siteSR_id, mission)) 
+
+lake_locs_by_mission <- lake_locs_with_matches %>% 
+  select(siteSR_id, geometry) %>% 
+  right_join(five_day_summary_sensor, by = "siteSR_id") %>% 
+  mutate(mission = factor(mission, 
+                          levels = c("LT04", "LT05", "LE07", "LC08", "LC09"),
+                          labels = c("Landsat 4", "Landsat 5", "Landsat 7", "Landsat 8", "Landsat 9")))%>% 
+  arrange(n)
+# Compute totals per mission before faceting
+mission_stats <- lake_locs_by_mission %>% 
+  st_drop_geometry() %>% 
+  summarize(total_matches = sum(n),
+            total_sites = n_distinct(siteSR_id),
+            .by = mission)
+
+lake_locs_by_mission <- lake_locs_by_mission %>% 
+  left_join(mission_stats, by = "mission") %>% 
+  mutate(mission_label = paste0(mission, ", ",
+                                format(total_matches, big.mark = ","), " matches, ",
+                                format(total_sites, big.mark = ","), " sites")) %>% 
+  arrange(n)   # keep your draw-order fix from before
+
+tm_shape(states) +
+  tm_polygons() +
+  tm_shape(lake_locs_by_mission, bbox = states) +
+  tm_dots("n",
+          fill.scale = tm_scale(values = "viridis"),
+          fill.legend = tm_legend(position = tm_pos_on_top(pos.h = "right", pos.v = "bottom"),
+                                  bg.color = "white",
+                                  frame = TRUE, text.size = 1),
+          size = 0.5,
+          fill_alpha = 0.5) +
+  tm_facets_wrap(by = "mission_label", ncol = 2, nrow = 3)

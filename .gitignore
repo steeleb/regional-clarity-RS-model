@@ -3,6 +3,12 @@
 .RData
 .Ruserdata
 
+# local secrets/credentials - never commit this file
+.Renviron
+
+# aquamatch files directory
+aquamatch_files/
+
 # hypertune folder
 regional_clarity/xg_models/hypertune/
 

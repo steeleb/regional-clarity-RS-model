@@ -1,0 +1,4 @@
+# Copy this file to .Renviron (untracked) and fill in real values.
+# R loads .Renviron automatically at session start; access values with Sys.getenv("KEY_NAME").
+#
+# EXAMPLE_API_KEY=your-value-here
