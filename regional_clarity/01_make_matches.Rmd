@@ -21,6 +21,7 @@ library(data.table)
 library(arrow)
 library(sf)
 library(tmap)
+library(tigris)
 library(AquaMatchr)
 library(tidyverse)
 ```
@@ -32,6 +33,8 @@ EDIutils::login(key = Sys.getenv('EDI_API_key'))
 ```
 
 ## AquaMatch data
+
+Download AquaMatch as necessary.
 
 ```{r aquamatch-dir}
 # note location for file storage when downloading via AquaMatchr
@@ -58,15 +61,62 @@ console:
 ```{r download-data, message = FALSE, warning=FALSE}
 # download_parameters() doesn't cache to disk, so we cache it ourselves -
 # otherwise every knit re-downloads from EDI
-sdd_cache <- file.path(aquamatch_dir, "sdd_newest.rds")
-if (file.exists(sdd_cache)) {
-  sdd <- readRDS(sdd_cache)
-} else {
+sdd_cache <- file.path(aquamatch_dir, "sdd_newest.feather")
+if (!file.exists(sdd_cache)) {
   # use AquaMatchr for data gathering
   sdd <- download_parameters("sdd", "newest")
   # get it out of a list
   sdd <- sdd[[1]]
-  saveRDS(sdd, sdd_cache)
+  write_feather(sdd, sdd_cache)
+  rm(sdd)
+}
+
+# apply some QAQC filters for higher quality data and ransac filter
+sdd_filtered <- file.path(aquamatch_dir, "sdd_quality_filter.feather")
+
+# run a ransac-like algorithm per site to remove outliers
+ransac_site <- function(date, sdd, n_iter = 200, threshold = 5, min_sample = 8) {
+  n <- length(sdd)
+  if (n < min_sample + 1) return(rep(FALSE, n))  # too few points to do anything
+  
+  t <- as.numeric(date)
+  best_inliers <- rep(FALSE, n)
+  best_count <- 0
+  
+  for (i in 1:n_iter) {
+    idx <- sample(n, min_sample)
+    if (length(unique(t[idx])) < 2) next  # avoid degenerate fit (same date)
+    
+    fit <- lm(sdd[idx] ~ t[idx])
+    pred <- coef(fit)[1] + coef(fit)[2] * t
+    resid <- abs(sdd - pred)
+    inliers <- resid < threshold
+    
+    if (sum(inliers) > best_count) {
+      best_count <- sum(inliers)
+      best_inliers <- inliers
+    }
+  }
+  best_inliers
+}
+
+if (!file.exists(sdd_filtered)) {
+  read_feather(sdd_cache) %>% 
+    filter(
+      # do some SDD filters - must be in higher tiers of data
+      tier < 3, 
+      # must have a reasonable  value
+      harmonized_value >= 0.1, 
+      # no flags
+      misc_flag == 0, 
+      # not a bottom hit
+      depth_flag == 0
+    ) %>% 
+    group_by(MonitoringLocationIdentifier) %>%
+    arrange(harmonized_local_time) %>%
+    mutate(is_inlier = ransac_site(harmonized_local_time, harmonized_value)) %>% 
+    ungroup() %>% 
+    write_feather(sdd_filtered)
 }
 
 # download_siteSR() writes files to aquamatch_dir, and if it finds files
@@ -83,158 +133,135 @@ if (length(siteSR_existing) > 0) {
 } else {
   siteSR <- download_siteSR(save_location = aquamatch_dir)
 }
+
+# stack the SR product
+unified_data <- file.path(aquamatch_dir, "siteSR_DSWE1_full_concatenation.feather")
+if (!file.exists(unified_data)) {
+  # stack SR product
+  file_list <- siteSR[grepl(".feather", siteSR)]
+  
+  # Read files and stack - pulled from AquaMatchr buildSR() function
+  # We use the {arrow} package to concatenate the datasets into a single table
+  # instead of something like rbind(), which likely will use more memory than is
+  # available to the user.
+  unified_sr_dataset <- open_dataset(
+    # All files indicated to contain SR data
+    sources = file_list,
+    # The files should not be assumed to have Hive-style partitioning
+    hive_style = FALSE,
+    # They are saved as .feather files
+    format = "feather",
+    # Don't assume all files in the file_list have the same scheme. For
+    # example, Aerosols cols may not be present in all
+    unify_schemas = TRUE
+  ) %>%
+    # Convert to Arrow Table
+    as_arrow_table()
+  
+  write_feather(unified_sr_dataset, 
+                file.path(aquamatch_dir, 
+                          "siteSR_DSWE1_full_concatenation.feather"))
+  
+  # remove the dataset from workingspace
+  rm(unified_sr_dataset)
+}
+
+# Make the matchups using AquaMatchr
+
+# Define paths to downloaded and stacked data
+sr_sites <- siteSR[grepl("collated_WQP_NWIS_sites", siteSR)]
+out_file <- file.path(aquamatch_dir, "sdd_siteSR_matchups_5d.parquet")
+
+if (file.exists(out_file)) {
+  sdd_match <- read_parquet(out_file)
+} else {
+  # Work around a duckdb bug where it fails to create its temp directory
+  # because the parent "duckdb" folder under tempdir() doesn't exist yet
+  dir.create(file.path(tempdir(), "duckdb"), recursive = TRUE, showWarnings = FALSE)
+  
+  # Run the matchups with a 5-day window
+  match_siteSR_to_WQP(
+    wqp_path = sdd_filtered,
+    siteSR_path = unified_data,
+    site_list_path = sr_sites,
+    save_location = out_file,
+    time_window = "5 days"
+  )
+  
+  # Read file
+  sdd_match <- read_parquet(out_file)
+}
+
 ```
 
-```{r sites}
-# sites
-sites <- read_csv(file.path(siteSR[grepl("sites_with_NHD_info", siteSR)]))
-
-# just grab some info for SDD filtering and plotting
-sites_less <- sites %>%
-  select(siteSR_id,
-         OrganizationIdentifier = org_id,
-         MonitoringLocationIdentifier = loc_id)
-```
-
-```{r sdd-sites}
-# just grab those which are visible
-sdd_sites <- left_join(sites_less, sdd,
-                       relationship = "many-to-many")
-
-# reduce for matching
-sdd_sites_less <- sdd_sites %>%
-  select(siteSR_id, harmonized_utc, subgroup_id)
-
-# do a quick summary
-site_summary <- sdd_sites_less %>%
-  summarise(n = n(), .by = siteSR_id)
-
-# get unique site types here
-unique(sdd_sites$ResolvedMonitoringLocationTypeName)
-```
+Let's limit to Lake data for our purposes and remove the Great Lakes.
 
 ```{r lakes-only}
-# let's limit to Lake data for our purposes
-lakes_only <- sdd_sites %>%
-  filter(grepl("Lake|Reservoir", MonitoringLocationTypeName)) %>%
-  # remove the great lakes for this matching process
-  filter(!grepl("Great", MonitoringLocationTypeName))
+lake_sdd <- sdd_match %>%
+  filter(
+    # select for lake/reservoir only
+    grepl("Lake|Reservoir", MonitoringLocationTypeName),
+    # remove the great lakes for this matching process
+    !grepl("Great", MonitoringLocationTypeName)
+  )
 
-# and then reduce cols to match with sat data
-lakes_for_sat <- lakes_only %>%
-  select(siteSR_id, harmonized_utc, subgroup_id)
+
+rm(sdd_match)
+
+write_feather(lake_sdd, file.path(aquamatch_dir, "sdd_CONUS_lake_5d_matchups.feather"))
 ```
 
-```{r lake-locs}
-# look at those real quick
-lake_locs <- sites %>%
-  filter(siteSR_id %in% unique(lakes_for_sat$siteSR_id)) %>%
-  st_as_sf(., coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
-
-tmap_mode("plot")
-tm_shape(lake_locs) +
-  tm_dots()
-```
+Do some spatial filtering to CONUS only
 
 ```{r conus-only, , message = FALSE, warning=FALSE}
+sites <- read_csv(sr_sites)
+sites_w_matches <- sites %>% 
+  filter(siteSR_id %in% unique(lake_sdd$siteSR_id)) %>% 
+  st_as_sf(coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
+
 # let's drop the ones that are outside the CONUS for the purposes of this
-states <- tigris::states() %>%
+conus <- suppressMessages(states(progress_bar = FALSE)) %>%
   filter(!grepl("AK|AS|MP|VI|HI|PR|GU", STUSPS))
 
-lake_locs_CONUS <- lake_locs %>%
-  st_transform(., st_crs(states)) %>%
-  .[states,] %>%
-  st_transform(., st_crs(lake_locs))
+lake_locs_CONUS <- sites_w_matches %>%
+  st_transform(., st_crs(conus)) %>%
+  .[conus,] %>%
+  st_transform(., st_crs(sites_w_matches))
 ```
 
 And plot
 
 ```{r}
-tm_shape(lake_locs_CONUS) + tm_dots()
+tm_shape(conus) +
+  tm_borders() +
+  tm_shape(lake_locs_CONUS) + 
+  tm_dots()
 ```
 
-That's better, now let's reduce lakes for sat pairing with that info
-
-```{r lakes-for-sat-conus}
-lakes_for_sat <- lakes_for_sat %>%
-  filter(siteSR_id %in% lake_locs_CONUS$siteSR_id)
-```
-
-## Make matchups
-
-```{r make-matchups-function}
-make_matchups <- function(sat_data_fp, wq_data) {
-  # data
-  wq_data <- wq_data %>%
-    mutate(harmonized_utc = force_tz(harmonized_utc, "UTC"),
-           wq_date = ymd(format(harmonized_utc, "%Y-%m-%d")))
-  sat_data <- read_feather(sat_data_fp)  %>%
-    filter(siteSR_id %in% unique(wq_data$siteSR_id))
-
-  # reduce columns in satellite data
-  sat_less <- sat_data %>%
-    select(siteSR_id, sat_id,
-           sat_date = date) %>%
-    mutate(sat_date = ymd(sat_date))
-
-  # coerce to data.table
-  setDT(wq_data)
-  setDT(sat_less)
-  setDT(sat_data)
-
-  # overjoin using data.table syntax (this is biiiiiiig)
-  matches <- sat_less[
-    wq_data,
-    on = .(siteSR_id),
-    allow.cartesian = TRUE
-  ][
-    # and filter to window of 5 days
-    abs(as.integer(difftime(wq_date,
-                            sat_date,
-                            units = "days"))) <= 5
-  ]
-
-  # add the sat data back in
-  left_join(matches, sat_data)
-}
-```
-
-```{r apply-matchups}
-# apply function
-five_day_matches <- map2(.x = siteSR[grepl("feather", siteSR)],
-                         .y = list(lakes_for_sat),
-                         make_matchups) %>%
-  bind_rows()
-
-# join with SDD data
-five_day_matches <- five_day_matches %>%
-  left_join(., sdd)
-```
-
-```{r export-matches}
-# export
-write_feather(five_day_matches, "aquamatch_files/five_day_sdd_matches.feather")
-```
 
 ## Summary and Figures
 
+Make some summary tables
+
 ```{r summary-by-site}
 # summarize by number of matches per site
-five_day_summary <- five_day_matches %>%
+five_day_summary <- lake_sdd %>%
   summarize(n = n(),
             .by = siteSR_id)
 
 # add in spatial data
 lake_locs_with_matches <- lake_locs_CONUS %>%
-  filter(siteSR_id %in% unique(five_day_matches$siteSR_id)) %>%
+  filter(siteSR_id %in% unique(lake_sdd$siteSR_id)) %>%
   left_join(., five_day_summary)
 ```
 
+Plot locations colored by number of matches
+
 ```{r plot-all-missions}
 # plot all missions
-tm_shape(states) +
+tm_shape(conus) +
   tm_polygons() +
-  tm_shape(lake_locs_with_matches, bbox = states) +
+  tm_shape(lake_locs_with_matches, bbox = conus) +
   tm_dots("n",
           fill.scale = tm_scale(breaks = c(1, 10, 25, 50, 75, 100,
                                            500, 1000, 1500),
@@ -246,14 +273,16 @@ tm_shape(states) +
             legend.frame = TRUE)
 ```
 
+And also by number of matches per mission
+
 ```{r summary-by-mission}
 # and per site per mission
-five_day_summary_sensor <- five_day_matches %>%
+five_day_summary_sensor <- lake_sdd %>%
   summarize(n = n(),
             .by = c(siteSR_id, mission))
 
 # add spatial data and label info
-lake_locs_by_mission <- lake_locs_with_matches %>%
+lake_locs_by_mission <- lake_locs_CONUS %>%
   select(siteSR_id, geometry) %>%
   right_join(five_day_summary_sensor, by = "siteSR_id") %>%
   mutate(mission = factor(mission,
@@ -274,14 +303,12 @@ lake_locs_by_mission <- lake_locs_by_mission %>%
   mutate(mission_label = paste0(mission, ", ",
                                 format(total_matches, big.mark = ","), " matches, ",
                                 format(total_sites, big.mark = ","), " sites")) %>%
-  arrange(n)   # keep your draw-order fix from before
-```
+  arrange(n)   
 
-```{r plot-by-mission}
 # plot!
-tm_shape(states) +
+tm_shape(conus) +
   tm_polygons() +
-  tm_shape(lake_locs_by_mission, bbox = states) +
+  tm_shape(lake_locs_by_mission, bbox = conus) +
   tm_dots("n",
           fill.scale = tm_scale(values = "viridis"),
           fill.legend = tm_legend(position = tm_pos_on_top(pos.h = "right", pos.v = "bottom"),

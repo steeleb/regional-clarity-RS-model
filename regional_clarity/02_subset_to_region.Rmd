@@ -1,12 +1,13 @@
 ---
 title: "Subset to Region"
 author: "B Steele, Colorado State University, ROSSyndicate"
-date: "last updated Aug 11, 2026"
+date: "last updated Sept 01, 2026"
 output: html_document
 ---
 
-This code reduces the 5-day matchups to those in a 6-state region and
-applies some QA filters to the data to create the ML dataset.
+This code reduces the 5-day matchups to those in the HUC4's of a 6-state region
+including Colorado, Wyoming, Utah, Idaho, Monana and New Mexico and
+applies some QA filters to the data to create a machine learning dataset.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -21,42 +22,72 @@ library(sf)
 library(arrow)
 library(tigris)
 library(tmap)
-library(nhdplusTools)
-```
+library(hydrogeofetch)
 
-```{r read-matches}
 # read in 5-day match
-sdd_5d <- read_feather("aquamatch_files/five_day_sdd_matches.feather")
+sdd_5d <- read_feather("aquamatch_files/sdd_CONUS_lake_5d_matchups.feather")
 ```
 
 ### Reduce AOI to Mountain West HUC4's
 
-Get unique sites.
+Get site info.
 
 ```{r unique-sites}
-unique_sites <- sdd_5d %>%
-  select(siteSR_id, lon, lat) %>%
-  unique() %>%
-  st_as_sf(., coords = c("lon", "lat"), crs = "EPSG:4326")
+sites <- read_csv("aquamatch_files/siteSR_collated_WQP_NWIS_sites_with_NHD_info_2025-06-04.csv")
+
+sites_filtered <- sites %>%
+  filter(siteSR_id %in% unique(sdd_5d$siteSR_id)) %>%
+  st_as_sf(., coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
 ```
 
 Filter to states we care about.
 
 ```{r states-aoi, message = FALSE, warning=FALSE}
-states <- states() %>%
+states <- states(progress_bar = FALSE) %>%
   filter(STUSPS %in% c("CO", "WY", "UT", "ID", "MT", "NM"))
 states_union <- states %>% st_union()
 ```
 
-Grab all the HUC4's from NHD
+Grab all the HUC4's from NHD and validate them
 
 ```{r huc4}
-HUC4 <- get_huc(AOI = states_union,
-                type = "huc04")
+# get_huc() kept timing out (HTTP 504) against the USGS pygeoapi service, even
+# retried state-by-state, so instead download the national WBD geodatabase
+# once (cached in aquamatch_files/) and filter to our HUC4's locally.
+wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
+
+huc4_layer <- st_layers(wbd_gdb)$name %>%
+  keep(~ grepl("HU4$", ., ignore.case = TRUE))
+
+HUC4_national <- st_read(wbd_gdb, layer = huc4_layer, quiet = TRUE) %>%
+  rename_with(tolower) %>%
+  # WBD ships with Z values and a compound CRS (NAD83 + NAVD88 height);
+  # transforming a 2D CRS into that compound CRS silently breaks (no vertical
+  # grid to invent a Z), so drop Z here - horizontal datum is then plain NAD83
+  st_zm(drop = TRUE, what = "ZM")
+
+# standardize the geometry column name to "geometry" (FileGDB layers are
+# often read in with the geometry column named "shape")
+geom_col <- attr(HUC4_national, "sf_column")
+if (geom_col != "geometry") {
+  names(HUC4_national)[names(HUC4_national) == geom_col] <- "geometry"
+  st_geometry(HUC4_national) <- "geometry"
+}
+
+# reset (not transform) the CRS now that only the horizontal NAD83 datum
+# remains, matching states_union - no reprojection needed
+st_crs(HUC4_national) <- st_crs(states_union)
+
+# reduce from the national layer to just the HUC4's touching our 6-state AOI
+HUC4 <- HUC4_national %>%
+  st_make_valid() %>%
+  st_filter(states_union)
+
 HUC4v <- st_make_valid(HUC4)
 ```
 
-And then assess overlapping area
+And then assess overlapping area - here we want to inlcude HUCs that overlap
+the 6-state area by at least 50%.
 
 ```{r huc4-overlap}
 overlap_areas <- st_make_valid(HUC4v) %>%
@@ -73,93 +104,82 @@ HUC4_filtered <- HUC4v %>%
     overlap_frac = as.numeric(overlap_area / st_area(geometry))
   ) %>%
   filter(overlap_frac >= 0.50)
-```
 
-```{r regional-sites}
 # add huc info and filter to this extent
-regional_sites <- unique_sites %>%
+regional_sites <- sites_filtered %>%
   st_transform(st_crs(HUC4_filtered)) %>%
   st_join(HUC4_filtered %>% select(huc4), left = FALSE)
 
-# add sdd info back
-regional_sdd <- regional_sites %>%
-  left_join(., sdd_5d)
+# add sdd info back, carrying along each site's HUC4 label
+regional_sdd <- sdd_5d %>%
+  filter(siteSR_id %in% regional_sites$siteSR_id) %>%
+  left_join(
+    regional_sites %>%
+      st_drop_geometry() %>%
+      select(siteSR_id, HUC4 = huc4) %>%
+      # guard against a site sitting exactly on a shared HUC4 boundary,
+      # which could otherwise match more than one polygon in the spatial join
+      distinct(siteSR_id, .keep_all = TRUE),
+    by = "siteSR_id"
+  )
 ```
 
 ## QA the data
 
+Here, we apply some filters to make sure we are training the ML model with 
+high-quality remote sensing data.
+
 ```{r qa-filters}
 # apply some QA filters
 reg_sdd_filtered <- regional_sdd %>%
-  filter(pCount_dswe1/pCount_dswe_gt0 > .5 & pCount_dswe1 > 8 & prop_clouds == 0) %>%
-  select(siteSR_id, sat_id, subgroup_id, sat_date, date,
-         harmonized_value, depth_flag, tier, misc_flag, field_flag,
-         med_Blue:med_SurfaceTemp, med_Aerosol, mission,
-         MonitoringLocationTypeName,
-         lon, lat, huc4) %>%
-  # do some quick filtering from ASv2
-  filter(tier < 3, harmonized_value  >= 0.1, misc_flag == 0, depth_flag == 0)
+  # RS data filter
+  filter(
+    # make sure at least 50% of pixels in area are water of some type
+    pCount_dswe1/pCount_dswe_gt0 > 0.5,
+    # make sure there are at least 8 pixels
+    pCount_dswe1 > 8,
+    # make sure there is no indication of cloud in the pixels
+    prop_clouds == 0,
+    # filter for inlier SDD only
+    is_inlier
+  )
 ```
+
+And then making sure we're using the observation closest in time to the measurement.
+This assures we're not using multiple satellites for the same data point in our 
+training dataset. We will also export those that are not included as a possible
+additional test set.
 
 ```{r closest-obs}
 # grab the observation closes in date to a satellite flyover
 reg_sdd_closest <- reg_sdd_filtered %>%
-  mutate(date_diff = date-sat_date) %>%
-  arrange(abs(date_diff)) %>%
-  dplyr::slice(1, .by = c("subgroup_id"))
-```
+  arrange(abs(time_diff), mission) %>%
+  slice(1, .by = c("subgroup_id"))
 
-```{r ransac-function}
-# run a ransac-like algorithm per site to remove outliers
-ransac_site <- function(date, sdd, n_iter = 200, threshold = 5, min_sample = 2) {
-  n <- length(sdd)
-  if (n < min_sample + 1) return(rep(FALSE, n))  # too few points to do anything
+# let's also do an anti-join here of the other observations so that we have an
+# additional validation dataset to play with.
+reg_sdd_additional <- anti_join(reg_sdd_filtered, reg_sdd_closest)
 
-  t <- as.numeric(date)
-  best_inliers <- rep(FALSE, n)
-  best_count <- 0
-
-  for (i in 1:n_iter) {
-    idx <- sample(n, min_sample)
-    if (length(unique(t[idx])) < 2) next  # avoid degenerate fit (same date)
-
-    fit <- lm(sdd[idx] ~ t[idx])
-    pred <- coef(fit)[1] + coef(fit)[2] * t
-    resid <- abs(sdd - pred)
-    inliers <- resid < threshold
-
-    if (sum(inliers) > best_count) {
-      best_count <- sum(inliers)
-      best_inliers <- inliers
-    }
-  }
-  best_inliers
-}
-```
-
-```{r apply-ransac}
-# apply and filter inliers only
-filtered_ml <- reg_sdd_closest %>%
-  group_by(siteSR_id) %>%
-  arrange(date) %>%
-  mutate(is_inlier = ransac_site(date, harmonized_value)) %>%
-  ungroup() %>%
-  filter(is_inlier)
+write_feather(reg_sdd_additional, "aquamatch_files/regional_sdd_not_closest.feather")
 ```
 
 ## Visualize data
 
+Let's look at some longer records to do a sanity check to make sure that all 
+the filters worked correctly.
+
 ```{r site-summary}
 # summarize by site for plotting
-regional_site_summary <- filtered_ml %>%
+regional_site_summary <- reg_sdd_closest %>%
+  st_as_sf(coords = c("lon", "lat"), 
+           crs = "EPSG:4326") %>% 
   summarize(n = n(), .by = c(siteSR_id, geometry)) %>%
   arrange(n)
 
 # look at some of the records with a lot of data
 regional_long_record <- regional_site_summary %>%
-  st_drop_geometry() %>%
   filter(n > 100) %>%
-  left_join(., filtered_ml)
+  left_join(., reg_sdd_closest)
 
 ggplot(regional_long_record, aes(x = date, y = harmonized_value)) +
   geom_point() +
@@ -167,8 +187,9 @@ ggplot(regional_long_record, aes(x = date, y = harmonized_value)) +
   theme_bw()
 ```
 
+Look at data spatially by site
+
 ```{r plot-sites-spatial}
-# look at data spatially
 tm_shape(HUC4_filtered) +
   tm_shape(states %>%
              st_transform(st_crs(HUC4_filtered))) +
@@ -181,26 +202,35 @@ tm_shape(HUC4_filtered) +
           fill.scale = tm_scale_continuous(values = "viridis"))
 ```
 
+And summarize by HUC4
+
 ```{r plot-huc-summary}
-# and by HUC
-regional_huc_summary <- filtered_ml %>%
-  st_drop_geometry() %>%
-  summarize(n = n(), .by = c(huc4)) %>%
-  inner_join(HUC4_filtered, .)
+regional_huc_summary <- reg_sdd_closest %>%
+    st_as_sf(coords = c("lon", "lat"),
+           crs = "EPSG:4326") %>%
+  st_transform(., st_crs(HUC4_filtered)) %>%
+  st_join(HUC4_filtered, .) %>%
+  summarize(n = sum(!is.na(siteSR_id)), .by = c(huc4, geometry))
+
 
 tm_shape(HUC4_filtered) +
   tm_shape(states %>%
              st_transform(st_crs(HUC4_filtered))) +
   tm_polygons() +
-  tm_shape(regional_huc_summary) +
+  tm_shape(HUC4_filtered) +
+  tm_polygons(fill_alpha = 0) +
+  # drop 0-count HUC4s so they're left uncolored (outline only) instead of
+  # taking the low end of the viridis scale
+  tm_shape(regional_huc_summary %>% filter(n > 0)) +
   tm_polygons("n",
               fill.scale = tm_scale_continuous(values = "viridis"),
               fill_alpha = 0.5)
+
 ```
 
 ## Export data
 
 ```{r export}
-write_feather(filtered_ml %>% st_drop_geometry(),
+write_feather(reg_sdd_closest,
               "aquamatch_files/filtered_regional_sdd.feather")
 ```

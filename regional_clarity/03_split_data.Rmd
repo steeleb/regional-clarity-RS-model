@@ -1,0 +1,158 @@
+---
+title: "Split Data"
+author: "B Steele, Colorado State University, ROSSyndicate"
+date: "last updated Sep 1, 2026"
+output: html_document
+---
+
+This code splits the filtered regional SDD dataset into 5 roughly-equal
+parts, grouped by HUC4 so that a given HUC4 basin isn't divided across
+splits, for downstream train/test/cross-validation use. We then map the
+resulting split assignment as a sanity check.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r libraries, message = FALSE, warning=FALSE}
+# load libraries
+library(tidyverse)
+library(arrow)
+library(sf)
+library(tmap)
+library(tigris)
+library(hydrogeofetch)
+
+# ROSSyndicate light palette for plotting
+ROSS_lt_pal <- c("#002EA3", "#E70870", "#256BF5",
+                 "#745CFB", "#1E4D2B", "#56104E")
+
+# read in the filtered regional dataset from script 02
+filtered_ml <- read_feather("aquamatch_files/filtered_regional_sdd.feather")
+```
+
+## Split into balanced partitions by HUC4
+
+We want 5 partitions of roughly equal size, without splitting any single
+HUC4's data across partitions. To do this, we sort HUC4s by row count
+(largest first) and greedily assign each one to whichever of the 5 running
+partitions currently has the fewest rows. This "greedy bin-packing" keeps
+the partitions size-balanced while keeping each HUC4 intact within a single
+partition.
+
+```{r split-huc4}
+total_rows <- nrow(filtered_ml)
+target_size <- ceiling(total_rows / 5)
+
+# row count per HUC4, largest first
+huc4_sizes <- filtered_ml %>%
+  group_by(HUC4) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+
+# greedily assign each HUC4 to the currently-smallest partition
+parts <- vector("list", 5)
+part_sizes <- rep(0, 5)
+
+for (i in 1:nrow(huc4_sizes)) {
+  smallest_part <- which.min(part_sizes)
+  parts[[smallest_part]] <- c(parts[[smallest_part]], huc4_sizes$HUC4[i])
+  part_sizes[smallest_part] <- part_sizes[smallest_part] + huc4_sizes$count[i]
+}
+
+# subset df to the HUC4s in a given partition and label with the partition number
+split_df <- function(df, parts, part_label) {
+  map(parts, function(huc4_list) {
+    df %>%
+      filter(HUC4 %in% huc4_list)
+  }) %>%
+    bind_rows() %>%
+    mutate(part = part_label)
+}
+
+# apply the split and label to all 5 partitions, then recombine
+split_dataframes <- pmap(list(list(filtered_ml),
+                              parts,
+                              seq(1:5)),
+                         split_df) %>%
+  bind_rows()
+```
+
+## Visualize the split
+
+Plot the resulting split assignment spatially as a check.
+
+```{r map-splits}
+# unique site locations, colored by split assignment
+sites <- split_dataframes %>%
+  summarize(n = n(), .by = c(siteSR_id, lon, lat, part)) %>%
+  st_as_sf(.,
+           coords = c("lon",
+                      "lat"),
+           crs = "EPSG:4326") %>%
+  mutate(split = part)
+
+# 6-state region and HUC4 boundaries for context
+states <- states(progress_bar = FALSE) %>%
+  filter(STUSPS %in% c("CO", "WY", "UT", "ID", "MT", "NM"))
+states_union <- states %>% st_union()
+
+# get_huc() (nhdplusTools/hydrogeofetch) times out (HTTP 504) against the USGS
+# pygeoapi service, so instead read HUC4's from the national WBD geodatabase
+# (downloaded once and cached in aquamatch_files/ by script 02) and filter
+# to our 6-state AOI locally.
+wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
+
+huc4_layer <- st_layers(wbd_gdb)$name %>%
+  keep(~ grepl("HU4$", ., ignore.case = TRUE))
+
+HUC4s <- st_read(wbd_gdb, layer = huc4_layer, quiet = TRUE) %>%
+  rename_with(tolower) %>%
+  # WBD ships with Z values and a compound CRS (NAD83 + NAVD88 height);
+  # transforming a 2D CRS into that compound CRS silently breaks (no vertical
+  # grid to invent a Z), so drop Z here - horizontal datum is then plain NAD83
+  st_zm(drop = TRUE, what = "ZM")
+
+# standardize the geometry column name to "geometry" (FileGDB layers are
+# often read in with the geometry column named "shape")
+geom_col <- attr(HUC4s, "sf_column")
+if (geom_col != "geometry") {
+  names(HUC4s)[names(HUC4s) == geom_col] <- "geometry"
+  st_geometry(HUC4s) <- "geometry"
+}
+
+# reset (not transform) the CRS now that only the horizontal NAD83 datum
+# remains, matching states_union - no reprojection needed
+st_crs(HUC4s) <- st_crs(states_union)
+
+# reduce from the national layer to just the HUC4's touching our 6-state AOI
+HUC4s <- HUC4s %>%
+  st_make_valid() %>%
+  st_filter(states_union)
+
+tm_shape(HUC4s) +
+  tm_shape(states) +
+  tm_polygons(col = "grey70") +
+  tm_borders(col = "grey20") +
+  tm_shape(HUC4s) +
+  tm_polygons(fill_alpha = 0) +
+  tm_borders(col = "black") +
+  tm_shape(sites) +
+  tm_symbols(fill = "split",
+             col = NA,
+             size = 0.5,
+             fill_alpha = 0.2,
+             fill.scale = tm_scale_discrete(values = ROSS_lt_pal)) +
+  tm_shape(states) +
+  tm_text("STUSPS", col = "grey20") +
+  tm_layout(frame = FALSE,
+            legend.position = tm_pos_in("right", "top"))
+```
+
+## Export data
+
+```{r export}
+write_feather(split_dataframes, "aquamatch_files/split_filtered_regional.feather")
+```
