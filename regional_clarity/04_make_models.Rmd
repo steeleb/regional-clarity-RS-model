@@ -1,0 +1,1255 @@
+---
+title: "Make Models"
+author: "B Steele, Colorado State University, ROSSyndicate"
+date: "last updated Sep 1, 2026"
+output: html_document
+---
+
+This code trains XGBoost models to predict Secchi disk depth from Landsat
+surface reflectance for the 6-state regional dataset. We apply the AquaMatch
+cross-sensor corrections, engineer band-ratio spectral indices, split the
+partitioned dataset from script 03 into cross-validation and test sets,
+tune hyperparameters, train four leave-one-partition-out models, and
+evaluate performance on the held-out test partition.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r libraries, message = FALSE, warning=FALSE}
+# load libraries
+library(tidyverse)
+library(arrow)
+library(xgboost)
+library(Metrics)
+library(igraph)
+library(sf)
+library(tmap)
+library(tigris)
+library(hydrogeofetch)
+
+# read in the partitioned dataset from script 03
+split_dataframes <- read_feather("aquamatch_files/split_filtered_regional.feather")
+```
+
+## Apply cross-sensor corrections
+
+Landsat missions differ slightly in their band responses, so we apply
+Gardner et al.'s per-band quadratic correction coefficients (referenced to
+Landsat 7) to harmonize reflectance values across missions before deriving
+any indices.
+
+```{r sensor-corrections}
+am_corr_LS7 <- read_csv("aquamatch_files/lakeSR_collated_handoffs_GEEv2025-02-12_QAv2025-06-04.csv") %>%
+  filter(correction == "Gardner", dswe == "DSWE1", sat_to == "LS7") %>% 
+  # pivot for easier application
+  pivot_longer(cols = c(intercept, B1, B2, min_in_val, max_in_val),
+               names_to = "int_coef",
+               values_to = "value") %>%
+  mutate(new_column = paste(band, int_coef, sep = "_")) %>%
+  select(-c(band, int_coef, slope, method)) %>%
+  pivot_wider(names_from = new_column,
+              values_from = value)
+
+# apply coefficients to timeseries data
+split_dataframes_corr <- split_dataframes %>%
+  mutate(sat_corr = case_when(mission == "LT04" ~ "LS5", # landsat 4 is roughly the same as 5
+                              mission == "LT05" ~ "LS5",
+                              mission == "LE07" ~ "LS7",
+                              mission == "LC08" ~ "LS8",
+                              mission == "LC09" ~ "LS8", # landsat 9 is roughly the same as 8
+                              TRUE ~ NA_character_),
+         # LEDAPS atm correction for L4/5/7, LaSRC for L8/9
+         atm_corr = case_when(mission %in% c("LT04", "LT05", "LE07") ~ "LEDAPS",
+                              mission %in% c("LC08", "LC09") ~ "LaSRC",
+                              TRUE ~ NA_character_),
+         # numeric encoding for xgboost (LEDAPS as reference level)
+         atm_corr_LaSRC = as.numeric(atm_corr == "LaSRC")) %>%
+  left_join(., am_corr_LS7) %>%
+  mutate(red_corr7 = med_Red_intercept + med_Red_B1*med_Red + med_Red_B2*med_Red^2,
+         green_corr7 = med_Green_intercept + med_Green_B1*med_Green + med_Green_B2*med_Green^2,
+         blue_corr7 = med_Blue_intercept + med_Blue_B1*med_Blue + med_Blue_B2*med_Blue^2,
+         nir_corr7 = med_Nir_intercept + med_Nir_B1*med_Nir + med_Nir_B2*med_Nir^2,
+         swir1_corr7 = med_Swir1_intercept + med_Swir1_B1*med_Swir1 + med_Swir1_B2*med_Swir1^2,
+         swir2_corr7 = med_Swir2_intercept + med_Swir2_B1*med_Swir2 + med_Swir2_B2*med_Swir2^2) %>% 
+  # store ls7 in the corr7 column
+  mutate(red_corr7 = if_else(sat_corr == "LS7", med_Red, red_corr7),
+         green_corr7 = if_else(sat_corr == "LS7", med_Green, green_corr7),
+         blue_corr7 = if_else(sat_corr == "LS7", med_Blue, blue_corr7),
+         nir_corr7 = if_else(sat_corr == "LS7", med_Nir, nir_corr7),
+         swir1_corr7 = if_else(sat_corr == "LS7", med_Swir1, swir1_corr7),
+         swir2_corr7 = if_else(sat_corr == "LS7", med_Swir2, swir2_corr7)) %>% 
+  select(-c(all_of(names(am_corr_LS7)))) 
+
+```
+
+Do a quick plot to check that the correction seems right
+
+```{r}
+max_n_sites <- split_dataframes_corr %>% 
+  summarize(n = n(), .by = siteSR_id) %>% 
+  filter(n > 100) %>% 
+  left_join(split_dataframes_corr)
+
+ggplot() +
+  geom_point(data = max_n_sites, aes(x = date, y = med_Blue), color = "grey") +
+  geom_point(data = max_n_sites, aes(x = date, y = blue_corr7, color = mission))  +
+  facet_wrap(siteSR_id ~ .) +
+  theme_bw()
+```
+
+## RANSAC-like filtering on the reflectance bands
+
+Script 01 runs a RANSAC-like filter on SDD alone (one scalar, one line-vs-time
+fit, one residual per point). The corrected bands here are six correlated
+values per observation, so filtering them independently, band by band, would
+let each band pick its own inlier subset - a single matchup row needs one
+keep/drop decision, not six that disagree. Reflectance is also a shakier fit
+against a straight line over a site's full record than SDD is (blooms,
+turbidity, and seasonality move bands around much more), so instead of a raw
+residual threshold in reflectance units (which wouldn't transfer across bands
+on different scales anyway) we standardize each band's per-iteration residual
+by its own MAD and combine into one z-score per point, then threshold on that
+combined score. Same random-subsample-and-count-inliers structure as
+`ransac_site()`, just fitting all six bands per iteration instead of one.
+
+Critically, each band's z-score scale is estimated *once*, from a single
+all-data fit, rather than re-derived from each candidate subsample's own
+residuals: standardizing by a per-iteration scale lets a bad candidate line
+inflate its own denominator, so a wild-enough fit makes every point
+(including the real outliers) look small in z-units and wins on raw inlier
+count. A fixed reference scale keeps a bad candidate's residuals large
+relative to a stable yardstick, so it can't win that way.
+
+```{r ransac-multiband-function}
+ransac_site_multiband <- function(date, band_mat, n_iter = 200, threshold = 2.5,
+                                  min_sample = 8) {
+  n <- nrow(band_mat)
+  nb <- ncol(band_mat)
+  if (n < min_sample + 1) return(rep(FALSE, n))  # too few points to do anything
+
+  t <- as.numeric(date)
+
+  # fixed per-band residual scale from a single all-data fit (MAD is robust
+  # up to ~50% contamination, well above what we expect here) - reused for
+  # every candidate subsample below instead of recomputed per iteration
+  band_scale <- vapply(seq_len(nb), function(b) {
+    resid <- residuals(lm(band_mat[, b] ~ t))
+    s <- mad(resid, na.rm = TRUE)
+    if (is.na(s) || s == 0) s <- sd(resid, na.rm = TRUE)
+    s
+  }, numeric(1))
+
+  best_inliers <- rep(FALSE, n)
+  best_count <- 0
+
+  for (i in 1:n_iter) {
+    idx <- sample(n, min_sample)
+    if (length(unique(t[idx])) < 2) next  # avoid degenerate fit (same date)
+
+    # fit each band vs time on the *same* subsample, standardize each band's
+    # residuals by its fixed scale, then combine - keeps one band's scale
+    # (e.g. NIR) from dominating and keeps the threshold comparable across
+    # candidate lines of very different quality
+    z <- matrix(NA_real_, nrow = n, ncol = nb)
+    for (b in seq_len(nb)) {
+      y <- band_mat[, b]
+      if (length(unique(y[idx])) < 2 || is.na(band_scale[b]) || band_scale[b] == 0) next
+
+      fit <- lm(y[idx] ~ t[idx])
+      pred <- coef(fit)[1] + coef(fit)[2] * t
+      resid <- y - pred
+      z[, b] <- abs(resid) / band_scale[b]
+    }
+
+    combined_z <- rowMeans(z, na.rm = TRUE)
+    inliers <- !is.na(combined_z) & combined_z < threshold
+
+    if (sum(inliers) > best_count) {
+      best_count <- sum(inliers)
+      best_inliers <- inliers
+    }
+  }
+  best_inliers
+}
+```
+
+Apply it per site (`siteSR_id`) on the six sensor-corrected bands, arranged by
+date so the time fit is meaningful.
+
+```{r ransac-multiband-run}
+set.seed(47)
+
+band_cols <- c("red_corr7", "green_corr7", "blue_corr7",
+               "nir_corr7", "swir1_corr7", "swir2_corr7")
+
+split_dataframes_corr <- split_dataframes_corr %>%
+  arrange(siteSR_id, date) %>%
+  group_by(siteSR_id) %>%
+  mutate(is_band_inlier = ransac_site_multiband(date, as.matrix(pick(all_of(band_cols))))) %>%
+  ungroup()
+
+# how many observations (and what fraction) got flagged per site
+split_dataframes_corr %>%
+  summarise(n = n(), n_outlier = sum(!is_band_inlier), .by = siteSR_id) %>%
+  filter(n_outlier > 0) %>%
+  mutate(frac_outlier = n_outlier / n) %>%
+  arrange(desc(frac_outlier))
+```
+
+Spot-check on the same high-record sites plotted above: flagged points should
+look like genuine spectral excursions (residual cloud/shadow contamination,
+glint) rather than a large fraction of any one site's record.
+
+```{r ransac-multiband-check}
+max_n_sites_flagged <- split_dataframes_corr %>%
+  filter(siteSR_id %in% unique(max_n_sites$siteSR_id))
+
+ggplot(max_n_sites_flagged, aes(x = date, y = nir_corr7, color = is_band_inlier)) +
+  geom_point() +
+  facet_wrap(siteSR_id ~ .) +
+  scale_color_manual(values = c(`TRUE` = "grey40", `FALSE` = "red")) +
+  theme_bw()
+```
+
+Drop the flagged rows before moving on to spectral-index engineering.
+
+```{r ransac-multiband-filter}
+split_dataframes_corr <- split_dataframes_corr %>%
+  filter(is_band_inlier) %>%
+  select(-is_band_inlier)
+```
+
+## Engineer spectral indices
+
+Build band-ratio and normalized-difference features from the
+sensor-corrected bands for use as model predictors.
+
+```{r spectral-indices}
+split_dataframes_ml <- split_dataframes_corr %>%
+  mutate(NR = nir_corr7/red_corr7,
+         BR = blue_corr7/red_corr7,
+         GR = green_corr7/red_corr7,
+         SR = swir1_corr7/red_corr7,
+         BG = blue_corr7/green_corr7,
+         RG = red_corr7/green_corr7,
+         NG = nir_corr7/green_corr7,
+         SG = swir1_corr7/green_corr7,
+         BN = blue_corr7/nir_corr7,
+         GN = green_corr7/nir_corr7,
+         RN = red_corr7/nir_corr7,
+         SN = swir1_corr7/nir_corr7,
+         BS = blue_corr7/swir1_corr7,
+         GS = green_corr7/swir1_corr7,
+         RS = red_corr7/swir1_corr7,
+         NS = nir_corr7/swir1_corr7,
+         R_GN = red_corr7/(green_corr7 + nir_corr7),
+         R_GB = red_corr7/(green_corr7 + blue_corr7),
+         R_GS = red_corr7/(green_corr7 + swir1_corr7),
+         R_BN = red_corr7/(blue_corr7 + nir_corr7),
+         R_BS = red_corr7/(blue_corr7 + swir1_corr7),
+         R_NS = red_corr7/(nir_corr7 + swir1_corr7),
+         G_BR = green_corr7/(blue_corr7 + swir1_corr7),
+         G_BN = green_corr7/(blue_corr7 + nir_corr7),
+         G_BS = green_corr7/(blue_corr7 + swir1_corr7),
+         G_RN = green_corr7/(red_corr7 + nir_corr7),
+         G_RB = green_corr7/(red_corr7 + blue_corr7),
+         G_NS = green_corr7/(nir_corr7 + swir1_corr7),
+         B_RG = blue_corr7/(red_corr7 + green_corr7),
+         B_RS = blue_corr7/(red_corr7 + swir1_corr7),
+         B_GN = blue_corr7/(green_corr7 + nir_corr7),
+         B_GS = blue_corr7/(green_corr7 + swir1_corr7),
+         B_NS = blue_corr7/(nir_corr7 + swir1_corr7),
+         N_RG = nir_corr7/(red_corr7 + green_corr7),
+         N_RB = nir_corr7/(red_corr7 + blue_corr7),
+         N_RS = nir_corr7/(red_corr7 + swir1_corr7),
+         N_GB = nir_corr7/(green_corr7 + blue_corr7),
+         N_GS = nir_corr7/(green_corr7 + nir_corr7),
+         N_BS = nir_corr7/(blue_corr7 + swir1_corr7),
+         GR_2 = (red_corr7 + green_corr7)/2,
+         GN_2 = (nir_corr7 + green_corr7)/2,
+         BR_G = (blue_corr7 - red_corr7)/green_corr7,
+         NS_NR = (nir_corr7 - swir1_corr7)/(red_corr7 - swir1_corr7),
+         fai = nir_corr7 - (red_corr7 + (swir1_corr7 - red_corr7) * ((830-660)/(1650-660))),
+         NmS = nir_corr7 - swir1_corr7,
+         NmR = nir_corr7 - red_corr7,
+         NDVI = (nir_corr7 - red_corr7)/(nir_corr7 + red_corr7),
+         NDWI = (green_corr7 - swir1_corr7)/(green_corr7 + swir1_corr7),
+         NDSSI = (blue_corr7 - nir_corr7)/(blue_corr7 + nir_corr7),
+         GN_GN = (green_corr7- nir_corr7)/(green_corr7 + nir_corr7)) %>%
+  # a handful of corrected bands land on exactly 0 (or two bands land on the
+  # same value), which sends some ratio/difference features to Inf/NaN;
+  # xgb.DMatrix() rejects those outright, so recode as NA and let xgboost's
+  # native missing-value handling take it from there
+  mutate(across(red_corr7:GN_GN, ~ if_else(is.finite(.x), .x, NA_real_)))
+```
+
+## Create train/validation/test splits
+
+We use a leave-one-partition-out cross-validation scheme across the four
+partitions assigned in script 03 (`part` 1–4), holding partition 5 out
+entirely as an untouched test set.
+
+```{r train-val-splits}
+train_val <- split_dataframes_ml %>%
+  filter(part != 4)
+
+train1 <- train_val %>%
+  filter(part != 1)
+val1 <- anti_join(train_val, train1)
+
+train2 <- train_val %>%
+  filter(part != 2)
+val2 <- anti_join(train_val, train2)
+
+train3 <- train_val %>%
+  filter(part != 3)
+val3 <- anti_join(train_val, train3)
+
+train4<- train_val %>%
+  filter(part != 5)
+val4 <- anti_join(train_val, train4)
+```
+
+Assemble the corrected bands and spectral indices as model features and
+build XGBoost DMatrices for each fold.
+
+```{r dmatrices}
+target <- "harmonized_value"
+
+feats_candidate <-  train_val %>% select(red_corr7:GN_GN) %>% names(.) %>% c("atm_corr_LaSRC")
+
+dtrain1 <- xgb.DMatrix(data = as.matrix(train1[,feats_candidate]),
+                       label = train1$harmonized_value)
+
+dval1 <- xgb.DMatrix(data = as.matrix(val1[,feats_candidate]),
+                     label = val1$harmonized_value)
+
+dtrain2 <- xgb.DMatrix(data = as.matrix(train2[,feats_candidate]),
+                       label = train2$harmonized_value)
+
+dval2 <- xgb.DMatrix(data = as.matrix(val2[,feats_candidate]),
+                     label = val2$harmonized_value)
+
+dtrain3 <- xgb.DMatrix(data = as.matrix(train3[,feats_candidate]),
+                       label = train3$harmonized_value)
+
+dval3 <- xgb.DMatrix(data = as.matrix(val3[,feats_candidate]),
+                     label = val3$harmonized_value)
+
+dtrain4 <- xgb.DMatrix(data = as.matrix(train4[,feats_candidate]),
+                       label = train4$harmonized_value)
+
+dval4 <- xgb.DMatrix(data = as.matrix(val4[,feats_candidate]),
+                     label = val4$harmonized_value)
+```
+
+Build the held-out test split (partition 4).
+
+```{r test-split}
+test <- split_dataframes_ml %>%
+  filter(part == 4)
+
+dtest <- xgb.DMatrix(data = as.matrix(test[,feats_candidate]),
+                     label = test$harmonized_value)
+```
+
+## Explore baseline model performance
+
+Quick sanity-check fits with a tree booster and a linear booster, just to
+get a feel for error magnitude and feature importance before tuning.
+
+```{r naive-gbtree}
+params <- list(booster = "gbtree",
+               objective = 'reg:squarederror',
+               eta=0.01,
+               max_depth=7,
+               min_child_weight=1,
+               subsample=0.8,
+               colsample_bytree=0.5)
+
+xgb.naive <- xgb.train(params = params, data = dtrain1, nrounds = 2000,
+                       evals = list(train = dtrain1, val = dval1),
+                       verbose = 1,
+                       early_stopping_rounds = 100)
+
+importance <- xgb.importance(model = xgb.naive, feature_names = feats_candidate)
+xgb.plot.importance(importance_matrix = importance)
+```
+
+```{r naive-gblinear}
+params_linear <- list(booster = "gblinear",
+                      objective = 'reg:squarederror',
+                      eta=0.1,
+                      max_depth=7,
+                      min_child_weight=1,
+                      subsample=0.8,
+                      colsample_bytree=0.5)
+
+xgb.naive.2 <- xgb.train(params = params_linear,
+                         data = dtrain1,
+                         nrounds = 5000,
+                         evals = list(train = dtrain1, val = dval1),
+                         verbose = 1,
+                         early_stopping_rounds = 100)
+
+importance.2 <- xgb.importance(model = xgb.naive.2, feature_names = feats_candidate)
+xgb.plot.importance(importance_matrix = importance.2)
+```
+
+As expected, the linear tuner is much worse than the tree, so we'll just stick
+with the tree version.
+
+## Prune correlated features
+
+Many of the `r length(feats_candidate)` candidate features are near-duplicate
+recombinations of the same 6 corrected bands, so before we spend any time
+tuning or eliminating features one at a time we collapse obviously-redundant
+clusters. We compute pairwise correlations among all candidate features on
+`train_val` only (the held-out test partition is never touched by any of this),
+link any pair with `|r| > 0.95` into a graph, and take connected components as
+clusters of mutually-redundant features. Within each cluster we keep the one
+feature most correlated with `harmonized_value`; singletons pass through
+untouched.
+
+```{r corr-pruning}
+corr_threshold <- 0.95
+
+cor_mat <- train_val %>%
+  select(all_of(feats_candidate)) %>%
+  as.matrix() %>%
+  cor(use = "pairwise.complete.obs")
+
+high_cor_idx <- which(abs(cor_mat) > corr_threshold & upper.tri(cor_mat), arr.ind = TRUE)
+
+cor_edges <- tibble(from = rownames(cor_mat)[high_cor_idx[, 1]],
+                    to = colnames(cor_mat)[high_cor_idx[, 2]])
+
+cor_graph <- graph_from_data_frame(cor_edges, directed = FALSE, vertices = feats_candidate)
+cor_clusters <- components(cor_graph)$membership
+
+target_cor <- map_dbl(feats_candidate, ~ abs(cor(train_val[[.x]], train_val$harmonized_value,
+                                                 use = "pairwise.complete.obs")))
+
+cluster_tbl <- tibble(feature = names(cor_clusters),
+                      cluster = cor_clusters,
+                      target_cor = target_cor[names(cor_clusters)]) %>%
+  arrange(cluster, desc(target_cor))
+
+feats_decorr <- cluster_tbl %>%
+  slice_max(target_cor, n = 1, by = cluster, with_ties = FALSE) %>%
+  pull(feature)
+
+# audit: which features got dropped, and in favor of which cluster-mate
+cluster_tbl %>%
+  mutate(kept = feature %in% feats_decorr) %>%
+  filter(n() > 1, .by = cluster) %>%
+  arrange(cluster, desc(kept))
+```
+
+Correlation pruning took the candidate set from `r length(feats_candidate)`
+down to `r length(feats_decorr)` features.
+
+## Backward elimination with cross-fold consensus
+
+We eliminate features one at a time using the same 4-fold leave-one-partition-out
+CV structure built above (`train1`/`val1` … `train4`/`val4`, i.e. partitions
+1, 2, 3, and 5 — the test partition is still never touched). At each step we
+fit all 4 folds on the current feature set, decide which feature to drop next
+by averaging its importance (`Gain`) *across* the 4 folds rather than trusting
+any single fold, and record how many folds individually agree with that
+consensus pick, so disagreement between splits is visible rather than
+averaged away.
+
+```{r elimination-function}
+elim_params <- list(booster = "gbtree",
+                    objective = 'reg:squarederror',
+                    eta = 0.05,
+                    max_depth = 4,
+                    min_child_weight = 3,
+                    subsample = 0.8,
+                    colsample_bytree = 0.8)
+
+fit_fold <- function(train_df, val_df, feats, params, nrounds = 800, early_stopping_rounds = 25) {
+  dtr <- xgb.DMatrix(data = as.matrix(train_df[, feats]), label = train_df$harmonized_value)
+  dv  <- xgb.DMatrix(data = as.matrix(val_df[, feats]), label = val_df$harmonized_value)
+  
+  fit <- xgb.train(params = params, data = dtr, nrounds = nrounds,
+                   evals = list(train = dtr, val = dv),
+                   verbose = 0,
+                   early_stopping_rounds = early_stopping_rounds)
+  
+  list(rmse = unname(attr(fit, "early_stop")$best_score),
+       importance = xgb.importance(model = fit, feature_names = feats))
+}
+
+elim_folds <- list(list(train = train1, val = val1),
+                   list(train = train2, val = val2),
+                   list(train = train3, val = val3),
+                   list(train = train4, val = val4))
+```
+
+```{r elimination-run}
+set.seed(47)
+
+min_feats <- 3
+current_feats <- feats_decorr
+history <- list()
+step <- 1
+
+repeat {
+  fold_fits <- map(elim_folds, ~ fit_fold(.x$train, .x$val, current_feats, elim_params))
+  fold_rmse <- map_dbl(fold_fits, "rmse")
+  
+  imp_long <- map2_dfr(fold_fits, seq_along(fold_fits),
+                       ~ mutate(.x$importance, fold = .y)) %>%
+    select(Feature, fold, Gain) %>%
+    complete(Feature = current_feats, fold = seq_along(elim_folds), fill = list(Gain = 0)) %>%
+    mutate(rank = rank(Gain), .by = fold)
+  
+  consensus <- imp_long %>%
+    summarise(mean_gain = mean(Gain), .by = Feature) %>%
+    arrange(mean_gain)
+  
+  drop_feat <- consensus$Feature[1]
+  concordance <- imp_long %>%
+    filter(Feature == drop_feat, rank <= 3) %>%
+    nrow()
+  
+  history[[step]] <- tibble(step = step,
+                            n_features = length(current_feats),
+                            mean_rmse = mean(fold_rmse),
+                            se_rmse = sd(fold_rmse) / sqrt(length(fold_rmse)),
+                            dropped_feature = drop_feat,
+                            concordance = concordance,
+                            fold_rmse = list(fold_rmse),
+                            retained_features = list(current_feats),
+                            fold_importance = list(imp_long))
+  
+  if (length(current_feats) <= min_feats) break
+  
+  current_feats <- setdiff(current_feats, drop_feat)
+  step <- step + 1
+}
+
+elim_history <- bind_rows(history)
+```
+
+Plot the elimination curve (mean validation RMSE across the 4 folds, ± 1 SE,
+as features are removed).
+
+```{r elimination-plot}
+ggplot(elim_history, aes(x = n_features, y = mean_rmse)) +
+  geom_ribbon(aes(ymin = mean_rmse - se_rmse, ymax = mean_rmse + se_rmse), alpha = 0.2) +
+  geom_line() +
+  geom_point() +
+  scale_x_reverse() +
+  labs(x = "number of features retained",
+       y = "mean CV RMSE (4 folds)") +
+  theme_bw()
+```
+
+An automatic rule (e.g. 1-SE off the minimum) is too easily fooled here: with
+only 4 folds, `se_rmse` is a noisy estimate and can be wide enough to make a
+real, visible rise in RMSE look like statistical noise, pulling the "optimal"
+count all the way down to `min_feats`. Instead, read the elimination curve
+above and set `n_features_selected` to the point where mean CV RMSE starts
+climbing (the visible knee), then check how much the 4 folds agree at that
+step — both on overall performance (fold RMSE spread) and on which retained
+features actually matter to each fold individually (Gain by fold).
+
+```{r elimination-select}
+# set this by eye from the elimination-plot above: the number of features
+# right before mean CV RMSE starts climbing
+n_features_selected <- 9
+
+stopifnot("n_features_selected must match a step in elim_history" =
+            n_features_selected %in% elim_history$n_features)
+
+selected_row <- elim_history %>%
+  filter(n_features == n_features_selected)
+
+feats_selected <- selected_row$retained_features[[1]]
+
+# persist for reuse by 05_split_seed_sensitivity.Rmd, so that script doesn't
+# need to re-run (eyeballed) elimination to get the same feature set
+write_rds(feats_selected, "regional_clarity/xg_models/prelim/feats_selected.rds")
+
+# fold RMSE spread at the selected step
+tibble(fold = seq_along(selected_row$fold_rmse[[1]]),
+       rmse = selected_row$fold_rmse[[1]])
+
+# per-fold Gain for each retained feature at the selected step
+selected_row$fold_importance[[1]] %>%
+  select(Feature, fold, Gain) %>%
+  pivot_wider(names_from = fold, names_prefix = "fold", values_from = Gain) %>%
+  arrange(desc(rowSums(across(starts_with("fold")))))
+```
+
+Backward elimination selected `r length(feats_selected)` features (from
+`r length(feats_decorr)` after correlation pruning, `r length(feats_candidate)`
+originally).
+
+Rebuild the fold DMatrices and the held-out test DMatrix using the selected
+feature set — everything downstream (hyperparameter tuning, final training,
+test evaluation) now runs on `feats_selected`.
+
+```{r rebuild-dmatrices}
+feats <- feats_selected
+
+dtrain1 <- xgb.DMatrix(data = as.matrix(train1[,feats]),
+                       label = train1$harmonized_value)
+dval1 <- xgb.DMatrix(data = as.matrix(val1[,feats]),
+                     label = val1$harmonized_value)
+
+dtrain2 <- xgb.DMatrix(data = as.matrix(train2[,feats]),
+                       label = train2$harmonized_value)
+dval2 <- xgb.DMatrix(data = as.matrix(val2[,feats]),
+                     label = val2$harmonized_value)
+
+dtrain3 <- xgb.DMatrix(data = as.matrix(train3[,feats]),
+                       label = train3$harmonized_value)
+dval3 <- xgb.DMatrix(data = as.matrix(val3[,feats]),
+                     label = val3$harmonized_value)
+
+dtrain4 <- xgb.DMatrix(data = as.matrix(train4[,feats]),
+                       label = train4$harmonized_value)
+dval4 <- xgb.DMatrix(data = as.matrix(val4[,feats]),
+                     label = val4$harmonized_value)
+
+dtest <- xgb.DMatrix(data = as.matrix(test[,feats]),
+                     label = test$harmonized_value)
+```
+
+## Hyperparameter tuning
+
+We grid search `max_depth` and `min_child_weight` for the `gbtree` booster in
+two rounds. Each grid point is fit across all 4 CV folds (not just fold 1) so
+the score reflects how well a parameter combination generalizes across
+partitions rather than how well it happens to fit one — same cross-fold
+logic as the feature elimination step above, and still only ever touching
+`dtrain1..4`/`dval1..4` (partitions 1, 2, 3, 5), never the held-out test
+partition. Alongside `mean_val_loss`, each grid point also reports
+`mean_train_loss` and `mean_gap` (mean val − train RMSE across folds, at the
+same early-stopped iteration used for `mean_val_loss`) — useful for spotting
+combinations that look good on validation loss alone but are already
+overfitting relative to their own training data.
+
+
+```{r hypertune-function}
+tune_folds <- list(list(train = dtrain1, val = dval1),
+                   list(train = dtrain2, val = dval2),
+                   list(train = dtrain3, val = dval3),
+                   list(train = dtrain4, val = dval4))
+
+hypertune_xgboost = function(folds, grid){
+  
+  params <- list(booster = "gbtree",
+                 objective = 'reg:squarederror',
+                 eta=grid$eta,
+                 max_depth=grid$max_depth,
+                 min_child_weight=grid$min_child_weight,
+                 subsample=grid$subsample,
+                 colsample_bytree=grid$colsample_bytree)
+  
+  fold_results <- map(folds, function(fold) {
+    xgb <- xgb.train(params = params, data = fold$train, nrounds = 5000,
+                     evals = list(train = fold$train, val = fold$val),
+                     verbose = 0,
+                     early_stopping_rounds = 100)
+    
+    # as of xgboost >=2.0, fit results (best_score, best_iteration) live in
+    # attributes rather than list elements, so xgb$best_score no longer works
+    early_stop <- attr(xgb, "early_stop")
+    
+    # train RMSE at that same (early-stopped) iteration, so the train/val gap
+    # reflects the model actually being scored rather than wherever training
+    # happened to stop logging; as of xgboost >=2.0, evaluation_log also
+    # lives in an attribute rather than a list element
+    train_loss <- attr(xgb, "evaluation_log") %>%
+      filter(iter == early_stop$best_iteration) %>%
+      pull(train_rmse)
+    
+    list(val_loss = unname(early_stop$best_score),
+         train_loss = train_loss,
+         best_iteration = early_stop$best_iteration)
+  })
+  
+  val_losses <- map_dbl(fold_results, "val_loss")
+  train_losses <- map_dbl(fold_results, "train_loss")
+  gaps <- val_losses - train_losses
+  
+  summary <- grid %>% mutate(mean_val_loss = mean(val_losses),
+                             se_val_loss = sd(val_losses) / sqrt(length(val_losses)),
+                             mean_train_loss = mean(train_losses),
+                             # val - train: how much worse a combo does on
+                             # held-out data than on the data it was fit to;
+                             # a bigger gap is a sign of overfitting even if
+                             # mean_val_loss itself looks competitive
+                             mean_gap = mean(gaps),
+                             se_gap = sd(gaps) / sqrt(length(gaps)),
+                             fold_val_loss = list(val_losses),
+                             fold_train_loss = list(train_losses),
+                             mean_best_iteration = mean(map_dbl(fold_results, "best_iteration")))
+  
+  return(summary)
+  
+}
+```
+
+Round 1: a broad grid over `max_depth`, `min_child_weight`, `eta`, and
+`colsample_bytree`. `max_depth`'s upper range is narrower than a first pass
+would use on the full ~50-feature candidate set, since with only a handful of
+features surviving pruning/elimination, deep trees (7+) mostly just cost
+runtime rather than add anything. `eta` and `colsample_bytree` are searched
+here rather than fixed, since the final training run uses a much lower `eta`
+than earlier drafts assumed, and `colsample_bytree` was tuned back when there
+were far more (collinear) candidate features than there are now — both are
+worth re-checking against the current, pruned feature set rather than
+carrying old defaults forward. This grid is 5 × 4 × 3 × 3 = 180 combinations
+× 4 folds = 720 fits.
+
+```{r hypertune-round1}
+param_test1 <- expand.grid(
+  booster = "gbtree",
+  objective = 'reg:squarederror',
+  eta = c(0.01, 0.05, 0.1),
+  max_depth = c(2, 3, 4, 5, 6),
+  min_child_weight = c(1, 3, 5, 7),
+  subsample = 0.8,
+  colsample_bytree = c(0.5, 0.7, 1)
+) %>%
+  rowid_to_column()
+
+## Hypertune xgboost for max depth, child weight, eta, and colsample_bytree
+xgboost_hypertune <- param_test1 %>%
+  pmap_dfr(function(...) {
+    current <- tibble(...)
+    hypertune_xgboost(tune_folds, current)
+  })
+
+xgboost_hypertune %>%
+  arrange(mean_val_loss) %>%
+  select(-c(fold_val_loss, fold_train_loss))
+```
+
+Round 2: refine around round 1's best combination. `eta` is locked to round
+1's winning value (its 3-point grid was only meant to find the right
+ballpark, not to be refined further), while `max_depth`, `min_child_weight`,
+and `colsample_bytree` get a tight neighborhood search — built
+programmatically off round 1's actual winner rather than re-typed by hand, so
+this stays correct if the upstream feature set (and therefore round 1's
+result) changes on a rerun.
+
+```{r hypertune-round2}
+round1_best <- xgboost_hypertune %>%
+  slice_min(mean_val_loss, n = 1, with_ties = FALSE)
+
+param_test2 <- expand.grid(
+  booster = "gbtree",
+  objective = 'reg:squarederror',
+  eta = round1_best$eta,
+  max_depth = unique(pmax(2, round1_best$max_depth + c(-1, 0, 1))),
+  min_child_weight = unique(pmax(1, round1_best$min_child_weight + c(-2, 0, 2))),
+  subsample = 0.8,
+  colsample_bytree = unique(pmin(1, pmax(0.3, round1_best$colsample_bytree + c(-0.15, 0, 0.15))))
+) %>%
+  rowid_to_column()
+
+xgboost_hypertune2 <- param_test2 %>%
+  pmap_dfr(function(...) {
+    current <- tibble(...)
+    hypertune_xgboost(tune_folds, current)
+  })
+
+xgboost_hypertune2 %>%
+  arrange(mean_val_loss) %>%
+  select(-c(fold_val_loss, fold_train_loss))
+```
+
+## Train and cross-validate final models
+
+We take round 2's winning combination directly rather than hand-copying
+numbers in, so this stays correct if the tuning grid or upstream feature set
+changes on a rerun. The pick below is just the lowest `mean_val_loss`;
+`mean_gap` (mean val − train RMSE across folds) is included alongside it so
+you can sanity-check overfitting risk before trusting that pick — if a
+combination just behind it on `mean_val_loss` has a noticeably smaller
+`mean_gap`, override `final_hyperparams` below with that row's `rowid`
+instead.
+
+```{r select-final-hyperparams}
+final_hyperparams <- xgboost_hypertune2 %>%
+  slice_min(mean_val_loss, n = 1, with_ties = FALSE)
+
+# to override with a different row after weighing mean_gap against
+# mean_val_loss in the table above, e.g.:
+# final_hyperparams <- xgboost_hypertune2 %>% filter(rowid == <id>)
+
+# persist for reuse by 05_split_seed_sensitivity.Rmd, so that script doesn't
+# need to re-run hyperparameter tuning to get the same configuration
+write_rds(final_hyperparams, "regional_clarity/xg_models/prelim/final_hyperparams.rds")
+
+final_hyperparams %>%
+  select(-c(fold_val_loss, fold_train_loss))
+```
+
+```{r train-final-models}
+params <- list(booster = "gbtree",
+               objective = 'reg:squarederror',
+               eta = final_hyperparams$eta,
+               max_depth = final_hyperparams$max_depth,
+               min_child_weight = final_hyperparams$min_child_weight,
+               subsample = final_hyperparams$subsample,
+               colsample_bytree = final_hyperparams$colsample_bytree)
+
+set.seed(47)
+xgb1 <- xgb.train(params = params, data = dtrain1, nrounds = 5000,
+                  evals = list(train = dtrain1, val = dval1),
+                  verbose = 1,
+                  early_stopping_rounds = 250)
+xgb.save(xgb1, "regional_clarity/xg_models/prelim/xgb1.model")
+xgb2 <- xgb.train(params = params, data = dtrain2, nrounds = 5000,
+                  evals = list(train = dtrain2, val = dval2),
+                  verbose = 1,
+                  early_stopping_rounds = 250)
+xgb.save(xgb2, "regional_clarity/xg_models/prelim/xgb2.model")
+xgb3 <- xgb.train(params = params, data = dtrain3, nrounds = 5000,
+                  evals = list(train = dtrain3, val = dval3),
+                  verbose = 1,
+                  early_stopping_rounds = 250)
+xgb.save(xgb3, "regional_clarity/xg_models/prelim/xgb3.model")
+xgb4 <- xgb.train(params = params, data = dtrain4, nrounds = 5000,
+                  evals = list(train = dtrain4, val = dval4),
+                  verbose = 1,
+                  early_stopping_rounds = 250)
+xgb.save(xgb4, "regional_clarity/xg_models/prelim/xgb4.model")
+```
+
+For each fold, average the predictions from all four models and compare
+against the fold's own held-out validation set.
+
+```{r validate-fold1}
+pred_1 <- val1 %>%
+  mutate(pred1 = predict(xgb1, dval1),
+         pred2 = predict(xgb2, dval1),
+         pred3 = predict(xgb3, dval1),
+         pred4 = predict(xgb4, dval1)) %>%
+  rowwise() %>%
+  mutate(mean = sum(pred1, pred2, pred3, pred4)/4)
+
+ggplot(pred_1, aes(x = harmonized_value, y = mean)) +
+  geom_point() +
+  geom_point(aes(y = pred1), color = "yellow") +
+  theme_bw()
+```
+
+```{r validate-fold2}
+pred_2 <- val2 %>%
+  mutate(pred1 = predict(xgb1, dval2),
+         pred2 = predict(xgb2, dval2),
+         pred3 = predict(xgb3, dval2),
+         pred4 = predict(xgb4, dval2)) %>%
+  rowwise() %>%
+  mutate(mean = sum(pred1, pred2, pred3, pred4)/4)
+
+ggplot(pred_2, aes(x = harmonized_value, y = mean)) +
+  geom_point() +
+  geom_point(aes(y = pred2), color = "yellow") +
+  theme_bw()
+```
+
+```{r validate-fold3}
+pred_3 <- val3 %>%
+  mutate(pred1 = predict(xgb1, dval3),
+         pred2 = predict(xgb2, dval3),
+         pred3 = predict(xgb3, dval3),
+         pred4 = predict(xgb4, dval3)) %>%
+  rowwise() %>%
+  mutate(mean = sum(pred1, pred2, pred3, pred4)/4)
+
+ggplot(pred_3, aes(x = harmonized_value, y = mean)) +
+  geom_point() +
+  geom_point(aes(y = pred3), color = "yellow") +
+  theme_bw()
+```
+
+```{r validate-fold4}
+pred_4 <- val4 %>%
+  mutate(pred1 = predict(xgb1, dval4),
+         pred2 = predict(xgb2, dval4),
+         pred3 = predict(xgb3, dval4),
+         pred4 = predict(xgb4, dval4)) %>%
+  rowwise() %>%
+  mutate(mean = sum(pred1, pred2, pred3, pred4)/4)
+
+ggplot(pred_4, aes(x = harmonized_value, y = mean)) +
+  geom_point() +
+  geom_point(aes(y = pred4), color = "yellow") +
+  theme_bw()
+```
+
+## Re-weight training toward high-SDD values
+
+Across all four folds above, predictions increasingly fall below the 1:1
+line as observed SDD grows — a "ceiling" effect that's common when a
+squared-error loss is fit to a right-skewed target: the dense cluster of
+low/mid-SDD observations dominates the loss, so the model is never pushed
+hard to get the sparse high-SDD tail right. Here we refit each fold with
+per-observation training weights that scale linearly with SDD, so a
+high-SDD point counts for more during training, likely at a small cost to
+overall (low/mid-range) accuracy. This is a comparison, not a replacement:
+the unweighted `xgb1`-`xgb4` above are left untouched and still carry
+through to the held-out test evaluation below; the weighted models here are
+a parallel set (`xgb1_w`-`xgb4_w`).
+
+```{r sdd-weight-function}
+# weight strength: at weight_strength = k, the highest-SDD training
+# observation in a fold is weighted (1 + k) times as heavily as the lowest;
+# tune by eye against the comparison metrics/plot below - start modest
+# since this trades off overall accuracy for high-SDD accuracy
+weight_strength <- 2
+
+sdd_weight <- function(value, k = weight_strength) {
+  rng <- range(value, na.rm = TRUE)
+  1 + k * (value - rng[1]) / (rng[2] - rng[1])
+}
+```
+
+Build training DMatrices with these weights attached. Validation DMatrices
+stay the existing unweighted `dval1..4`, so early stopping and the reported
+val-rmse remain directly comparable to the unweighted models above.
+
+```{r weighted-dmatrices}
+dtrain1_w <- xgb.DMatrix(data = as.matrix(train1[,feats]),
+                         label = train1$harmonized_value,
+                         weight = sdd_weight(train1$harmonized_value))
+dtrain2_w <- xgb.DMatrix(data = as.matrix(train2[,feats]),
+                         label = train2$harmonized_value,
+                         weight = sdd_weight(train2$harmonized_value))
+dtrain3_w <- xgb.DMatrix(data = as.matrix(train3[,feats]),
+                         label = train3$harmonized_value,
+                         weight = sdd_weight(train3$harmonized_value))
+dtrain4_w <- xgb.DMatrix(data = as.matrix(train4[,feats]),
+                         label = train4$harmonized_value,
+                         weight = sdd_weight(train4$harmonized_value))
+```
+
+Retrain each fold using the same tuned hyperparameters and early-stopping
+settings as the unweighted final models above, changing only the training
+data to add weights.
+
+```{r train-weighted-models}
+xgb1_w <- xgb.train(params = params, data = dtrain1_w, nrounds = 5000,
+                    evals = list(train = dtrain1_w, val = dval1),
+                    verbose = 1,
+                    early_stopping_rounds = 250)
+xgb.save(xgb1_w, "regional_clarity/xg_models/prelim/xgb1_weighted.model")
+xgb2_w <- xgb.train(params = params, data = dtrain2_w, nrounds = 5000,
+                    evals = list(train = dtrain2_w, val = dval2),
+                    verbose = 1,
+                    early_stopping_rounds = 250)
+xgb.save(xgb2_w, "regional_clarity/xg_models/prelim/xgb2_weighted.model")
+xgb3_w <- xgb.train(params = params, data = dtrain3_w, nrounds = 5000,
+                    evals = list(train = dtrain3_w, val = dval3),
+                    verbose = 1,
+                    early_stopping_rounds = 250)
+xgb.save(xgb3_w, "regional_clarity/xg_models/prelim/xgb3_weighted.model")
+xgb4_w <- xgb.train(params = params, data = dtrain4_w, nrounds = 5000,
+                    evals = list(train = dtrain4_w, val = dval4),
+                    verbose = 1,
+                    early_stopping_rounds = 250)
+xgb.save(xgb4_w, "regional_clarity/xg_models/prelim/xgb4_weighted.model")
+```
+
+Add the weighted ensemble's predictions onto the existing fold prediction
+tibbles, so both models' predictions live on the same rows for direct
+comparison.
+
+```{r weighted-fold-predictions}
+pred_1 <- pred_1 %>%
+  ungroup() %>%
+  mutate(w_pred1 = predict(xgb1_w, dval1),
+         w_pred2 = predict(xgb2_w, dval1),
+         w_pred3 = predict(xgb3_w, dval1),
+         w_pred4 = predict(xgb4_w, dval1),
+         mean_w = (w_pred1 + w_pred2 + w_pred3 + w_pred4)/4)
+
+pred_2 <- pred_2 %>%
+  ungroup() %>%
+  mutate(w_pred1 = predict(xgb1_w, dval2),
+         w_pred2 = predict(xgb2_w, dval2),
+         w_pred3 = predict(xgb3_w, dval2),
+         w_pred4 = predict(xgb4_w, dval2),
+         mean_w = (w_pred1 + w_pred2 + w_pred3 + w_pred4)/4)
+
+pred_3 <- pred_3 %>%
+  ungroup() %>%
+  mutate(w_pred1 = predict(xgb1_w, dval3),
+         w_pred2 = predict(xgb2_w, dval3),
+         w_pred3 = predict(xgb3_w, dval3),
+         w_pred4 = predict(xgb4_w, dval3),
+         mean_w = (w_pred1 + w_pred2 + w_pred3 + w_pred4)/4)
+
+pred_4 <- pred_4 %>%
+  ungroup() %>%
+  mutate(w_pred1 = predict(xgb1_w, dval4),
+         w_pred2 = predict(xgb2_w, dval4),
+         w_pred3 = predict(xgb3_w, dval4),
+         w_pred4 = predict(xgb4_w, dval4),
+         mean_w = (w_pred1 + w_pred2 + w_pred3 + w_pred4)/4)
+```
+
+Compare unweighted vs. weighted RMSE, split into the top quartile of SDD
+(by `train_val`'s own distribution, never touching the test partition) vs.
+the rest, to see whether the trade actually paid off and how much it cost.
+
+```{r compare-weighted-metrics}
+top_quartile_cut <- quantile(train_val$harmonized_value, 0.75, na.rm = TRUE)
+
+compare_tbl <- bind_rows(pred_1 %>% mutate(fold = 1),
+                         pred_2 %>% mutate(fold = 2),
+                         pred_3 %>% mutate(fold = 3),
+                         pred_4 %>% mutate(fold = 4)) %>%
+  ungroup() %>%
+  mutate(sdd_group = if_else(harmonized_value >= top_quartile_cut,
+                             "top quartile", "rest"))
+
+compare_tbl %>%
+  summarise(rmse_unweighted = rmse(harmonized_value, mean),
+            rmse_weighted = rmse(harmonized_value, mean_w),
+            n = n(),
+            .by = sdd_group)
+```
+
+Plot predicted vs. observed SDD for both models across all four validation
+folds, to visually check whether the high tail moved closer to the 1:1 line.
+
+```{r compare-weighted-plot}
+compare_tbl %>%
+  pivot_longer(c(mean, mean_w), names_to = "model", values_to = "prediction") %>%
+  mutate(model = if_else(model == "mean", "unweighted", "SDD-weighted")) %>%
+  ggplot(aes(x = harmonized_value, y = prediction, color = model)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, lty = 2, col = "grey40") +
+  labs(x = "observed Secchi (validation folds)",
+       y = "predicted Secchi",
+       color = NULL) +
+  theme_bw()
+```
+
+## Apply to held-out test partition
+
+Predict on the fully held-out test partition (part 5) with each of the
+four fold models and average, dropping any test observations flagged by
+`misc_flag`.
+
+```{r test-predictions}
+test_pred <- test %>%
+  mutate(pred1 = predict(xgb1_w, dtest),
+         pred2 = predict(xgb2_w, dtest),
+         pred3 = predict(xgb3_w, dtest),
+         pred4 = predict(xgb4_w, dtest)) %>%
+  rowwise() %>%
+  mutate(mean = sum(pred1, pred2, pred3, pred4)/4) %>%
+  filter(misc_flag != 1)
+
+test_vert <- test_pred %>%
+  pivot_longer(pred1:pred4,
+               names_to = "pred",
+               values_to = "values")
+
+ggplot(test_vert, aes(x = harmonized_value, y = values)) +
+  geom_point(aes(color = pred)) +
+  scale_color_viridis_d() +
+  labs(x = "observed Secchi",
+       y = "predicted Secchi",
+       color = "split") +
+  theme_bw()
+
+ggplot(test_vert, aes(x = harmonized_value, y = mean)) +
+  geom_point() +
+  labs(x = "observed Secchi",
+       y = "predicted Secchi") +
+  geom_abline(slope = 1, intercept = 0, lty = 1, col = "grey") +
+  theme_bw()
+```
+
+Summarize test-set error with standard regression metrics.
+
+```{r test-metrics}
+evals_test <- test_pred %>%
+  ungroup() %>%
+  summarise(rmse = rmse(harmonized_value, mean),
+            mae = mae(harmonized_value, mean),
+            mape = mape(harmonized_value, mean),
+            bias = bias(harmonized_value, mean),
+            p.bias = percent_bias(harmonized_value, mean),
+            smape = smape(harmonized_value, mean),
+            r2 = cor(harmonized_value, mean)^2)
+evals_test
+```
+
+Look at some longer test-set records over time, and their residuals, as a
+sanity check.
+
+```{r test-timeseries}
+test_long <- test_pred %>%
+  ungroup() %>%
+  summarize(n = n(), .by = siteSR_id) %>%
+  filter(n > 50) %>%
+  left_join(., test_pred)
+
+ggplot(test_long, aes(x = date, y = mean)) +
+  geom_point() +
+  geom_point(aes(y = harmonized_value), color = "light blue") +
+  facet_grid(siteSR_id ~ ., scales = "free_y") +
+  theme_bw()
+
+ggplot(test_long, aes(x = date, y = mean - harmonized_value, color = HUC4)) +
+  geom_point() +
+  labs(y = "residual (m)",
+       x = NULL) +
+  theme_bw() +
+  scale_color_viridis_d() +
+  geom_abline(slope = 0, intercept = 0)
+```
+
+## Performance by HUC4
+
+The residual plot above suggests error isn't uniform across HUC4 basins.
+Break out the same test-set metrics computed above (`evals_test`), by HUC4,
+across all held-out test observations (not just the longer-record subset
+used for the time-series plot above), to see which basins the model
+generalizes to well and which it doesn't.
+
+```{r huc4-metrics}
+evals_test_huc4 <- test_pred %>%
+  ungroup() %>%
+  summarise(n = n(),
+            rmse = rmse(harmonized_value, mean),
+            mae = mae(harmonized_value, mean),
+            mape = mape(harmonized_value, mean),
+            bias = bias(harmonized_value, mean),
+            p.bias = percent_bias(harmonized_value, mean),
+            smape = smape(harmonized_value, mean),
+            r2 = cor(harmonized_value, mean)^2,
+            .by = HUC4) %>%
+  arrange(desc(rmse))
+
+evals_test_huc4
+```
+
+Plot RMSE and bias by HUC4, ordered by RMSE, to see where error concentrates
+and whether it's a systematic over/under-prediction or just a noisier fit.
+
+```{r huc4-metrics-plot}
+huc4_order <- evals_test_huc4 %>%
+  arrange(rmse) %>%
+  pull(HUC4)
+
+evals_test_huc4 %>%
+  mutate(HUC4 = factor(HUC4, levels = huc4_order)) %>%
+  pivot_longer(c(rmse, bias), names_to = "metric", values_to = "value") %>%
+  ggplot(aes(x = HUC4, y = value)) +
+  geom_col() +
+  geom_hline(yintercept = 0, color = "grey40") +
+  coord_flip() +
+  facet_wrap(~metric, scales = "free_x") +
+  labs(x = "HUC4", y = NULL) +
+  theme_bw()
+```
+
+Map the same per-HUC4 metrics spatially so it's clear *where* the model
+does and doesn't generalize well. HUC4 boundaries and the 6-state AOI are
+built the same way script 03 did: HUC4's read from the national WBD
+geodatabase (downloaded once and cached in `aquamatch_files/` by script 02),
+filtered down to the basins that touch our region.
+
+```{r huc4-boundaries}
+states <- states(progress_bar = FALSE) %>%
+  filter(STUSPS %in% c("CO", "WY", "UT", "ID", "MT", "NM"))
+states_union <- states %>% st_union()
+
+wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
+
+huc4_layer <- st_layers(wbd_gdb)$name %>%
+  keep(~ grepl("HU4$", ., ignore.case = TRUE))
+
+HUC4s <- st_read(wbd_gdb, layer = huc4_layer, quiet = TRUE) %>%
+  rename_with(tolower) %>%
+  # WBD ships with Z values and a compound CRS (NAD83 + NAVD88 height);
+  # transforming a 2D CRS into that compound CRS silently breaks (no vertical
+  # grid to invent a Z), so drop Z here - horizontal datum is then plain NAD83
+  st_zm(drop = TRUE, what = "ZM")
+
+# standardize the geometry column name to "geometry" (FileGDB layers are
+# often read in with the geometry column named "shape")
+geom_col <- attr(HUC4s, "sf_column")
+if (geom_col != "geometry") {
+  names(HUC4s)[names(HUC4s) == geom_col] <- "geometry"
+  st_geometry(HUC4s) <- "geometry"
+}
+
+# reset (not transform) the CRS now that only the horizontal NAD83 datum
+# remains, matching states_union - no reprojection needed
+st_crs(HUC4s) <- st_crs(states_union)
+
+# st_make_valid() is by far the slowest step here (a handful of the WBD's
+# 245 national HU4 polygons are topologically invalid, and validating fixes
+# them all), so cheaply narrow to candidates near our AOI *before* validating
+# rather than after. A spatial-index filter (st_filter(), `[`) would do that,
+# but it invokes the same topology engine as st_make_valid() and errors on
+# this dataset's invalid geometries - so instead compare each feature's own
+# bounding box (plain coordinate min/max, no topology needed) against the
+# AOI's bounding box.
+aoi_bbox <- st_bbox(states_union)
+feat_bboxes <- map(st_geometry(HUC4s), st_bbox)
+near_aoi <- map_lgl(feat_bboxes, ~ !(.x["xmax"] < aoi_bbox["xmin"] ||
+                                     .x["xmin"] > aoi_bbox["xmax"] ||
+                                     .x["ymax"] < aoi_bbox["ymin"] ||
+                                     .x["ymin"] > aoi_bbox["ymax"]))
+
+# validate only those candidates, then do the precise (topological) filter
+# down to the HUC4's that actually touch our 6-state AOI, and attach the
+# test-set metrics by HUC4 code
+huc4_map <- HUC4s[near_aoi, ] %>%
+  st_make_valid() %>%
+  st_filter(states_union) %>%
+  select(huc4, geometry) %>%
+  left_join(evals_test_huc4, by = c("huc4" = "HUC4"))
+```
+
+```{r huc4-map-rmse}
+tm_shape(huc4_map) +
+  tm_shape(states) +
+  tm_polygons(col = "grey70") +
+  tm_borders(col = "grey20") +
+  tm_shape(huc4_map) +
+  tm_polygons(fill = "rmse",
+              fill.scale = tm_scale_continuous(values = "viridis"),
+              fill.legend = tm_legend(title = "test RMSE (m)")) +
+  tm_borders(col = "black") +
+  tm_shape(states) +
+  tm_text("STUSPS", col = "grey20") +
+  tm_layout(frame = FALSE,
+            main.title = "test-set RMSE by HUC4")
+```
+
+```{r huc4-map-bias}
+tm_shape(huc4_map) +
+  tm_shape(states) +
+  tm_polygons(col = "grey70") +
+  tm_borders(col = "grey20") +
+  tm_shape(huc4_map) +
+  tm_polygons(fill = "bias",
+              fill.scale = tm_scale_continuous(midpoint = 0, values = "-RdBu"),
+              fill.legend = tm_legend(title = "test bias (m)\n(+ = overprediction)")) +
+  tm_borders(col = "black") +
+  tm_shape(states) +
+  tm_text("STUSPS", col = "grey20") +
+  tm_layout(frame = FALSE,
+            main.title = "test-set bias by HUC4")
+```
