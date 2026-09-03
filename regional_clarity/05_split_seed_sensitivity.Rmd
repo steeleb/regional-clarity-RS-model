@@ -1,0 +1,301 @@
+---
+title: "Split & Seed Sensitivity"
+author: "B Steele, Colorado State University, ROSSyndicate"
+date: "last updated Sep 3, 2026"
+output: html_document
+---
+
+Reviewers often ask how much reported test performance depends on (1)
+which of script 03's 5 HUC4-grouped partitions happens to be held out as the
+test set, and (2) the arbitrary choice of random seed. This script answers
+both, reusing the feature set and hyperparameters already selected in
+`04_make_models.Rmd` (read from disk below) rather than re-running the
+eyeballed elimination/tuning steps for every scenario.
+
+Because the feature set and hyperparameters are fixed rather than re-tuned
+per held-out partition, the split-repetition results below characterize how
+sensitive a *fixed, already-selected* modeling pipeline is to which data was
+held out - not the sensitivity of the full model-selection process itself
+(that would require re-running elimination and hyperparameter tuning inside
+each split, which is both far more expensive and, as currently written,
+requires eyeballing a plot at each repetition). This is the standard,
+tractable compromise when full nested cross-validation is impractical, and
+should be described as such in any reviewer response.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r libraries, message = FALSE, warning=FALSE}
+library(tidyverse)
+library(arrow)
+library(xgboost)
+library(Metrics)
+
+# read in the partitioned dataset from script 03
+split_dataframes <- read_feather("aquamatch_files/split_filtered_regional.feather")
+
+# feature set and hyperparameters selected once in 04_make_models.Rmd
+feats <- read_rds("regional_clarity/xg_models/prelim/feats_selected.rds")
+final_hyperparams <- read_rds("regional_clarity/xg_models/prelim/final_hyperparams.rds")
+```
+
+## Apply cross-sensor corrections and engineer spectral indices
+
+Identical to the corresponding chunks in `04_make_models.Rmd`.
+
+```{r sensor-corrections}
+am_corr_LS7 <- read_csv("aquamatch_files/lakeSR_collated_handoffs_GEEv2025-02-12_QAv2025-06-04.csv") %>%
+  filter(correction == "Gardner", dswe == "DSWE1", sat_to == "LS7") %>%
+  pivot_longer(cols = c(intercept, B1, B2, min_in_val, max_in_val),
+               names_to = "int_coef",
+               values_to = "value") %>%
+  mutate(new_column = paste(band, int_coef, sep = "_")) %>%
+  select(-c(band, int_coef, slope, method)) %>%
+  pivot_wider(names_from = new_column,
+              values_from = value)
+
+split_dataframes_corr <- split_dataframes %>%
+  mutate(sat_corr = case_when(mission == "LT04" ~ "LS5",
+                              mission == "LT05" ~ "LS5",
+                              mission == "LE07" ~ "LS7",
+                              mission == "LC08" ~ "LS8",
+                              mission == "LC09" ~ "LS8",
+                              TRUE ~ NA_character_),
+         atm_corr = case_when(mission %in% c("LT04", "LT05", "LE07") ~ "LEDAPS",
+                              mission %in% c("LC08", "LC09") ~ "LaSRC",
+                              TRUE ~ NA_character_),
+         atm_corr_LaSRC = as.numeric(atm_corr == "LaSRC")) %>%
+  left_join(., am_corr_LS7) %>%
+  mutate(red_corr7 = med_Red_intercept + med_Red_B1*med_Red + med_Red_B2*med_Red^2,
+         green_corr7 = med_Green_intercept + med_Green_B1*med_Green + med_Green_B2*med_Green^2,
+         blue_corr7 = med_Blue_intercept + med_Blue_B1*med_Blue + med_Blue_B2*med_Blue^2,
+         nir_corr7 = med_Nir_intercept + med_Nir_B1*med_Nir + med_Nir_B2*med_Nir^2,
+         swir1_corr7 = med_Swir1_intercept + med_Swir1_B1*med_Swir1 + med_Swir1_B2*med_Swir1^2,
+         swir2_corr7 = med_Swir2_intercept + med_Swir2_B1*med_Swir2 + med_Swir2_B2*med_Swir2^2) %>%
+  mutate(red_corr7 = if_else(sat_corr == "LS7", med_Red, red_corr7),
+         green_corr7 = if_else(sat_corr == "LS7", med_Green, green_corr7),
+         blue_corr7 = if_else(sat_corr == "LS7", med_Blue, blue_corr7),
+         nir_corr7 = if_else(sat_corr == "LS7", med_Nir, nir_corr7),
+         swir1_corr7 = if_else(sat_corr == "LS7", med_Swir1, swir1_corr7),
+         swir2_corr7 = if_else(sat_corr == "LS7", med_Swir2, swir2_corr7)) %>%
+  select(-c(all_of(names(am_corr_LS7))))
+```
+
+
+```{r spectral-indices}
+split_dataframes_ml <- split_dataframes_corr %>%
+  mutate(NR = nir_corr7/red_corr7,
+         BR = blue_corr7/red_corr7,
+         GR = green_corr7/red_corr7,
+         SR = swir1_corr7/red_corr7,
+         BG = blue_corr7/green_corr7,
+         RG = red_corr7/green_corr7,
+         NG = nir_corr7/green_corr7,
+         SG = swir1_corr7/green_corr7,
+         BN = blue_corr7/nir_corr7,
+         GN = green_corr7/nir_corr7,
+         RN = red_corr7/nir_corr7,
+         SN = swir1_corr7/nir_corr7,
+         BS = blue_corr7/swir1_corr7,
+         GS = green_corr7/swir1_corr7,
+         RS = red_corr7/swir1_corr7,
+         NS = nir_corr7/swir1_corr7,
+         R_GN = red_corr7/(green_corr7 + nir_corr7),
+         R_GB = red_corr7/(green_corr7 + blue_corr7),
+         R_GS = red_corr7/(green_corr7 + swir1_corr7),
+         R_BN = red_corr7/(blue_corr7 + nir_corr7),
+         R_BS = red_corr7/(blue_corr7 + swir1_corr7),
+         R_NS = red_corr7/(nir_corr7 + swir1_corr7),
+         G_BR = green_corr7/(blue_corr7 + swir1_corr7),
+         G_BN = green_corr7/(blue_corr7 + nir_corr7),
+         G_BS = green_corr7/(blue_corr7 + swir1_corr7),
+         G_RN = green_corr7/(red_corr7 + nir_corr7),
+         G_RB = green_corr7/(red_corr7 + blue_corr7),
+         G_NS = green_corr7/(nir_corr7 + swir1_corr7),
+         B_RG = blue_corr7/(red_corr7 + green_corr7),
+         B_RS = blue_corr7/(red_corr7 + swir1_corr7),
+         B_GN = blue_corr7/(green_corr7 + nir_corr7),
+         B_GS = blue_corr7/(green_corr7 + swir1_corr7),
+         B_NS = blue_corr7/(nir_corr7 + swir1_corr7),
+         N_RG = nir_corr7/(red_corr7 + green_corr7),
+         N_RB = nir_corr7/(red_corr7 + blue_corr7),
+         N_RS = nir_corr7/(red_corr7 + swir1_corr7),
+         N_GB = nir_corr7/(green_corr7 + blue_corr7),
+         N_GS = nir_corr7/(green_corr7 + nir_corr7),
+         N_BS = nir_corr7/(blue_corr7 + swir1_corr7),
+         GR_2 = (red_corr7 + green_corr7)/2,
+         GN_2 = (nir_corr7 + green_corr7)/2,
+         BR_G = (blue_corr7 - red_corr7)/green_corr7,
+         NS_NR = (nir_corr7 - swir1_corr7)/(red_corr7 - swir1_corr7),
+         fai = nir_corr7 - (red_corr7 + (swir1_corr7 - red_corr7) * ((830-660)/(1650-660))),
+         NmS = nir_corr7 - swir1_corr7,
+         NmR = nir_corr7 - red_corr7,
+         NDVI = (nir_corr7 - red_corr7)/(nir_corr7 + red_corr7),
+         NDWI = (green_corr7 - swir1_corr7)/(green_corr7 + swir1_corr7),
+         NDSSI = (blue_corr7 - nir_corr7)/(blue_corr7 + nir_corr7),
+         GN_GN = (green_corr7- nir_corr7)/(green_corr7 + nir_corr7)) %>%
+  mutate(across(red_corr7:GN_GN, ~ if_else(is.finite(.x), .x, NA_real_)))
+```
+
+## Repeated leave-one-partition-out training/evaluation
+
+`run_split()` generalizes the leave-one-partition-out scheme from
+`04_make_models.Rmd`: given which partition to hold out as the test set, it
+builds the other 4 partitions into leave-one-out CV folds, trains one
+XGBoost model per fold (same hyperparameters, early stopping, and rounds as
+04's final training step), averages the 4 fold models' predictions on the
+held-out test set, and returns test-set metrics. `test_partition` and `seed`
+are both explicit arguments so the same function drives both experiments
+below.
+
+```{r run-split-function}
+run_split <- function(data, feats, hyperparams, test_partition, seed,
+                      nrounds = 5000, early_stopping_rounds = 250) {
+
+  test <- data %>% filter(part == test_partition)
+  train_val <- data %>% filter(part != test_partition)
+  cv_partitions <- setdiff(sort(unique(data$part)), test_partition)
+
+  params <- list(booster = "gbtree",
+                 objective = "reg:squarederror",
+                 eta = hyperparams$eta,
+                 max_depth = hyperparams$max_depth,
+                 min_child_weight = hyperparams$min_child_weight,
+                 subsample = hyperparams$subsample,
+                 colsample_bytree = hyperparams$colsample_bytree)
+
+  dtest <- xgb.DMatrix(data = as.matrix(test[, feats]),
+                       label = test$harmonized_value)
+
+  set.seed(seed)
+  fold_preds <- map(cv_partitions, function(p) {
+    train_df <- train_val %>% filter(part != p)
+    val_df   <- train_val %>% filter(part == p)
+
+    dtr <- xgb.DMatrix(data = as.matrix(train_df[, feats]),
+                       label = train_df$harmonized_value)
+    dv  <- xgb.DMatrix(data = as.matrix(val_df[, feats]),
+                       label = val_df$harmonized_value)
+
+    fit <- xgb.train(params = params, data = dtr, nrounds = nrounds,
+                     evals = list(train = dtr, val = dv),
+                     verbose = 0,
+                     early_stopping_rounds = early_stopping_rounds)
+
+    predict(fit, dtest)
+  })
+
+  test_pred <- rowMeans(do.call(cbind, fold_preds))
+
+  tibble(test_partition = test_partition,
+         seed = seed,
+         rmse = rmse(test$harmonized_value, test_pred),
+         mae = mae(test$harmonized_value, test_pred),
+         mape = mape(test$harmonized_value, test_pred),
+         bias = bias(test$harmonized_value, test_pred),
+         p.bias = percent_bias(test$harmonized_value, test_pred),
+         smape = smape(test$harmonized_value, test_pred),
+         r2 = cor(test$harmonized_value, test_pred)^2)
+}
+```
+
+## Variability across the 5 HUC4-grouped splits
+
+Rotate the held-out test partition across all 5 of script 03's partitions,
+holding features/hyperparameters/seed fixed (`seed = 47`, matching 04's
+default), so each of the 5 splits gets its own independent
+leave-one-partition-out CV + test evaluation.
+
+```{r split-repeat-run}
+split_results <- map_dfr(1:5, ~ run_split(split_dataframes_ml, feats, final_hyperparams,
+                                          test_partition = .x, seed = 47))
+
+write_csv(split_results, "regional_clarity/xg_models/prelim/split_repeat_results.csv")
+
+split_results
+```
+
+Summarize variability across the 5 held-out partitions - these are the
+headline numbers for characterizing split-to-split variability.
+
+```{r split-repeat-summary}
+split_summary <- split_results %>%
+  select(-seed) %>%
+  pivot_longer(-test_partition, names_to = "metric", values_to = "value") %>%
+  summarise(mean = mean(value),
+            sd = sd(value),
+            min = min(value),
+            max = max(value),
+            .by = metric)
+
+split_summary
+```
+
+Plot each metric by held-out partition, to see whether error concentrates on
+any one split rather than being evenly spread.
+
+```{r split-repeat-plot}
+split_results %>%
+  select(-seed) %>%
+  pivot_longer(-test_partition, names_to = "metric", values_to = "value") %>%
+  ggplot(aes(x = factor(test_partition), y = value)) +
+  geom_col() +
+  facet_wrap(~metric, scales = "free_y") +
+  labs(x = "held-out test partition", y = NULL) +
+  theme_bw()
+```
+
+## Sensitivity to random seed
+
+Fix the held-out test partition at 4 (04's original choice) and repeat the
+same `run_split()` training/evaluation across many seed values, to see how
+much test metrics move purely from XGBoost's internal stochastic elements
+(`subsample`, `colsample_bytree` both < 1, which depend on R's RNG state
+during `xgb.train`). `n_seeds` is deliberately small enough to run in a
+reasonable amount of time - each seed costs about as much as one pass of
+04's final-model-training step (4 fold fits) - increase it if a tighter
+estimate of the variability is needed.
+
+```{r seed-sim-run}
+n_seeds <- 30
+
+seed_results <- map_dfr(1:n_seeds, ~ run_split(split_dataframes_ml, feats, final_hyperparams,
+                                                test_partition = 4, seed = .x))
+
+write_csv(seed_results, "regional_clarity/xg_models/prelim/seed_sensitivity_results.csv")
+
+seed_results
+```
+
+Summarize variability across seeds, including coefficient of variation
+(sd / mean) so the spread can be judged relative to each metric's own scale.
+
+```{r seed-sim-summary}
+seed_summary <- seed_results %>%
+  select(-test_partition) %>%
+  pivot_longer(-seed, names_to = "metric", values_to = "value") %>%
+  summarise(mean = mean(value),
+            sd = sd(value),
+            cv = sd(value) / mean(value),
+            min = min(value),
+            max = max(value),
+            .by = metric)
+
+seed_summary
+```
+
+Plot the distribution of each metric across seeds.
+
+```{r seed-sim-plot}
+seed_results %>%
+  select(-test_partition) %>%
+  pivot_longer(-seed, names_to = "metric", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 15) +
+  facet_wrap(~metric, scales = "free") +
+  labs(x = NULL, y = "count (of 30 seeds)") +
+  theme_bw()
+```
