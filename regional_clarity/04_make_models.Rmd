@@ -27,8 +27,6 @@ library(Metrics)
 library(igraph)
 library(sf)
 library(tmap)
-library(tigris)
-library(hydrogeofetch)
 
 # read in the partitioned dataset from script 03
 split_dataframes <- read_feather("aquamatch_files/split_filtered_regional.feather")
@@ -67,20 +65,26 @@ split_dataframes_corr <- split_dataframes %>%
                               TRUE ~ NA_character_),
          # numeric encoding for xgboost (LEDAPS as reference level)
          atm_corr_LaSRC = as.numeric(atm_corr == "LaSRC")) %>%
-  left_join(., am_corr_LS7) %>%
+  left_join(., am_corr_LS7)
+
+split_dataframes_corr <- split_dataframes_corr %>%
   mutate(red_corr7 = med_Red_intercept + med_Red_B1*med_Red + med_Red_B2*med_Red^2,
          green_corr7 = med_Green_intercept + med_Green_B1*med_Green + med_Green_B2*med_Green^2,
          blue_corr7 = med_Blue_intercept + med_Blue_B1*med_Blue + med_Blue_B2*med_Blue^2,
          nir_corr7 = med_Nir_intercept + med_Nir_B1*med_Nir + med_Nir_B2*med_Nir^2,
          swir1_corr7 = med_Swir1_intercept + med_Swir1_B1*med_Swir1 + med_Swir1_B2*med_Swir1^2,
-         swir2_corr7 = med_Swir2_intercept + med_Swir2_B1*med_Swir2 + med_Swir2_B2*med_Swir2^2) %>% 
+         swir2_corr7 = med_Swir2_intercept + med_Swir2_B1*med_Swir2 + med_Swir2_B2*med_Swir2^2,
+         temp_corr7 = med_SurfaceTemp_intercept + 
+           med_SurfaceTemp_B1*med_SurfaceTemp + 
+           med_SurfaceTemp_B2*med_SurfaceTemp^2) %>% 
   # store ls7 in the corr7 column
   mutate(red_corr7 = if_else(sat_corr == "LS7", med_Red, red_corr7),
          green_corr7 = if_else(sat_corr == "LS7", med_Green, green_corr7),
          blue_corr7 = if_else(sat_corr == "LS7", med_Blue, blue_corr7),
          nir_corr7 = if_else(sat_corr == "LS7", med_Nir, nir_corr7),
          swir1_corr7 = if_else(sat_corr == "LS7", med_Swir1, swir1_corr7),
-         swir2_corr7 = if_else(sat_corr == "LS7", med_Swir2, swir2_corr7)) %>% 
+         swir2_corr7 = if_else(sat_corr == "LS7", med_Swir2, swir2_corr7),
+         temp_corr7 = if_else(sat_corr == "LS7", med_SurfaceTemp, temp_corr7)) %>% 
   select(-c(all_of(names(am_corr_LS7)))) 
 
 ```
@@ -98,129 +102,14 @@ ggplot() +
   geom_point(data = max_n_sites, aes(x = date, y = blue_corr7, color = mission))  +
   facet_wrap(siteSR_id ~ .) +
   theme_bw()
-```
 
-## RANSAC-like filtering on the reflectance bands
-
-Script 01 runs a RANSAC-like filter on SDD alone (one scalar, one line-vs-time
-fit, one residual per point). The corrected bands here are six correlated
-values per observation, so filtering them independently, band by band, would
-let each band pick its own inlier subset - a single matchup row needs one
-keep/drop decision, not six that disagree. Reflectance is also a shakier fit
-against a straight line over a site's full record than SDD is (blooms,
-turbidity, and seasonality move bands around much more), so instead of a raw
-residual threshold in reflectance units (which wouldn't transfer across bands
-on different scales anyway) we standardize each band's per-iteration residual
-by its own MAD and combine into one z-score per point, then threshold on that
-combined score. Same random-subsample-and-count-inliers structure as
-`ransac_site()`, just fitting all six bands per iteration instead of one.
-
-Critically, each band's z-score scale is estimated *once*, from a single
-all-data fit, rather than re-derived from each candidate subsample's own
-residuals: standardizing by a per-iteration scale lets a bad candidate line
-inflate its own denominator, so a wild-enough fit makes every point
-(including the real outliers) look small in z-units and wins on raw inlier
-count. A fixed reference scale keeps a bad candidate's residuals large
-relative to a stable yardstick, so it can't win that way.
-
-```{r ransac-multiband-function}
-ransac_site_multiband <- function(date, band_mat, n_iter = 200, threshold = 2.5,
-                                  min_sample = 8) {
-  n <- nrow(band_mat)
-  nb <- ncol(band_mat)
-  if (n < min_sample + 1) return(rep(FALSE, n))  # too few points to do anything
-
-  t <- as.numeric(date)
-
-  # fixed per-band residual scale from a single all-data fit (MAD is robust
-  # up to ~50% contamination, well above what we expect here) - reused for
-  # every candidate subsample below instead of recomputed per iteration
-  band_scale <- vapply(seq_len(nb), function(b) {
-    resid <- residuals(lm(band_mat[, b] ~ t))
-    s <- mad(resid, na.rm = TRUE)
-    if (is.na(s) || s == 0) s <- sd(resid, na.rm = TRUE)
-    s
-  }, numeric(1))
-
-  best_inliers <- rep(FALSE, n)
-  best_count <- 0
-
-  for (i in 1:n_iter) {
-    idx <- sample(n, min_sample)
-    if (length(unique(t[idx])) < 2) next  # avoid degenerate fit (same date)
-
-    # fit each band vs time on the *same* subsample, standardize each band's
-    # residuals by its fixed scale, then combine - keeps one band's scale
-    # (e.g. NIR) from dominating and keeps the threshold comparable across
-    # candidate lines of very different quality
-    z <- matrix(NA_real_, nrow = n, ncol = nb)
-    for (b in seq_len(nb)) {
-      y <- band_mat[, b]
-      if (length(unique(y[idx])) < 2 || is.na(band_scale[b]) || band_scale[b] == 0) next
-
-      fit <- lm(y[idx] ~ t[idx])
-      pred <- coef(fit)[1] + coef(fit)[2] * t
-      resid <- y - pred
-      z[, b] <- abs(resid) / band_scale[b]
-    }
-
-    combined_z <- rowMeans(z, na.rm = TRUE)
-    inliers <- !is.na(combined_z) & combined_z < threshold
-
-    if (sum(inliers) > best_count) {
-      best_count <- sum(inliers)
-      best_inliers <- inliers
-    }
-  }
-  best_inliers
-}
-```
-
-Apply it per site (`siteSR_id`) on the six sensor-corrected bands, arranged by
-date so the time fit is meaningful.
-
-```{r ransac-multiband-run}
-set.seed(47)
-
-band_cols <- c("red_corr7", "green_corr7", "blue_corr7",
-               "nir_corr7", "swir1_corr7", "swir2_corr7")
-
-split_dataframes_corr <- split_dataframes_corr %>%
-  arrange(siteSR_id, date) %>%
-  group_by(siteSR_id) %>%
-  mutate(is_band_inlier = ransac_site_multiband(date, as.matrix(pick(all_of(band_cols))))) %>%
-  ungroup()
-
-# how many observations (and what fraction) got flagged per site
-split_dataframes_corr %>%
-  summarise(n = n(), n_outlier = sum(!is_band_inlier), .by = siteSR_id) %>%
-  filter(n_outlier > 0) %>%
-  mutate(frac_outlier = n_outlier / n) %>%
-  arrange(desc(frac_outlier))
-```
-
-Spot-check on the same high-record sites plotted above: flagged points should
-look like genuine spectral excursions (residual cloud/shadow contamination,
-glint) rather than a large fraction of any one site's record.
-
-```{r ransac-multiband-check}
-max_n_sites_flagged <- split_dataframes_corr %>%
-  filter(siteSR_id %in% unique(max_n_sites$siteSR_id))
-
-ggplot(max_n_sites_flagged, aes(x = date, y = nir_corr7, color = is_band_inlier)) +
-  geom_point() +
+ggplot() +
+  geom_point(data = max_n_sites, aes(x = date, y = med_SurfaceTemp), color = "grey") +
+  geom_point(data = max_n_sites, aes(x = date, y = temp_corr7, color = mission))  +
   facet_wrap(siteSR_id ~ .) +
-  scale_color_manual(values = c(`TRUE` = "grey40", `FALSE` = "red")) +
   theme_bw()
 ```
 
-Drop the flagged rows before moving on to spectral-index engineering.
-
-```{r ransac-multiband-filter}
-split_dataframes_corr <- split_dataframes_corr %>%
-  filter(is_band_inlier) %>%
-  select(-is_band_inlier)
-```
 
 ## Engineer spectral indices
 
@@ -294,7 +183,7 @@ entirely as an untouched test set.
 
 ```{r train-val-splits}
 train_val <- split_dataframes_ml %>%
-  filter(part != 4)
+  filter(part != 5)
 
 train1 <- train_val %>%
   filter(part != 1)
@@ -309,7 +198,7 @@ train3 <- train_val %>%
 val3 <- anti_join(train_val, train3)
 
 train4<- train_val %>%
-  filter(part != 5)
+  filter(part != 4)
 val4 <- anti_join(train_val, train4)
 ```
 
@@ -319,7 +208,7 @@ build XGBoost DMatrices for each fold.
 ```{r dmatrices}
 target <- "harmonized_value"
 
-feats_candidate <-  train_val %>% select(red_corr7:GN_GN) %>% names(.) %>% c("atm_corr_LaSRC")
+feats_candidate <-  train_val %>% select(red_corr7:GN_GN, temp_corr7) %>% names(.) %>% c("atm_corr_LaSRC")
 
 dtrain1 <- xgb.DMatrix(data = as.matrix(train1[,feats_candidate]),
                        label = train1$harmonized_value)
@@ -350,7 +239,7 @@ Build the held-out test split (partition 4).
 
 ```{r test-split}
 test <- split_dataframes_ml %>%
-  filter(part == 4)
+  filter(part == 5)
 
 dtest <- xgb.DMatrix(data = as.matrix(test[,feats_candidate]),
                      label = test$harmonized_value)
@@ -443,10 +332,12 @@ feats_decorr <- cluster_tbl %>%
   pull(feature)
 
 # audit: which features got dropped, and in favor of which cluster-mate
-cluster_tbl %>%
+summary_cluster <- cluster_tbl %>%
   mutate(kept = feature %in% feats_decorr) %>%
   filter(n() > 1, .by = cluster) %>%
   arrange(cluster, desc(kept))
+
+summary_cluster
 ```
 
 Correlation pruning took the candidate set from `r length(feats_candidate)`
@@ -563,7 +454,7 @@ features actually matter to each fold individually (Gain by fold).
 ```{r elimination-select}
 # set this by eye from the elimination-plot above: the number of features
 # right before mean CV RMSE starts climbing
-n_features_selected <- 9
+n_features_selected <- 11
 
 stopifnot("n_features_selected must match a step in elim_history" =
             n_features_selected %in% elim_history$n_features)
@@ -900,10 +791,11 @@ low/mid-SDD observations dominates the loss, so the model is never pushed
 hard to get the sparse high-SDD tail right. Here we refit each fold with
 per-observation training weights that scale linearly with SDD, so a
 high-SDD point counts for more during training, likely at a small cost to
-overall (low/mid-range) accuracy. This is a comparison, not a replacement:
-the unweighted `xgb1`-`xgb4` above are left untouched and still carry
-through to the held-out test evaluation below; the weighted models here are
-a parallel set (`xgb1_w`-`xgb4_w`).
+overall (low/mid-range) accuracy. The weighted models (`xgb1_w`-`xgb4_w`)
+are the ones we carry forward to the held-out test evaluation below; the
+unweighted `xgb1`-`xgb4` above are kept only as the comparison baseline for
+the metrics/plot immediately following, to judge whether the tail trade-off
+was worth it.
 
 ```{r sdd-weight-function}
 # weight strength: at weight_strength = k, the highest-SDD training
@@ -1043,8 +935,8 @@ compare_tbl %>%
 ## Apply to held-out test partition
 
 Predict on the fully held-out test partition (part 5) with each of the
-four fold models and average, dropping any test observations flagged by
-`misc_flag`.
+four SDD-weighted fold models (`xgb1_w`-`xgb4_w`) and average, dropping any
+test observations flagged by `misc_flag`.
 
 ```{r test-predictions}
 test_pred <- test %>%
@@ -1164,60 +1056,24 @@ evals_test_huc4 %>%
 
 Map the same per-HUC4 metrics spatially so it's clear *where* the model
 does and doesn't generalize well. HUC4 boundaries and the 6-state AOI are
-built the same way script 03 did: HUC4's read from the national WBD
-geodatabase (downloaded once and cached in `aquamatch_files/` by script 02),
-filtered down to the basins that touch our region.
+the ones saved by script 02, so we don't have to re-download/re-filter them
+here.
 
 ```{r huc4-boundaries}
-states <- states(progress_bar = FALSE) %>%
-  filter(STUSPS %in% c("CO", "WY", "UT", "ID", "MT", "NM"))
-states_union <- states %>% st_union()
+states <- st_read("aquamatch_files/states.gdb", layer = "states", quiet = TRUE)
 
-wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
+HUC4s <- st_read("aquamatch_files/huc4_filtered.gdb",
+                  layer = "huc4_filtered", quiet = TRUE)
 
-huc4_layer <- st_layers(wbd_gdb)$name %>%
-  keep(~ grepl("HU4$", ., ignore.case = TRUE))
-
-HUC4s <- st_read(wbd_gdb, layer = huc4_layer, quiet = TRUE) %>%
-  rename_with(tolower) %>%
-  # WBD ships with Z values and a compound CRS (NAD83 + NAVD88 height);
-  # transforming a 2D CRS into that compound CRS silently breaks (no vertical
-  # grid to invent a Z), so drop Z here - horizontal datum is then plain NAD83
-  st_zm(drop = TRUE, what = "ZM")
-
-# standardize the geometry column name to "geometry" (FileGDB layers are
-# often read in with the geometry column named "shape")
+# OpenFileGDB round-trips the geometry column as "SHAPE" - standardize back
+# to "geometry"
 geom_col <- attr(HUC4s, "sf_column")
 if (geom_col != "geometry") {
   names(HUC4s)[names(HUC4s) == geom_col] <- "geometry"
   st_geometry(HUC4s) <- "geometry"
 }
 
-# reset (not transform) the CRS now that only the horizontal NAD83 datum
-# remains, matching states_union - no reprojection needed
-st_crs(HUC4s) <- st_crs(states_union)
-
-# st_make_valid() is by far the slowest step here (a handful of the WBD's
-# 245 national HU4 polygons are topologically invalid, and validating fixes
-# them all), so cheaply narrow to candidates near our AOI *before* validating
-# rather than after. A spatial-index filter (st_filter(), `[`) would do that,
-# but it invokes the same topology engine as st_make_valid() and errors on
-# this dataset's invalid geometries - so instead compare each feature's own
-# bounding box (plain coordinate min/max, no topology needed) against the
-# AOI's bounding box.
-aoi_bbox <- st_bbox(states_union)
-feat_bboxes <- map(st_geometry(HUC4s), st_bbox)
-near_aoi <- map_lgl(feat_bboxes, ~ !(.x["xmax"] < aoi_bbox["xmin"] ||
-                                     .x["xmin"] > aoi_bbox["xmax"] ||
-                                     .x["ymax"] < aoi_bbox["ymin"] ||
-                                     .x["ymin"] > aoi_bbox["ymax"]))
-
-# validate only those candidates, then do the precise (topological) filter
-# down to the HUC4's that actually touch our 6-state AOI, and attach the
-# test-set metrics by HUC4 code
-huc4_map <- HUC4s[near_aoi, ] %>%
-  st_make_valid() %>%
-  st_filter(states_union) %>%
+huc4_map <- HUC4s %>%
   select(huc4, geometry) %>%
   left_join(evals_test_huc4, by = c("huc4" = "HUC4"))
 ```

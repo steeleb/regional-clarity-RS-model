@@ -1,12 +1,16 @@
 ---
 title: "Make Matchups"
 author: "B Steele, Colorado State University, ROSSyndicate"
-date: "last updated Aug 11, 2026"
-output: html_document
+date: "last updated Sept 10, 2026"
+output:
+  html_document:
+    fig_retina: 1
 ---
 
 This code creates matchups between the AquaMatch SDD files and the siteSR
-files. We use a generous 5-day window to work from for future steps.
+files. We use a generous 5-day window to work from for future steps. Because
+we complete some RANSAC-style filtering in this script, we do reduce the AOI
+to the HUC02's we care about for the regional model.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -16,19 +20,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r libraries, , message = FALSE, warning=FALSE}
 # load libraries
+library(igraph)
 library(AquaMatchr) # if install needed: remotes::install_github(repo = "AquaSat/AquaMatchr")
 library(data.table)
 library(arrow)
 library(sf)
 library(tmap)
 library(tigris)
-library(AquaMatchr)
 library(tidyverse)
 ```
 
 ```{r edi-login}
 # login to EDI - this is a work around for error popping up in AquaMatchr
-# requires EDIutils, which is required by AquaMatchr, so probably no issue here
+# requires EDIutils, which is required by AquaMatchr so no need to import
 EDIutils::login(key = Sys.getenv('EDI_API_key'))
 ```
 
@@ -57,6 +61,7 @@ console:
 - the `siteSR_Landsat*DSWE1_*.feather` files
 - the `*sites_with_NHD_info*.csv` file
 - the `lakeSR_collated_handoffs*.csv` file
+- the `sceneMetadata_Landsat457.csv` and `sceneMetadata_Landsat89.csv` files
 
 ```{r download-data, message = FALSE, warning=FALSE}
 # download_parameters() doesn't cache to disk, so we cache it ourselves -
@@ -75,50 +80,199 @@ if (!file.exists(sdd_cache)) {
 sdd_filtered <- file.path(aquamatch_dir, "sdd_quality_filter.feather")
 
 # run a ransac-like algorithm per site to remove outliers
-ransac_site <- function(date, sdd, n_iter = 200, threshold = 5, min_sample = 8) {
+ransac_site <- function(date, sdd,
+                        n_iter = 50,
+                        mad_thresh = 2,
+                        n_sd = 3,
+                        range_buffer_frac = 0.15,
+                        min_diff = 1,
+                        min_sample = 8,
+                        vote_frac = 0.6) {
   n <- length(sdd)
-  if (n < min_sample + 1) return(rep(FALSE, n))  # too few points to do anything
+  if (n < min_sample + 1) return(rep(NA, n))  # too few points to run ransac
   
   t <- as.numeric(date)
-  best_inliers <- rep(FALSE, n)
-  best_count <- 0
+  # tally, per point, how many valid iterations called it an inlier 
+  inlier_votes <- rep(0L, n)
+  n_valid_iter <- 0L
   
   for (i in 1:n_iter) {
     idx <- sample(n, min_sample)
     if (length(unique(t[idx])) < 2) next  # avoid degenerate fit (same date)
+    out_idx <- setdiff(seq_len(n), idx)
     
     fit <- lm(sdd[idx] ~ t[idx])
     pred <- coef(fit)[1] + coef(fit)[2] * t
-    resid <- abs(sdd - pred)
-    inliers <- resid < threshold
-    
-    if (sum(inliers) > best_count) {
-      best_count <- sum(inliers)
-      best_inliers <- inliers
+    resid <- sdd - pred
+    # scale should come from held-out points only - points used to fit the
+    # line have near-zero residual by construction, so including them
+    # deflates the scale (and threshold) whenever min_sample is close to n,
+    # making a single held-out point look like an outlier over a trivial
+    # difference. use MAD rather than sd() here: sd() is itself inflated by
+    # a cluster of genuine outliers landing in the held-out set (a handful of
+    # large same-direction residuals drag the mean and blow up the squared
+    # deviations), which loosens the threshold and lets that same cluster
+    # vote itself in as inliers. MAD is robust to that as long as the
+    # cluster is a minority of the held-out set, since it centers on the
+    # median rather than the mean. 
+    resid_scale <- if (length(out_idx) >= 2) {
+      mad(resid[out_idx], constant = mad_thresh, na.rm = TRUE)
+    } else {
+      # too few held-out points (n == min_sample + 1) to trust their own MAD -
+      # fall back to all-points MAD (deflated, but not degenerate) instead
+      mad(resid, constant = mad_thresh, na.rm = TRUE)
     }
+    # never flag a point closer than min_diff to the fit line, regardless of
+    # how tight the scale-based threshold is - a < 1 m disagreement isn't
+    # meaningfully an outlier for Secchi depth. 
+    threshold <- max(n_sd * resid_scale, min_diff, na.rm = TRUE)
+    inliers <- !is.na(resid) & abs(resid) < threshold
+    
+    inlier_votes <- inlier_votes + as.integer(inliers)
+    n_valid_iter <- n_valid_iter + 1L
   }
+  
+  # indicate when no iteration ever produced a usable fit
+  if (n_valid_iter == 0) return(rep(NA, n))
+  
+  # a point is an inlier if at least vote_frac of the valid iterations agreed
+  best_inliers <- (inlier_votes / n_valid_iter) >= vote_frac
+  
+  # a flagged point can't be implausible for this site if its value falls
+  # within the range other accepted (inlier) observations already span here -
+  # deviating from the local trend line isn't grounds to flag it when the
+  # site itself has already produced values in that range. this matters most
+  # for low-n sites, where a short fit sample leaves little room to
+  # distinguish a real trend from a value the site has simply shown before
+  if (any(best_inliers)) {
+    inlier_range <- range(sdd[best_inliers], na.rm = TRUE)
+    # scale the buffer to this site's typical SDD rather than using a flat
+    # meters value - 0.5 m is a huge margin at a 1 m-visibility site and
+    # negligible at a 10 m-visibility site
+    range_buffer <- range_buffer_frac * mean(sdd[best_inliers], na.rm = TRUE)
+    best_inliers <- best_inliers | (sdd >= inlier_range[1] + range_buffer &
+                                      sdd <= inlier_range[2] - range_buffer)
+  }
+  
   best_inliers
 }
 
+
 if (!file.exists(sdd_filtered)) {
-  read_feather(sdd_cache) %>% 
+  set.seed(43)
+  read_feather(sdd_cache) %>%
     filter(
       # do some SDD filters - must be in higher tiers of data
-      tier < 3, 
+      tier < 3,
       # must have a reasonable  value
-      harmonized_value >= 0.1, 
+      harmonized_value >= 0.1,
+      # if there are aggregated rows, they generally agree
+      harmonized_value_cv <= 0.25 | is.na(harmonized_value_cv),
       # no flags
-      misc_flag == 0, 
+      misc_flag == 0,
       # not a bottom hit
-      depth_flag == 0
-    ) %>% 
+      depth_flag == 0,
+      # and we'll just grab lake/res/impoundment data
+      ResolvedMonitoringLocationTypeName == "Lake, Reservoir, Impoundment"
+    ) %>%
     group_by(MonitoringLocationIdentifier) %>%
     arrange(harmonized_local_time) %>%
-    mutate(is_inlier = ransac_site(harmonized_local_time, harmonized_value)) %>% 
+    mutate(is_inlier = ransac_site(harmonized_local_time, harmonized_value)) %>%
     ungroup() %>% 
+    # also reverse the flag in cases where multiple measurements are made
+    mutate(is_inlier = if_else(harmonized_row_count > 1 &
+                                 (!is_inlier | is.na(is_inlier)), 
+                               TRUE,
+                               is_inlier)) %>%
     write_feather(sdd_filtered)
 }
+```
 
+Check whether flagging concentrates at the SDD extremes rather than spreading
+evenly across the distribution. A high-end concentration here isn't necessarily
+a problem here: we expect a lot of what lands in
+the far right tail of raw SDD is genuinely implausible (deeper than the
+water body, deeper than the instrument's rope, transcription errors, etc.)
+rather than real high-clarity variability - the point of this check is to
+tell those two cases apart before trusting the filter.
+
+```{r ransac-check-sdd-tails}
+sdd_ransac_check <- read_feather(sdd_filtered)
+```
+
+Let's look at highly-flagged sites as a spot-check.
+
+```{r}
+high_flag_sites <- sdd_ransac_check %>% 
+  summarize(n = n(), 
+            n_flagged = sum(is_inlier == FALSE),
+            mean_sdd = mean(harmonized_value),
+            .by = c(MonitoringLocationIdentifier, lat, lon)) %>% 
+  arrange(-n_flagged) %>% 
+  filter(n_flagged >= 20)
+
+map(.x = high_flag_sites$MonitoringLocationIdentifier,
+    ~ sdd_ransac_check %>%
+      filter(MonitoringLocationIdentifier == .x) %>%
+      ggplot(., aes(x = ActivityStartDate,
+                    y = harmonized_value,
+                    color = is_inlier)) +
+      geom_point() +
+      labs(title = .x))
+```
+
+There are clearly some over and under flagging examples here, but it's a bit out
+of scope to refine the ransac futher.
+
+```{r}
+sdd_ransac_check <- sdd_ransac_check %>% 
+  mutate(is_inlier = case_when(MonitoringLocationIdentifier == "AZDEQ_SW-1293" &
+                                 harmonized_value > 10 ~ FALSE,
+                               MonitoringLocationIdentifier == "MNPCA-62-0024-00-202" & 
+                                 ActivityStartDate < ymd("2005-01-01") ~ FALSE,
+                               MonitoringLocationIdentifier == "WIDNR_WQX-643065" & 
+                                 harmonized_value > 20 ~ FALSE,
+                               .default = is_inlier))
+
+write_feather(sdd_ransac_check, sdd_filtered)
+
+```
+
+```{r}
+high_flag_sites <- sdd_ransac_check %>% 
+  summarize(n = n(), 
+            n_flagged = sum(is_inlier == FALSE),
+            mean_sdd = mean(harmonized_value),
+            .by = c(MonitoringLocationIdentifier, lat, lon)) %>% 
+  arrange(-n_flagged) %>% 
+  filter(n_flagged >= 20)
+
+map(.x = high_flag_sites$MonitoringLocationIdentifier,
+    ~ sdd_ransac_check %>%
+      filter(MonitoringLocationIdentifier == .x) %>%
+      ggplot(., aes(x = ActivityStartDate,
+                    y = harmonized_value,
+                    color = is_inlier)) +
+      geom_point() +
+      labs(title = .x))
+```
+
+Let's also look to see what fraction of observations are indicated to be outliers:
+
+```{r}
+ggplot(sdd_ransac_check, aes(x = harmonized_value, fill = is_inlier)) +
+  geom_histogram(position = "fill", bins = 30) +
+  scale_fill_manual(values = c(`TRUE` = "grey70", `FALSE` = "red")) +
+  labs(x = "observed Secchi (m)", y = "fraction of observations",
+       fill = "inlier") +
+  theme_bw()
+```
+
+This all looks okay.
+
+And now download (or load) siteSR data.
+
+```{r download-siteSR, message = FALSE, warning=FALSE}
 # download_siteSR() writes files to aquamatch_dir, and if it finds files
 # already there it prompts interactively (readline) to confirm overwrite -
 # that prompt is what hangs the knit, since there's no console to answer it.
@@ -128,6 +282,7 @@ siteSR_existing <- list.files(
   pattern = "siteSR_Landsat.*DSWE1_.*\\.feather$|sites_with_NHD_info.*\\.csv$|lakeSR_collated_handoffs.*\\.csv$",
   full.names = TRUE
 )
+
 if (length(siteSR_existing) > 0) {
   siteSR <- siteSR_existing
 } else {
@@ -158,19 +313,613 @@ if (!file.exists(unified_data)) {
     # Convert to Arrow Table
     as_arrow_table()
   
-  write_feather(unified_sr_dataset, 
-                file.path(aquamatch_dir, 
+  write_feather(unified_sr_dataset,
+                file.path(aquamatch_dir,
                           "siteSR_DSWE1_full_concatenation.feather"))
   
   # remove the dataset from workingspace
   rm(unified_sr_dataset)
 }
+```
 
-# Make the matchups using AquaMatchr
+Scene-level metadata (cloud cover, image quality, geometric accuracy, etc.)
+isn't carried through siteSR's per-site aggregation, so we download it
+separately and join it on below via `sat_id`.
 
+```{r download-scene-metadata, message = FALSE, warning=FALSE}
+source("regional_clarity/R/download_sceneMetadata.R")
+
+# same interactive-overwrite-hang workaround as download-siteSR above
+scene_metadata_existing <- list.files(
+  aquamatch_dir,
+  pattern = "sceneMetadata_Landsat(457|89)\\.csv$",
+  full.names = TRUE
+)
+if (length(scene_metadata_existing) > 0) {
+  scene_metadata_paths <- scene_metadata_existing
+} else {
+  scene_metadata_paths <- download_sceneMetadata(save_location = aquamatch_dir, product = "siteSR")
+}
+
+# LS457 and LS89 have slightly different columns (e.g. a single
+# IMAGE_QUALITY vs. split IMAGE_QUALITY_OLI/_TIRS), so bind_rows() unions
+# them rather than assuming identical schemas
+scene_metadata <- map(scene_metadata_paths, read_csv, show_col_types = FALSE) %>%
+  bind_rows() %>% 
+  filter(CLOUD_COVER < 20)
+```
+
+We'll also do some site filtering - sites that are very close to 
+shore and may have contamination should be removed from training.
+
+```{r}
+sites <- read_csv("aquamatch_files/siteSR_collated_WQP_NWIS_sites_with_NHD_info_2025-06-04.csv") %>%
+  filter(flag_optical_shoreline == 0,
+         number_int_wb == 1,
+         (flag_thermal_TM_shoreline == 0 |
+            flag_thermal_ETM_shoreline == 0 |
+            flag_thermal_TIRS_shoreline == 0)) %>%
+  select(siteSR_id, wb_nhd_id, wb_gnis_name, wb_areasqkm,
+         flag_thermal_TM_shoreline, flag_thermal_ETM_shoreline,
+         flag_thermal_TIRS_shoreline, WGS84_Latitude, WGS84_Longitude)
+
+```
+
+Different `siteSR_id` values (different source prefixes - `WQP_*`, `AM_*`,
+`NWIS_*`, etc.) can still be the exact same physical monitoring location,
+or two locations close enough together that Landsat can't tell them
+apart. Two sites within 100m of each other but assigned to *different*
+waterbodies aren't the same location - that's more likely two real,
+distinct water features close together (or an NHD assignment error) than
+one site measured twice - so sites are only collapsed together when
+they're both within 100m of each other *and* share the same `wb_nhd_id`.
+Grouping is transitive (connected components over that adjacency), so a
+chain of near-duplicates collapses into a single `location_id` even if
+its two most-distant members are themselves more than 100m apart.
+
+```{r site-location-dedup}
+site_pts <- sites %>%
+  st_as_sf(coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = 4326,
+           remove = FALSE)
+
+# sparse adjacency: which sites (including itself) fall within 100m of
+# each site
+site_within_100m <- st_is_within_distance(site_pts, dist = 100)
+
+# ...then restrict those pairs to ones sharing a waterbody - equality is
+# symmetric, so this keeps the adjacency symmetric (if j survives in i's
+# filtered neighbor list, i survives in j's) for the connected-components
+# step below
+wb_nhd_id <- sites$wb_nhd_id
+site_within_100m_same_wb <- Map(
+  function(nbrs, wb) nbrs[wb_nhd_id[nbrs] == wb],
+  site_within_100m, wb_nhd_id
+)
+
+# connected components over that adjacency - this is what makes the
+# grouping transitive rather than strictly pairwise
+site_components <- components(
+  graph_from_adj_list(site_within_100m_same_wb, mode = "all")
+)$membership
+
+pad <- nchar(as.character(max(site_components)))
+sites <- sites %>%
+  mutate(location_id = sprintf(paste0("loc_%0", pad, "d"), site_components))
+
+# one row per de-duplicated location, listing the individual siteSR_id
+# values collapsed into it
+site_location_groups <- sites %>%
+  summarize(n_sites = n(),
+            siteSR_ids = list(siteSR_id),
+            WGS84_Latitude = mean(WGS84_Latitude),
+            WGS84_Longitude = mean(WGS84_Longitude),
+            .by = location_id) %>%
+  arrange(-n_sites)
+
+print(paste0(nrow(site_location_groups %>% filter(n_sites >1)), " locations have more than one site in the 100m area"))
+
+site_location_groups %>% 
+  filter(n_sites > 20)
+```
+
+
+## Filter reflectance outliers before matching
+
+AquaMatch's siteSR `unified_data` is 167.5 million rows across 342,704 sites nationwide, we
+know that there are still outliers in the reflectance data, so we filter 
+reflectance outliers here, *before* `match_siteSR_to_WQP()` ever sees the data, 
+rather than after matching. Because script 02 picks a single
+closest-in-time satellite pass per field measurement, we want to make sure
+outlier filtering happens before matches are made so that a flagged bad RS
+data point doesn't remove the matched row down with it. Filtering the candidate 
+pool first means a flagged RS data point just isn't a candidate, and the 
+next-best RS point can stand in instead, with the intention of more matched 
+samples  overall.
+
+Instead of running on the full nationwide siteSR `unified_data`, we use
+four scoping/QA steps to keep the expensive per-site filter below from
+processing sites this project will never use or trusting scenes/sites it
+shouldn't:
+
+- **Regional pre-filter**: restrict to the 7 HUC2 basins that actually
+appear anywhere in this project's final 6-state regional output. This is
+a coarse, safe, purely columnar filter - nothing outside these HUC2s can
+reach the final output regardless, since the precise spatial HUC4 boundary
+filter still runs unchanged, later, in `02_subset_to_region.Rmd`. It's a
+compute-scoping choice for *this* corpus, not a requirement of the method
+below, which is per-site and self-contained - a future refresh, or a
+different application of the same filter (e.g. to a different reservoir
+set), would define its own cheap scope rather than reusing this HUC2 list.
+- **Metadata QA**: `pCount_dswe1/pCount_dswe_gt0 > 0.5`, `pCount_dswe1 > 8`,
+`prop_clouds == 0` pretty generous filters to remove possbile contamination
+- **Scene-level cloud QA**: `sat_id` is further restricted to scenes in
+`scene_metadata` with
+`CLOUD_COVER < 20`, catching a partly-cloudy scene that could have aerosol impacts
+on the temp and optical data
+- **Site geometry QA**: `siteSR_id` is restricted to the `sites` table
+built above, which drops near-shore sites (`flag_optical_shoreline`,
+thermal shoreline flags) and sites spanning more than one waterbody
+(`number_int_wb == 1`) - a contaminated or ambiguous site shouldn't feed
+its own line fit either. 
+- **Site de-duping**: The `location_id` dedup built alongside it
+(collapsing same-waterbody sites within 100m) is used to identify one representative
+site for the RANSAC-like filter.
+
+Corrected bands, not raw ones, feed the filter - reflectance isn't
+comparable across missions without harmonizing first, so a real sensor
+transition mid-record shouldn't masquerade as a spectral outlier. This is done
+using the Gardner et al. coefficients and mission mapping. A coverage check 
+runs right after the join, since a silent gap in mission-to-correction coverage 
+would leave some rows uncorrected - which would look exactly like a 
+sensor-transition outlier to the filter below, not a data problem.
+
+The filter itself (`ransac_site_multiband()`) is the same per-site,
+random-subsample RANSAC-like approach as `ransac_site()` above, just fitting
+all seven corrected channels (six reflectance bands plus surface
+temperature) per iteration instead of one, standardized by each channel's
+own MAD-based scale from a single all-data fit: reflectance is a shakier fit
+against a straight line over a site's full record than SDD is (blooms,
+turbidity, and seasonality move bands around much more), so instead of a raw
+residual threshold in reflectance units we standardize each band's
+per-iteration residual by its own MAD and combine into one z-score per
+point, then threshold on that combined score. 
+
+The regression inside the iteration loop is written as closed-form OLS
+rather than `lm()` to reduce processing time and we parallellize to further
+optimize the time need here.
+
+```{r siteSR-regional-band-ransac}
+siteSR_regional_filtered <- file.path(aquamatch_dir, "siteSR_DSWE1_regional_band_filtered.feather")
+# a second, diagnostics-only cache: siteSR_regional_filtered only keeps
+# inlier rows and drops is_band_inlier, so the checks below (which need to
+# see flagged points too) reload from here instead - written once alongside
+# siteSR_regional_filtered, then read back unconditionally further down so
+# it renders on every knit without re-running the RANSAC fit
+siteSR_regional_corr_diag <- file.path(aquamatch_dir, "siteSR_DSWE1_regional_band_ransac_diagnostics.feather")
+
+if (any(!file.exists(c(siteSR_regional_filtered, siteSR_regional_corr_diag)))) {
+  
+  # HUC2 basins that appear anywhere in this project's final regional output
+  regional_huc2 <- c(10, 11, 13, 14, 15, 16, 17)
+  
+  # add some QA filters
+  siteSR_regional_raw <- open_dataset(unified_data, format = "feather") %>%
+    filter(huc2 %in% regional_huc2,
+           pCount_dswe1 / pCount_dswe_gt0 > 0.5,
+           pCount_dswe1 > 8,
+           prop_clouds == 0,
+           # filter for scenes with < 20% cloud cover
+           sat_id %in% scene_metadata$sat_id) %>%
+    collect() 
+  
+  # for locations with more than one siteSR_id within 100m (see
+  # site_location_groups above), keep just the first siteSR_id per
+  # location_id, so a duplicated physical site doesn't feed the filter below
+  # more than once
+  representative_sites <- sites %>%
+    distinct(location_id, .keep_all = TRUE) %>%
+    pull(siteSR_id)
+  
+  siteSR_regional_dedup <- siteSR_regional_raw %>%
+    filter(siteSR_id %in% representative_sites)
+  
+  # apply the same Gardner et al. cross-sensor correction as script 04's
+  # sensor-corrections chunk, so the filter below judges harmonized bands
+  am_corr_LS7 <- read_csv(file.path(aquamatch_dir, "lakeSR_collated_handoffs_GEEv2025-02-12_QAv2025-06-04.csv")) %>%
+    filter(correction == "Gardner", dswe == "DSWE1", sat_to == "LS7") %>%
+    pivot_longer(cols = c(intercept, B1, B2, min_in_val, max_in_val),
+                 names_to = "int_coef",
+                 values_to = "value") %>%
+    mutate(new_column = paste(band, int_coef, sep = "_")) %>%
+    select(-c(band, int_coef, slope, method)) %>%
+    pivot_wider(names_from = new_column, values_from = value)
+  
+  # apply handoffs
+  siteSR_regional_corr <- siteSR_regional_dedup %>%
+    mutate(sat_corr = case_when(mission == "LT04" ~ "LS5", # landsat 4 is roughly the same as 5
+                                mission == "LT05" ~ "LS5",
+                                mission == "LE07" ~ "LS7",
+                                mission == "LC08" ~ "LS8",
+                                mission == "LC09" ~ "LS8", # landsat 9 is roughly the same as 8
+                                TRUE ~ NA_character_)) %>%
+    left_join(., am_corr_LS7) %>%
+    mutate(red_corr7 = med_Red_intercept + med_Red_B1*med_Red + med_Red_B2*med_Red^2,
+           green_corr7 = med_Green_intercept + med_Green_B1*med_Green + med_Green_B2*med_Green^2,
+           blue_corr7 = med_Blue_intercept + med_Blue_B1*med_Blue + med_Blue_B2*med_Blue^2,
+           nir_corr7 = med_Nir_intercept + med_Nir_B1*med_Nir + med_Nir_B2*med_Nir^2,
+           swir1_corr7 = med_Swir1_intercept + med_Swir1_B1*med_Swir1 + med_Swir1_B2*med_Swir1^2,
+           swir2_corr7 = med_Swir2_intercept + med_Swir2_B1*med_Swir2 + med_Swir2_B2*med_Swir2^2,
+           temp_corr7 = med_SurfaceTemp_intercept +
+             med_SurfaceTemp_B1*med_SurfaceTemp +
+             med_SurfaceTemp_B2*med_SurfaceTemp^2) %>%
+    # store ls7 in the corr7 column
+    mutate(red_corr7 = if_else(sat_corr == "LS7", med_Red, red_corr7),
+           green_corr7 = if_else(sat_corr == "LS7", med_Green, green_corr7),
+           blue_corr7 = if_else(sat_corr == "LS7", med_Blue, blue_corr7),
+           nir_corr7 = if_else(sat_corr == "LS7", med_Nir, nir_corr7),
+           swir1_corr7 = if_else(sat_corr == "LS7", med_Swir1, swir1_corr7),
+           swir2_corr7 = if_else(sat_corr == "LS7", med_Swir2, swir2_corr7),
+           temp_corr7 = if_else(sat_corr == "LS7", med_SurfaceTemp, temp_corr7)) %>%
+    select(-c(all_of(names(am_corr_LS7))))
+  
+  band_cols <- c("red_corr7", "green_corr7", "blue_corr7",
+                 "nir_corr7", "swir1_corr7", "swir2_corr7", "temp_corr7")
+  
+  # closed-form OLS slope/intercept for y ~ t, dropping any non-finite pairs
+  # first (equivalent to lm()'s default na.action, without the overhead of
+  # fitting/summarizing a full model object) - this gets called thousands of
+  # times per site-group, so this difference is what makes running it across
+  # ~65K site-groups tractable
+  ols_fit <- function(t, y) {
+    ok <- is.finite(t) & is.finite(y)
+    if (sum(ok) < 2 || length(unique(t[ok])) < 2) {
+      return(c(intercept = NA_real_, slope = NA_real_))
+    }
+    tt <- t[ok]; yy <- y[ok]
+    tm <- mean(tt); ym <- mean(yy)
+    slope <- sum((tt - tm) * (yy - ym)) / sum((tt - tm)^2)
+    c(intercept = ym - slope * tm, slope = slope)
+  }
+  
+  ransac_site_multiband <- function(date, band_mat,
+                                    n_iter = 100,
+                                    n_mad = 2,
+                                    # per-band sensor-noise floor
+                                    min_diff = c(red_corr7 = 0.01, green_corr7 = 0.01,
+                                                 blue_corr7 = 0.01, nir_corr7 = 0.01,
+                                                 swir1_corr7 = 0.01, swir2_corr7 = 0.01,
+                                                 temp_corr7 = 1),
+                                    min_sample = 8) {
+    n <- nrow(band_mat)
+    nb <- ncol(band_mat)
+    if (n < min_sample + 1) return(rep(NA, n))  # too few points to run ransac
+    
+    # match by name rather than assuming column order lines up with min_diff
+    min_diff_b <- min_diff[colnames(band_mat)]
+    
+    t <- as.numeric(date)
+    
+    # fixed per-band residual scale from a single all-data fit (MAD is robust
+    # up to ~50% contamination, well above what we expect here) - reused for
+    # every candidate subsample below instead of recomputed per iteration
+    band_scale <- vapply(seq_len(nb), function(b) {
+      y <- band_mat[, b]
+      cf <- ols_fit(t, y)
+      pred <- cf["intercept"] + cf["slope"] * t
+      resid <- y - pred
+      s <- mad(resid, na.rm = TRUE)
+      if (is.na(s) || s == 0) s <- sd(resid, na.rm = TRUE)
+      s
+    }, numeric(1))
+    
+    best_inliers <- rep(FALSE, n)
+    best_count <- 0
+    
+    for (i in 1:n_iter) {
+      idx <- sample(n, min_sample)
+      if (length(unique(t[idx])) < 2) next  # avoid degenerate fit (same date)
+      
+      # fit each band vs time on the *same* subsample, standardize each band's
+      # residuals by its fixed scale, then combine - keeps one band's scale
+      # from dominating and keeps the threshold comparable across candidate
+      # lines of very different quality
+      z <- matrix(NA_real_, nrow = n, ncol = nb)
+      for (b in seq_len(nb)) {
+        y <- band_mat[, b]
+        if (length(unique(y[idx])) < 2 || is.na(band_scale[b]) || band_scale[b] == 0) next
+        
+        cf <- ols_fit(t[idx], y[idx])
+        if (anyNA(cf)) next
+        pred <- cf["intercept"] + cf["slope"] * t
+        resid <- y - pred
+        z[, b] <- abs(resid) / band_scale[b]
+        # a raw difference this small is within sensor noise for this band -
+        # never let it count as outlier evidence, regardless of how tight
+        # band_scale is
+        z[abs(resid) < min_diff_b[b], b] <- 0
+      }
+      
+      combined_z <- rowMeans(z, na.rm = TRUE)
+      inliers <- !is.na(combined_z) & combined_z < n_mad
+      
+      if (sum(inliers) > best_count) {
+        best_count <- sum(inliers)
+        best_inliers <- inliers
+      }
+    }
+    
+    # no iteration ever produced a usable fit - we haven't determined
+    # anything about this site, so say so rather than leaving every point
+    # flagged by the rep(FALSE, n) initialization
+    if (best_count == 0) return(rep(NA, n))
+    
+    # a flagged point can't be implausible for this site if every one of its
+    # band values falls within the range other accepted (inlier) points
+    # already span for that band - mirrors the same rescue in ransac_site()
+    if (any(best_inliers)) {
+      in_range <- vapply(seq_len(nb), function(b) {
+        y <- band_mat[, b]
+        accepted <- y[best_inliers]
+        if (length(accepted) == 0 || all(is.na(accepted))) return(rep(TRUE, n))
+        rng <- range(accepted, na.rm = TRUE)
+        y >= rng[1] & y <= rng[2]
+      }, logical(n))
+      best_inliers <- best_inliers | apply(in_range, 1, all)
+    }
+    
+    best_inliers
+  }
+  
+  # run per site, parallelized across site-groups with base R's `parallel`
+  # package (no extra install required); mc.cores leaves 2 cores free.
+  # data.table (not dplyr group_by/mutate) for grouping - at ~65K groups,
+  # dplyr's per-group overhead adds up fast
+  set.seed(47)
+  setDT(siteSR_regional_corr)
+  setorder(siteSR_regional_corr, siteSR_id, date)
+  
+  site_splits <- split(siteSR_regional_corr, by = "siteSR_id", keep.by = TRUE)
+  
+  site_splits_flagged <- parallel::mclapply(
+    site_splits,
+    function(site_df) {
+      site_df[, is_band_inlier := ransac_site_multiband(date, as.matrix(.SD)),
+              .SDcols = band_cols]
+      site_df
+    },
+    mc.cores = max(1, parallel::detectCores() - 2)
+  )
+  
+  # collapse and clean up
+  siteSR_regional_corr <- rbindlist(site_splits_flagged)
+  rm(site_splits, site_splits_flagged)
+  gc()
+  
+  # persist the pre-filter data (with is_band_inlier still attached) for the
+  # diagnostics chunks below, since siteSR_regional_filtered_df further down
+  # drops both the flagged rows and the is_band_inlier column itself
+  write_feather(siteSR_regional_corr, siteSR_regional_corr_diag)
+  
+  # siteSR_regional_corr (and its is_band_inlier flags) only covers
+  # representative_sites - one siteSR_id per location_id. The other
+  # siteSR_id(s) collapsed into each multi-site location_id (see
+  # site-location-dedup above) are the same physical pixel(s), observed on
+  # the same overpasses, so rather than re-running the expensive per-site
+  # ransac_site_multiband() fit on them too, we reuse the representative
+  # site's decision for that scene. sat_id is a scene-global id (Earth
+  # Engine's system:index - see download_sceneMetadata.R), not a per-site
+  # one, so the lookup must be keyed on (location_id, sat_id)
+  location_lookup <- sites %>%
+    select(siteSR_id, location_id)
+  
+  inlier_by_location_scene <- siteSR_regional_corr %>%
+    select(siteSR_id, sat_id, is_band_inlier) %>%
+    left_join(location_lookup, by = "siteSR_id") %>%
+    select(location_id, sat_id, is_band_inlier) %>%
+    distinct()
+  
+  # re-expand from "one representative row per location_id" back out to
+  # every geometry-QA-passing siteSR_id, then attach each row's location_id's scene-level inlier
+  # decision. A duplicate site's sat_id that never appeared for its
+  # representative (or vice versa - e.g. one site's buffer had more
+  # cloud/fewer clear pixels that scene) has no match here and comes through
+  # as NA, which - like a ransac fit that never resolved - is dropped below
+  # rather than assumed innocent.
+  siteSR_regional_filtered_df <- siteSR_regional_raw %>%
+    filter(siteSR_id %in% sites$siteSR_id) %>%
+    left_join(location_lookup, by = "siteSR_id") %>%
+    left_join(inlier_by_location_scene, by = c("location_id", "sat_id")) %>%
+    filter(is_band_inlier) %>%
+    select(-location_id, -is_band_inlier)
+  
+  write_feather(siteSR_regional_filtered_df, siteSR_regional_filtered)
+  
+  rm(siteSR_regional_raw, siteSR_regional_corr, siteSR_regional_filtered_df,
+     location_lookup, inlier_by_location_scene)
+}
+```
+
+Look at some diagnostics to make sure this makes sense. These reload the
+pre-filter data from `siteSR_regional_corr_diag` (written above) rather than
+relying on `siteSR_regional_corr` still being in memory, so they render on
+every knit - including a cache hit, where the RANSAC chunk above skips
+straight to matching without recomputing anything.
+
+```{r load-siteSR-regional-corr-diag}
+band_cols <- c("red_corr7", "green_corr7", "blue_corr7",
+               "nir_corr7", "swir1_corr7", "swir2_corr7", "temp_corr7")
+
+siteSR_regional_corr <- read_feather(siteSR_regional_corr_diag)
+```
+
+Pull sites where more than 10% of points were flagged, for a first look at
+whether the filter is behaving reasonably.
+
+```{r high-flag-sites}
+high_flag_sr_sites <- siteSR_regional_corr %>%
+  summarize(n = n(),
+            n_flagged = sum(is_band_inlier == FALSE),
+            .by = siteSR_id) %>%
+  mutate(frac_flagged = n_flagged/n) %>%
+  filter(frac_flagged > 0.1) %>%
+  arrange(-frac_flagged)
+```
+
+Spot-check a handful of sites with a large enough record (> 1500
+observations) that the pattern is legible: flagged points should look like
+genuine spectral excursions (residual cloud/shadow contamination, glint)
+rather than a large fraction of any one site's record.
+
+```{r spotcheck-sites}
+spotcheck_sites <- siteSR_regional_corr[, .N, by = siteSR_id][N > 1500, siteSR_id]
+map(.x = spotcheck_sites,
+    .f = ~ print(
+      siteSR_regional_corr[siteSR_id == .x] %>%
+        pivot_longer(cols = all_of(band_cols),
+                     names_to = "band",
+                     values_to = "band_val") %>%
+        ggplot(.,
+               aes(x = date, y = band_val, color = is_band_inlier)) +
+        geom_point() +
+        facet_grid(band ~ siteSR_id, scales = "free_y") +
+        scale_color_manual(values = c(`TRUE` = "grey40", `FALSE` = "red")) +
+        theme_bw()
+    )
+)
+```
+
+Some of these look like they might belong to the same waterbody or are sites 
+that are very close to one another, even after the de-duplication step.
+
+Check whether flagging concentrates at reflectance extremes rather than
+spreading evenly across the range of each band - the same "does this look
+like real signal being cut, or generic scene noise" question asked of the
+SDD-only filter above, just against the band values themselves since no
+SDD/harmonized_value exists on this pre-match data. Even spreading here is
+consistent with catching genuine spectral noise (cloud/shadow edges,
+glint); concentration at one band's extremes would suggest the filter is
+instead cutting real, legitimately bright or dark water.
+
+`is_band_inlier` is `NA` for any site the RANSAC fit above never resolved
+(too few points, no degenerate-date-free draw, etc.) - a plain
+`sum(!is_band_inlier)` without `na.rm` would turn `n_flagged` (and thus
+`frac_flagged`) `NA` for any bin containing even one such site, silently
+dropping that bin's bar. Tracking flagged/not-flagged/NA as their own
+counts keeps NA visible as its own category instead of erasing bins.
+
+```{r band-tail-check}
+band_tail_check <- rbindlist(lapply(band_cols, function(b) {
+  siteSR_regional_corr[, .(band = b, bin = ntile(get(b), 10), is_band_inlier)]
+}))[, .(n = .N,
+        n_flagged = sum(is_band_inlier == FALSE, na.rm = TRUE),
+        n_unflagged = sum(is_band_inlier == TRUE, na.rm = TRUE),
+        n_na = sum(is.na(is_band_inlier))), by = .(band, bin)
+][, `:=`(frac_flagged = n_flagged / n,
+         frac_unflagged = n_unflagged / n,
+         frac_na = n_na / n)][order(band, bin)]
+
+print(
+  band_tail_check %>%
+    pivot_longer(cols = c(frac_flagged, frac_unflagged, frac_na),
+                 names_to = "status", values_to = "frac") %>%
+    mutate(status = recode(status,
+                           frac_flagged = "flagged",
+                           frac_unflagged = "not flagged",
+                           frac_na = "NA")) %>%
+    ggplot(aes(x = bin, y = frac, fill = status)) +
+    geom_col() +
+    facet_wrap(~ band, scales = "free_x") +
+    labs(x = "decile of corrected band value (1 = lowest)",
+         y = "fraction of observations",
+         fill = NULL) +
+    theme_bw()
+)
+```
+
+This does skew to flagging greater outliers at higher values, but that is probably
+real. We can further look into that by looking at sites where there are a lot
+of data being flagged in the 90th percentile.
+
+Spot-check sites with a large enough record (> 1000 observations) that the
+pattern is legible, restricted to sites with at least one point in that
+band's decile 10 (i.e. at/above the band's global 90th percentile) - a
+closer look at the sites/points actually behind the decile-10 concentration
+surfaced above, to see whether those points look like isolated spectral
+noise or a recurring signal (e.g. seasonal bloom) the filter is cutting.
+
+```{r decile10-spotcheck-prep}
+band_p90 <- setNames(
+  vapply(band_cols, function(b) {
+    quantile(siteSR_regional_corr[[b]], 0.9, na.rm = TRUE)
+  }, numeric(1)),
+  band_cols
+)
+band_p90_df <- data.table(band = band_cols, p90 = band_p90)
+
+siteSR_band_long <- rbindlist(lapply(band_cols, function(b) {
+  siteSR_regional_corr[, .(siteSR_id, date, band = b, band_val = get(b),
+                           is_band_inlier)]
+}))
+
+large_sites <- siteSR_regional_corr[, .N, by = siteSR_id][N > 1000, siteSR_id]
+decile10_sites_all <- siteSR_band_long[
+  siteSR_id %in% large_sites & band_val >= band_p90[band], unique(siteSR_id)
+]
+
+# this condition flags the vast majority of large sites (a decile-10 hit in
+# any of 7 bands is a low bar), so plotting all of them stops being a spot
+# check - sample a fixed, reproducible subset instead
+set.seed(43)
+decile10_spotcheck_n <- 25
+decile10_sites <- if (length(decile10_sites_all) > decile10_spotcheck_n) {
+  sample(decile10_sites_all, decile10_spotcheck_n)
+} else {
+  decile10_sites_all
+}
+```
+
+One figure per site, rather than one huge multi-site `facet_grid`, so each
+site's timeseries is actually readable. `r length(decile10_sites_all)` sites
+meet the decile10 criterion above; we spot-check a random sample of
+`r length(decile10_sites)` of them here rather than rendering all of them.
+
+```{r decile10-spotcheck-plot}
+walk(decile10_sites, function(site) {
+  print(
+    siteSR_band_long[siteSR_id == site] %>%
+      ggplot(aes(x = date, y = band_val, color = is_band_inlier)) +
+      geom_point() +
+      geom_hline(data = band_p90_df, aes(yintercept = p90),
+                 linetype = "dashed") +
+      facet_wrap(~ band, scales = "free_y", ncol = 2) +
+      scale_color_manual(values = c(`TRUE` = "grey40", `FALSE` = "red")) +
+      labs(title = site) +
+      theme_bw()
+  )
+})
+```
+
+Can still see some related sites in here. 
+
+```{r diagnostics-cleanup}
+rm(siteSR_regional_corr, band_cols,
+   high_flag_sr_sites, spotcheck_sites,
+   band_tail_check, band_p90, band_p90_df,
+   siteSR_band_long, large_sites,
+   decile10_sites, decile10_sites_all, decile10_spotcheck_n)
+gc()
+```
+
+## Make matches with the filtered data
+
+Use the regionally band-filtered siteSR data (rather than the full
+nationwide `unified_data`) as the input to matching, so a site flagged above
+simply isn't a match candidate.
+
+```{r run-siteSR-wqp-match, message = FALSE, warning=FALSE}
 # Define paths to downloaded and stacked data
 sr_sites <- siteSR[grepl("collated_WQP_NWIS_sites", siteSR)]
-out_file <- file.path(aquamatch_dir, "sdd_siteSR_matchups_5d.parquet")
+out_file <- file.path(aquamatch_dir, "sdd_regional_siteSR_matchups_5d.parquet")
 
 if (file.exists(out_file)) {
   sdd_match <- read_parquet(out_file)
@@ -182,7 +931,7 @@ if (file.exists(out_file)) {
   # Run the matchups with a 5-day window
   match_siteSR_to_WQP(
     wqp_path = sdd_filtered,
-    siteSR_path = unified_data,
+    siteSR_path = siteSR_regional_filtered,
     site_list_path = sr_sites,
     save_location = out_file,
     time_window = "5 days"
@@ -194,7 +943,8 @@ if (file.exists(out_file)) {
 
 ```
 
-Let's limit to Lake data for our purposes and remove the Great Lakes.
+Let's limit to Lake data for our purposes and remove the Great Lakes - this is
+a back up to the site filters above
 
 ```{r lakes-only}
 lake_sdd <- sdd_match %>%
@@ -205,18 +955,16 @@ lake_sdd <- sdd_match %>%
     !grepl("Great", MonitoringLocationTypeName)
   )
 
-
-rm(sdd_match)
-
-write_feather(lake_sdd, file.path(aquamatch_dir, "sdd_CONUS_lake_5d_matchups.feather"))
+# check to see if these are the same
+nrow(lake_sdd) == nrow(sdd_match)
 ```
 
-Do some spatial filtering to CONUS only
+## Summary Figures
 
 ```{r conus-only, , message = FALSE, warning=FALSE}
 sites <- read_csv(sr_sites)
 sites_w_matches <- sites %>% 
-  filter(siteSR_id %in% unique(lake_sdd$siteSR_id)) %>% 
+  filter(siteSR_id %in% unique(sdd_match$siteSR_id)) %>% 
   st_as_sf(coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
 
 # let's drop the ones that are outside the CONUS for the purposes of this
@@ -238,20 +986,17 @@ tm_shape(conus) +
   tm_dots()
 ```
 
-
-## Summary and Figures
-
 Make some summary tables
 
 ```{r summary-by-site}
 # summarize by number of matches per site
-five_day_summary <- lake_sdd %>%
+five_day_summary <- sdd_match %>%
   summarize(n = n(),
             .by = siteSR_id)
 
 # add in spatial data
 lake_locs_with_matches <- lake_locs_CONUS %>%
-  filter(siteSR_id %in% unique(lake_sdd$siteSR_id)) %>%
+  filter(siteSR_id %in% unique(sdd_match$siteSR_id)) %>%
   left_join(., five_day_summary)
 ```
 
@@ -277,7 +1022,7 @@ And also by number of matches per mission
 
 ```{r summary-by-mission}
 # and per site per mission
-five_day_summary_sensor <- lake_sdd %>%
+five_day_summary_sensor <- sdd_match %>%
   summarize(n = n(),
             .by = c(siteSR_id, mission))
 

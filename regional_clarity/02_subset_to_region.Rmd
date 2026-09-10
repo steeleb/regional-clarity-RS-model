@@ -1,7 +1,7 @@
 ---
 title: "Subset to Region"
 author: "B Steele, Colorado State University, ROSSyndicate"
-date: "last updated Sept 01, 2026"
+date: "last updated Sept 10, 2026"
 output: html_document
 ---
 
@@ -25,7 +25,7 @@ library(tmap)
 library(hydrogeofetch)
 
 # read in 5-day match
-sdd_5d <- read_feather("aquamatch_files/sdd_CONUS_lake_5d_matchups.feather")
+sdd_5d <- read_parquet("aquamatch_files/sdd_regional_siteSR_matchups_5d.parquet")
 ```
 
 ### Reduce AOI to Mountain West HUC4's
@@ -126,39 +126,20 @@ regional_sdd <- sdd_5d %>%
 
 ## QA the data
 
-Here, we apply some filters to make sure we are training the ML model with 
-high-quality remote sensing data.
-
-```{r qa-filters}
-# apply some QA filters
-reg_sdd_filtered <- regional_sdd %>%
-  # RS data filter
-  filter(
-    # make sure at least 50% of pixels in area are water of some type
-    pCount_dswe1/pCount_dswe_gt0 > 0.5,
-    # make sure there are at least 8 pixels
-    pCount_dswe1 > 8,
-    # make sure there is no indication of cloud in the pixels
-    prop_clouds == 0,
-    # filter for inlier SDD only
-    is_inlier
-  )
-```
-
-And then making sure we're using the observation closest in time to the measurement.
+Make sure we're using the observation closest in time to the measurement.
 This assures we're not using multiple satellites for the same data point in our 
 training dataset. We will also export those that are not included as a possible
 additional test set.
 
 ```{r closest-obs}
 # grab the observation closes in date to a satellite flyover
-reg_sdd_closest <- reg_sdd_filtered %>%
+reg_sdd_closest <- regional_sdd %>%
   arrange(abs(time_diff), mission) %>%
   slice(1, .by = c("subgroup_id"))
 
 # let's also do an anti-join here of the other observations so that we have an
 # additional validation dataset to play with.
-reg_sdd_additional <- anti_join(reg_sdd_filtered, reg_sdd_closest)
+reg_sdd_additional <- anti_join(regional_sdd, reg_sdd_closest)
 
 write_feather(reg_sdd_additional, "aquamatch_files/regional_sdd_not_closest.feather")
 ```
@@ -233,4 +214,24 @@ tm_shape(HUC4_filtered) +
 ```{r export}
 write_feather(reg_sdd_closest,
               "aquamatch_files/filtered_regional_sdd.feather")
+```
+
+Save the HUC4 and state boundaries as their own geodatabases so later scripts
+can just read these back in instead of re-running the HUC4 download/filter
+and states() pull.
+
+```{r export-boundaries}
+st_write(HUC4_filtered,
+         dsn = "aquamatch_files/huc4_filtered.gdb",
+         layer = "huc4_filtered",
+         driver = "OpenFileGDB",
+         append = FALSE,
+         quiet = TRUE)
+
+st_write(states,
+         dsn = "aquamatch_files/states.gdb",
+         layer = "states",
+         driver = "OpenFileGDB",
+         append = FALSE,
+         quiet = TRUE)
 ```

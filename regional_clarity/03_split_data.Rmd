@@ -22,8 +22,6 @@ library(tidyverse)
 library(arrow)
 library(sf)
 library(tmap)
-library(tigris)
-library(hydrogeofetch)
 
 # ROSSyndicate light palette for plotting
 ROSS_lt_pal <- c("#002EA3", "#E70870", "#256BF5",
@@ -94,43 +92,19 @@ sites <- split_dataframes %>%
            crs = "EPSG:4326") %>%
   mutate(split = part)
 
-# 6-state region and HUC4 boundaries for context
-states <- states(progress_bar = FALSE) %>%
-  filter(STUSPS %in% c("CO", "WY", "UT", "ID", "MT", "NM"))
-states_union <- states %>% st_union()
+# 6-state region and HUC4 boundaries for context (saved by script 02, so we
+# don't have to re-download/re-filter them here)
+states <- st_read("aquamatch_files/states.gdb", layer = "states", quiet = TRUE)
+HUC4s <- st_read("aquamatch_files/huc4_filtered.gdb", layer = "huc4_filtered",
+                  quiet = TRUE)
 
-# get_huc() (nhdplusTools/hydrogeofetch) times out (HTTP 504) against the USGS
-# pygeoapi service, so instead read HUC4's from the national WBD geodatabase
-# (downloaded once and cached in aquamatch_files/ by script 02) and filter
-# to our 6-state AOI locally.
-wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
-
-huc4_layer <- st_layers(wbd_gdb)$name %>%
-  keep(~ grepl("HU4$", ., ignore.case = TRUE))
-
-HUC4s <- st_read(wbd_gdb, layer = huc4_layer, quiet = TRUE) %>%
-  rename_with(tolower) %>%
-  # WBD ships with Z values and a compound CRS (NAD83 + NAVD88 height);
-  # transforming a 2D CRS into that compound CRS silently breaks (no vertical
-  # grid to invent a Z), so drop Z here - horizontal datum is then plain NAD83
-  st_zm(drop = TRUE, what = "ZM")
-
-# standardize the geometry column name to "geometry" (FileGDB layers are
-# often read in with the geometry column named "shape")
+# OpenFileGDB round-trips the geometry column as "SHAPE" - standardize back
+# to "geometry"
 geom_col <- attr(HUC4s, "sf_column")
 if (geom_col != "geometry") {
   names(HUC4s)[names(HUC4s) == geom_col] <- "geometry"
   st_geometry(HUC4s) <- "geometry"
 }
-
-# reset (not transform) the CRS now that only the horizontal NAD83 datum
-# remains, matching states_union - no reprojection needed
-st_crs(HUC4s) <- st_crs(states_union)
-
-# reduce from the national layer to just the HUC4's touching our 6-state AOI
-HUC4s <- HUC4s %>%
-  st_make_valid() %>%
-  st_filter(states_union)
 
 tm_shape(HUC4s) +
   tm_shape(states) +
