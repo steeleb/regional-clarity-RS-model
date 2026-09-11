@@ -1,0 +1,91 @@
+{
+  "model": "nn",
+  "feature_set": "intersection16",
+  "n_oof_rows": 1600,
+  "per_feature": [
+    {
+      "feature": "BG",
+      "mean_abs_shap": 0.3760273483441919,
+      "group": "optical"
+    },
+    {
+      "feature": "red_corr7",
+      "mean_abs_shap": 0.2572303047086334,
+      "group": "optical"
+    },
+    {
+      "feature": "nir_corr7",
+      "mean_abs_shap": 0.19860298014136682,
+      "group": "optical"
+    },
+    {
+      "feature": "NDVI",
+      "mean_abs_shap": 0.17979371664477806,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_wetland_2006",
+      "mean_abs_shap": 0.15964145075840144,
+      "group": "site"
+    },
+    {
+      "feature": "fai",
+      "mean_abs_shap": 0.14770157622386518,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_urban_2006",
+      "mean_abs_shap": 0.14612223634752713,
+      "group": "site"
+    },
+    {
+      "feature": "MNDWI",
+      "mean_abs_shap": 0.13333566849026476,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_forest_2006",
+      "mean_abs_shap": 0.12504639059139094,
+      "group": "site"
+    },
+    {
+      "feature": "NR",
+      "mean_abs_shap": 0.0882072935478415,
+      "group": "optical"
+    },
+    {
+      "feature": "atm_corr_LaSRC",
+      "mean_abs_shap": 0.08672017116093529,
+      "group": "optical"
+    },
+    {
+      "feature": "NDSSI",
+      "mean_abs_shap": 0.07874320830197055,
+      "group": "optical"
+    },
+    {
+      "feature": "NDWI",
+      "mean_abs_shap": 0.07249580459940658,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_cropland_2006",
+      "mean_abs_shap": 0.0669213590687202,
+      "group": "site"
+    },
+    {
+      "feature": "temp_corr7",
+      "mean_abs_shap": 0.04602481291290397,
+      "group": "optical"
+    },
+    {
+      "feature": "catchment_area_sqkm",
+      "mean_abs_shap": 0.01777110376737053,
+      "group": "site"
+    }
+  ],
+  "group_contribution_pct": {
+    "optical": 76.35727452226517,
+    "site": 23.642725477734825
+  }
+}

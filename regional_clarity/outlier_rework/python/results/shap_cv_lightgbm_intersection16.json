@@ -1,0 +1,91 @@
+{
+  "model": "lightgbm",
+  "feature_set": "intersection16",
+  "n_oof_rows": 10128,
+  "per_feature": [
+    {
+      "feature": "BG",
+      "mean_abs_shap": 0.6884355921339894,
+      "group": "optical"
+    },
+    {
+      "feature": "red_corr7",
+      "mean_abs_shap": 0.5778791222684702,
+      "group": "optical"
+    },
+    {
+      "feature": "catchment_area_sqkm",
+      "mean_abs_shap": 0.25052008017304894,
+      "group": "site"
+    },
+    {
+      "feature": "pct_wetland_2006",
+      "mean_abs_shap": 0.1963756846464999,
+      "group": "site"
+    },
+    {
+      "feature": "fai",
+      "mean_abs_shap": 0.17999518373574405,
+      "group": "optical"
+    },
+    {
+      "feature": "MNDWI",
+      "mean_abs_shap": 0.16765204538144726,
+      "group": "optical"
+    },
+    {
+      "feature": "NR",
+      "mean_abs_shap": 0.16684634932845216,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_urban_2006",
+      "mean_abs_shap": 0.14411497862172334,
+      "group": "site"
+    },
+    {
+      "feature": "atm_corr_LaSRC",
+      "mean_abs_shap": 0.12847801767671937,
+      "group": "optical"
+    },
+    {
+      "feature": "NDVI",
+      "mean_abs_shap": 0.11820687738313386,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_cropland_2006",
+      "mean_abs_shap": 0.09763696779600095,
+      "group": "site"
+    },
+    {
+      "feature": "temp_corr7",
+      "mean_abs_shap": 0.0881932352649976,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_forest_2006",
+      "mean_abs_shap": 0.08325083657797373,
+      "group": "site"
+    },
+    {
+      "feature": "NDSSI",
+      "mean_abs_shap": 0.07543387331738534,
+      "group": "optical"
+    },
+    {
+      "feature": "nir_corr7",
+      "mean_abs_shap": 0.05613316052304377,
+      "group": "optical"
+    },
+    {
+      "feature": "NDWI",
+      "mean_abs_shap": 0.04424057242321071,
+      "group": "optical"
+    }
+  ],
+  "group_contribution_pct": {
+    "optical": 74.80249336806469,
+    "site": 25.197506631935322
+  }
+}
