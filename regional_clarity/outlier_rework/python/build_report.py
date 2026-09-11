@@ -34,6 +34,8 @@ figures = {
     "weighted_pred_vs_obs": img_tag(PY_FIG / "weighted_pred_vs_obs.png", "Weighted vs unweighted predicted vs observed"),
     "fold_diagnostics": img_tag(PY_FIG / "fold_diagnostics.png", "Per-fold train vs validation RMSE"),
     "feature_group_comparison": img_tag(PY_FIG / "feature_group_comparison.png", "Site/weather feature group comparison"),
+    "shap_group_contribution": img_tag(PY_FIG / "shap_group_contribution.png", "SHAP attribution share by feature category"),
+    "shap_top_features_full": img_tag(PY_FIG / "shap_top_features_full.png", "Top SHAP features, combined optical+site+weather model"),
 }
 
 with open(ROOT / "report_template.html") as fh:

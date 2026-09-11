@@ -12,7 +12,12 @@ import torch.nn as nn
 DEVICE = torch.device("cpu")
 
 PARAM_SPACE = dict(
-    hidden_sizes=[(64, 32), (128, 64), (64, 64, 32), (32, 32)],
+    # capped at 3 layers x 8 units: the tree models' own feature-count-vs-
+    # capacity tradeoff (13-44 candidate features, ~10k training rows)
+    # argues a much smaller network than a generic MLP default - the prior
+    # search (up to 128 units, 3 layers) was over-parameterized for this
+    # dataset size
+    hidden_sizes=[(4,), (8,), (4, 4), (8, 4), (8, 8), (4, 4, 4), (8, 4, 4), (8, 8, 8)],
     dropout=[0.0, 0.1, 0.2, 0.3],
     lr=[1e-2, 5e-3, 1e-3],
     weight_decay=[0.0, 1e-4, 1e-3],
