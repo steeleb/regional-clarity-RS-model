@@ -18,3 +18,4 @@ regional_clarity/xg_models/hypertune/
 **.feather
 **.parquet
 **.rds
+**/__pycache__/

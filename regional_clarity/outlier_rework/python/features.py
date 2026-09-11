@@ -79,8 +79,12 @@ def add_spectral_indices(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def candidate_feature_list(df: pd.DataFrame) -> list:
+    # time_diff is match-quality metadata (days between field sample and
+    # satellite pass) - it doesn't exist at deployment time when scoring an
+    # arbitrary satellite pass with no paired field sample, so it can't be
+    # a model input despite being available in this matched training table
     exclude = {"siteSR_id", "date", "HUC4", "part", "harmonized_value",
-               "mission", "misc_flag", "lat", "lon"}
+               "mission", "misc_flag", "lat", "lon", "time_diff"}
     return [c for c in df.columns if c not in exclude]
 
 

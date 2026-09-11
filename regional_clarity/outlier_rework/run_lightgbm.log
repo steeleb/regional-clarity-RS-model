@@ -1,0 +1,8 @@
+[18:19:49] loading data for lightgbm
+[18:19:49] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BR', 'G_BN', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[18:19:49] === tuning lightgbm (25 trials) ===
+[18:20:29] tuning done in 39.9s, best mean CV RMSE=1.4909
+[18:20:29] best params: {'learning_rate': 0.1, 'num_leaves': 7, 'min_child_samples': 10, 'subsample': 0.7, 'colsample_bytree': 0.5}
+[18:20:30] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.5055512324442017, 'mae': 1.0518726806055871, 'mape': 0.5809371999374146, 'bias': 0.029734157679204367, 'p_bias': 0.9097227113248386, 'smape': 0.379266837416052, 'r2': 0.5946801742336811, 'n': 10144}
+[18:20:30] TEST (part 5, held out) metrics: {'rmse': 1.8660619485006025, 'mae': 1.1587083427524176, 'mape': 0.6160040752968708, 'bias': -0.19429054584022434, 'p_bias': -5.830784390982776, 'smape': 0.37964296956846605, 'r2': 0.4362971041979557, 'n': 2515}
+[18:20:30] lightgbm done

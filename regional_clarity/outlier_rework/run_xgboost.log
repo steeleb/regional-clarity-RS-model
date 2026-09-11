@@ -1,0 +1,8 @@
+[18:19:03] loading data for xgboost
+[18:19:03] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BR', 'G_BN', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[18:19:03] === tuning xgboost (25 trials) ===
+[18:19:47] tuning done in 43.8s, best mean CV RMSE=1.4945
+[18:19:47] best params: {'eta': 0.1, 'max_depth': 2, 'min_child_weight': 5, 'subsample': 1.0, 'colsample_bytree': 0.5}
+[18:19:48] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.5876229075296602, 'mae': 1.0930235443638538, 'mape': 0.5664254184078689, 'bias': 0.1285577863788567, 'p_bias': 3.933252095057241, 'smape': 0.37923514791449964, 'r2': 0.5715151379349857, 'n': 10144}
+[18:19:48] TEST (part 5, held out) metrics: {'rmse': 1.8831718080610644, 'mae': 1.155799796761623, 'mape': 0.5722683154674966, 'bias': -0.17017659991707054, 'p_bias': -5.10710934603564, 'smape': 0.3724764440268552, 'r2': 0.4271834667234881, 'n': 2515}
+[18:19:48] xgboost done
