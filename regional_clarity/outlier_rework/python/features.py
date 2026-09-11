@@ -38,7 +38,9 @@ def add_spectral_indices(df: pd.DataFrame) -> pd.DataFrame:
     df["R_BN"] = r / (b + n)
     df["R_BS"] = r / (b + s1)
     df["R_NS"] = r / (n + s1)
-    df["G_BR"] = g / (b + s1)
+    # G_BR removed: it was byte-for-byte identical to G_BS (both computed
+    # g/(b+s1)) - a copy-paste bug inherited from 04_make_models.Rmd. Its
+    # name implied green/(blue+red), which G_RB below already covers.
     df["G_BN"] = g / (b + n)
     df["G_BS"] = g / (b + s1)
     df["G_RN"] = g / (r + n)
@@ -53,7 +55,11 @@ def add_spectral_indices(df: pd.DataFrame) -> pd.DataFrame:
     df["N_RB"] = n / (r + b)
     df["N_RS"] = n / (r + s1)
     df["N_GB"] = n / (g + b)
-    df["N_GS"] = n / (g + n)  # matches R script's (apparent) typo: nir/(green+nir)
+    # N_GS fixed: was computing n/(g+n) - a mislabeled near-duplicate of GN
+    # (g/n) - instead of what its name implies, n/(g+swir1). The corrected
+    # formula fills a real gap (every other 2-band-sum pair among
+    # {R,G,B,S} already has an N_ index; g+swir1 was the only one missing).
+    df["N_GS"] = n / (g + s1)
     df["N_BS"] = n / (b + s1)
     df["GR_2"] = (r + g) / 2
     df["GN_2"] = (n + g) / 2

@@ -1,7 +1,7 @@
 {
   "model": "xgboost",
   "feature_group": "optical+site+weather",
-  "n_optical_feats": 58,
+  "n_optical_feats": 57,
   "n_extra_feats": 27,
   "features": [
     "atm_corr_LaSRC",
@@ -27,8 +27,8 @@
     "R_GS",
     "R_BN",
     "R_BS",
-    "G_BR",
     "G_BN",
+    "G_BS",
     "G_RN",
     "G_RB",
     "BR_G",
@@ -61,34 +61,34 @@
     "tmin_degC_prev7",
     "tmin_degC_prev30",
     "srad_Wm2_prev1",
-    "srad_Wm2_prev3",
+    "srad_Wm2_prev7",
     "srad_Wm2_prev30"
   ],
   "best_params": {
     "eta": 0.01,
-    "max_depth": 4,
-    "min_child_weight": 7,
-    "subsample": 0.9,
+    "max_depth": 5,
+    "min_child_weight": 1,
+    "subsample": 0.7,
     "colsample_bytree": 0.5
   },
   "cv_metrics": {
-    "rmse": 1.4563125022652519,
-    "mae": 1.0304258527134893,
-    "mape": 0.620668798075897,
-    "bias": 0.154068461707044,
-    "p_bias": 4.713756489285206,
-    "smape": 0.3792351201076034,
-    "r2": 0.6248064014301099,
-    "n": 10144
+    "rmse": 1.4970560261396355,
+    "mae": 1.0376113302554895,
+    "mape": 0.6047117392738844,
+    "bias": -0.004210381350269626,
+    "p_bias": -0.12873859779815233,
+    "smape": 0.37880592857884865,
+    "r2": 0.6052184238612602,
+    "n": 10128
   },
   "test_metrics": {
-    "rmse": 1.7674102519679462,
-    "mae": 1.193836131061759,
-    "mape": 0.7604956412367792,
-    "bias": 0.23402131348528402,
-    "p_bias": 7.02313031200914,
-    "smape": 0.38200739738316425,
-    "r2": 0.5016714792837184,
-    "n": 2515
+    "rmse": 1.7513265670036522,
+    "mae": 1.1777982822506015,
+    "mape": 0.7587254652259556,
+    "bias": 0.19186286760640361,
+    "p_bias": 5.759579596773699,
+    "smape": 0.3808235683250429,
+    "r2": 0.5065629893636512,
+    "n": 2509
   }
 }

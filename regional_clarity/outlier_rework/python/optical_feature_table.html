@@ -1,0 +1,38 @@
+<h3>Optical (57 candidates)</h3>
+<p>7 Gardner-corrected reflectance/temperature bands, 1 atmospheric-correction indicator, and the remaining band-ratio/normalized-difference indices, replicated from <code>04_make_models.Rmd</code> with the <code>G_BR</code>/<code>N_GS</code> fixes from above applied.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Name</th><th>Definition</th><th>Name</th><th>Definition</th></tr></thead>
+<tbody>
+      <tr><td>BG</td><td>blue / green</td><td>N_GB</td><td>nir / (green+blue)</td></tr>
+      <tr><td>BN</td><td>blue / nir</td><td>N_GS</td><td>nir / (green+swir1)</td></tr>
+      <tr><td>BR</td><td>blue / red</td><td>N_RB</td><td>nir / (red+blue)</td></tr>
+      <tr><td>BR_G</td><td>(blue−red) / green</td><td>N_RG</td><td>nir / (red+green)</td></tr>
+      <tr><td>BS</td><td>blue / swir1</td><td>N_RS</td><td>nir / (red+swir1)</td></tr>
+      <tr><td>B_GN</td><td>blue / (green+nir)</td><td>NmR</td><td>nir − red</td></tr>
+      <tr><td>B_GS</td><td>blue / (green+swir1)</td><td>NmS</td><td>nir − swir1</td></tr>
+      <tr><td>B_NS</td><td>blue / (nir+swir1)</td><td>RG</td><td>red / green</td></tr>
+      <tr><td>B_RG</td><td>blue / (red+green)</td><td>RN</td><td>red / nir</td></tr>
+      <tr><td>B_RS</td><td>blue / (red+swir1)</td><td>RS</td><td>red / swir1</td></tr>
+      <tr><td>GN</td><td>green / nir</td><td>R_BN</td><td>red / (blue+nir)</td></tr>
+      <tr><td>GN_2</td><td>(nir+green) / 2</td><td>R_BS</td><td>red / (blue+swir1)</td></tr>
+      <tr><td>GN_GN</td><td>(green−nir) / (green+nir)</td><td>R_GB</td><td>red / (green+blue)</td></tr>
+      <tr><td>GR</td><td>green / red</td><td>R_GN</td><td>red / (green+nir)</td></tr>
+      <tr><td>GR_2</td><td>(red+green) / 2</td><td>R_GS</td><td>red / (green+swir1)</td></tr>
+      <tr><td>GS</td><td>green / swir1</td><td>R_NS</td><td>red / (nir+swir1)</td></tr>
+      <tr><td>G_BN</td><td>green / (blue+nir)</td><td>SG</td><td>swir1 / green</td></tr>
+      <tr><td>G_BS</td><td>green / (blue+swir1)</td><td>SN</td><td>swir1 / nir</td></tr>
+      <tr><td>G_NS</td><td>green / (nir+swir1)</td><td>SR</td><td>swir1 / red</td></tr>
+      <tr><td>G_RB</td><td>green / (red+blue)</td><td>atm_corr_LaSRC</td><td>1 = LaSRC (LC08/09), 0 = LEDAPS (LT04/05/LE07)</td></tr>
+      <tr><td>G_RN</td><td>green / (red+nir)</td><td>blue_corr7</td><td>corrected blue reflectance</td></tr>
+      <tr><td>NDSSI</td><td>(blue−nir) / (blue+nir)</td><td>fai</td><td>floating algae index</td></tr>
+      <tr><td>NDVI</td><td>(nir−red) / (nir+red)</td><td>green_corr7</td><td>corrected green reflectance</td></tr>
+      <tr><td>NDWI</td><td>(green−swir1) / (green+swir1)</td><td>nir_corr7</td><td>corrected NIR reflectance</td></tr>
+      <tr><td>NG</td><td>nir / green</td><td>red_corr7</td><td>corrected red reflectance</td></tr>
+      <tr><td>NR</td><td>nir / red</td><td>swir1_corr7</td><td>corrected SWIR1 reflectance</td></tr>
+      <tr><td>NS</td><td>nir / swir1</td><td>swir2_corr7</td><td>corrected SWIR2 reflectance</td></tr>
+      <tr><td>NS_NR</td><td>(nir−swir1) / (red−swir1)</td><td>temp_corr7</td><td>corrected surface temperature</td></tr>
+      <tr><td>N_BS</td><td>nir / (blue+swir1)</td><td></td><td></td></tr>
+</tbody>
+</table>
+</div>

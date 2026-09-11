@@ -6,6 +6,16 @@
 # climateR::getGridMET(), fetched per-site over that site's own observed
 # date range (with a lag-window buffer) rather than the full 40-year
 # record for every site, since most sites don't need it.
+#
+# The match window is +-5 days between the satellite image and the field
+# SDD sample, and time_diff is close to a 50/50 split on which side leads
+# (n=6275 image-before-field, n=6384 image-after-field). "Previous N days
+# before the image date" only covers the image-to-field gap when the field
+# sample came *first* - when the image comes first (time_diff > 0), that
+# window never reaches forward to the field date at all, silently missing
+# up to 5 days of real antecedent conditions for about half the dataset.
+# Fetch range widened by +5 days on the tail end so summaries.R can anchor
+# each observation's window on max(image_date, field_date) instead.
 
 suppressMessages({
   library(arrow); library(dplyr); library(readr); library(parallel); library(climateR)
@@ -24,10 +34,12 @@ VARS <- c("pr", "tmmx", "tmmn", "srad")
 
 ## ---- per-site date ranges needed ----
 final <- read_feather(file.path(out_dir, "filtered_regional_sdd_final.feather"),
-                       col_select = c("siteSR_id", "lat", "lon", "date"))
+                       col_select = c("siteSR_id", "lat", "lon", "date", "harmonized_local_time"))
+final <- final %>% mutate(field_date = as.Date(harmonized_local_time),
+                          anchor_date = pmax(date, field_date))
 site_ranges <- final %>%
   group_by(siteSR_id, lat, lon) %>%
-  summarize(min_date = min(date) - (MAX_WINDOW_DAYS + 5), max_date = max(date), .groups = "drop")
+  summarize(min_date = min(date) - (MAX_WINDOW_DAYS + 5), max_date = max(anchor_date), .groups = "drop")
 log("fetching gridMET for %s sites", nrow(site_ranges))
 
 fetch_one <- function(i) {

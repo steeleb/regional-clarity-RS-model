@@ -257,8 +257,8 @@ a { color: var(--accent-strong); }
 
 <header class="hero">
   <div class="eyebrow">Regional Clarity RS Model &middot; overnight investigation</div>
-  <h1>Outlier removal rework: from 5,199 to 12,659 training rows</h1>
-  <p class="dek">Diagnosis of why the RANSAC filtering step cut training data to 30% of its prior size, a redesigned outlier/QA pipeline that recovers most of that loss while keeping the 5-day match window, a comparison of XGBoost, LightGBM, and a feedforward NN under the existing spatial holdout cross-validation, an SDD-weighted refinement that reduces every model's high-clarity bias, and a test of whether catchment characteristics and antecedent weather (per Topp et al. 2021) improve on the optical-only model.</p>
+  <h1>Outlier removal rework: from 5,199 to 12,637 training rows</h1>
+  <p class="dek">Diagnosis of why the RANSAC filtering step cut training data to 30% of its prior size, a redesigned outlier/QA pipeline that recovers most of that loss while keeping the 5-day match window, a comparison of XGBoost, LightGBM, and a feedforward NN under the existing spatial holdout cross-validation, an SDD-weighted refinement that reduces every model's high-clarity bias, a test of whether catchment characteristics and antecedent weather (per Topp et al. 2021) improve on the optical-only model, a mid-investigation fix to the antecedent-weather window and a new heavy-rain outlier filter, and a first pass at more rigorous feature-redundancy reduction.</p>
   <div class="meta">
     <span>Branch: <code>outlier-removal-rework</code></span>
     <span>Target: Secchi disk depth (m) from Landsat surface reflectance</span>
@@ -269,13 +269,13 @@ a { color: var(--accent-strong); }
 <div class="stat-strip">
   <div class="stat">
     <span class="stat-label">Final training rows</span>
-    <span class="stat-value good">12,659</span>
-    <span class="stat-sub">up from 5,199 (+143.6%)</span>
+    <span class="stat-value good">12,637</span>
+    <span class="stat-sub">up from 5,199 (+143.1%)</span>
   </div>
   <div class="stat">
     <span class="stat-label">10k floor</span>
     <span class="stat-value good">cleared</span>
-    <span class="stat-sub">+26.6% margin</span>
+    <span class="stat-sub">+26.4% margin</span>
   </div>
   <div class="stat">
     <span class="stat-label">Match window</span>
@@ -285,7 +285,7 @@ a { color: var(--accent-strong); }
   <div class="stat">
     <span class="stat-label">Lowest RMSE / lowest bias</span>
     <span class="stat-value" style="font-size:1.15rem">XGB+site+wx / LGBM+wx</span>
-    <span class="stat-sub">1.77m (+0.23 bias) / 1.83m (&minus;0.04 bias)</span>
+    <span class="stat-sub">1.75m (+0.19 bias) / 1.82m (&minus;0.03 bias)</span>
   </div>
 </div>
 
@@ -405,18 +405,18 @@ a { color: var(--accent-strong); }
   <table>
     <thead><tr><th>Model</th><th>Held-out partition</th><th>Train RMSE</th><th>Val RMSE</th><th>Gap (val&minus;train)</th><th>Val R&sup2;</th></tr></thead>
     <tbody>
-      <tr><td>XGBoost</td><td>1</td><td>1.237</td><td>1.172</td><td>&ndash;0.065</td><td>0.615</td></tr>
-      <tr><td></td><td>2</td><td>1.148</td><td>1.452</td><td>+0.304</td><td>0.539</td></tr>
-      <tr><td></td><td>3</td><td>1.109</td><td>1.990</td><td>+0.881</td><td>0.436</td></tr>
-      <tr><td></td><td>4</td><td>1.236</td><td>1.636</td><td>+0.400</td><td>0.583</td></tr>
-      <tr><td>LightGBM</td><td>1</td><td>1.310</td><td>1.156</td><td>&ndash;0.154</td><td>0.628</td></tr>
-      <tr><td></td><td>2</td><td>1.267</td><td>1.464</td><td>+0.197</td><td>0.535</td></tr>
-      <tr><td></td><td>3</td><td>1.215</td><td>1.797</td><td>+0.583</td><td>0.492</td></tr>
-      <tr><td></td><td>4</td><td>1.359</td><td>1.546</td><td>+0.187</td><td>0.604</td></tr>
-      <tr><td>Neural net</td><td>1</td><td>1.577</td><td>1.110</td><td>&ndash;0.467</td><td>0.582</td></tr>
-      <tr><td></td><td>2</td><td>1.460</td><td>1.464</td><td>+0.004</td><td>0.517</td></tr>
-      <tr><td></td><td>3</td><td>1.311</td><td>1.783</td><td>+0.473</td><td>0.497</td></tr>
-      <tr><td></td><td>4</td><td>1.655</td><td>2.184</td><td>+0.530</td><td>0.352</td></tr>
+      <tr><td>XGBoost</td><td>1</td><td>1.226</td><td>1.155</td><td>&ndash;0.070</td><td>0.626</td></tr>
+      <tr><td></td><td>2</td><td>1.193</td><td>1.398</td><td>+0.205</td><td>0.535</td></tr>
+      <tr><td></td><td>3</td><td>1.040</td><td>1.887</td><td>+0.846</td><td>0.463</td></tr>
+      <tr><td></td><td>4</td><td>1.205</td><td>1.614</td><td>+0.409</td><td>0.587</td></tr>
+      <tr><td>LightGBM</td><td>1</td><td>1.266</td><td>1.149</td><td>&ndash;0.118</td><td>0.630</td></tr>
+      <tr><td></td><td>2</td><td>1.312</td><td>1.410</td><td>+0.098</td><td>0.527</td></tr>
+      <tr><td></td><td>3</td><td>1.134</td><td>1.875</td><td>+0.740</td><td>0.468</td></tr>
+      <tr><td></td><td>4</td><td>1.353</td><td>1.560</td><td>+0.207</td><td>0.598</td></tr>
+      <tr><td>Neural net</td><td>1</td><td>1.501</td><td>1.077</td><td>&ndash;0.424</td><td>0.626</td></tr>
+      <tr><td></td><td>2</td><td>1.480</td><td>1.384</td><td>&ndash;0.096</td><td>0.527</td></tr>
+      <tr><td></td><td>3</td><td>1.293</td><td>1.839</td><td>+0.546</td><td>0.489</td></tr>
+      <tr><td></td><td>4</td><td>1.844</td><td>2.224</td><td>+0.380</td><td>0.356</td></tr>
     </tbody>
   </table>
   </div>
@@ -433,7 +433,7 @@ a { color: var(--accent-strong); }
     <li><b>Partition 1 shows a <em>negative</em> gap for every model.</b>
       <span class="why">Validation RMSE is lower than training RMSE on the easiest partition for all three models. Overfitting produces a positive gap by definition (worse on unseen data); a negative gap on one fold and a large positive gap on another is the signature of uneven partition difficulty, not a leaky or memorizing model.</span></li>
     <li><b>The hyperparameter search itself pushed toward simple models</b>, which is reassuring but not a substitute for the check above.
-      <span class="why">XGBoost's winning config uses max_depth=2 (3-leaf trees) with colsample_bytree=0.5; LightGBM's uses num_leaves=7 with colsample_bytree=0.5 - both are heavily regularized by construction, since a deeper/wider config would have scored worse on the CV search that selected them. The NN is the exception worth flagging: its winning config (64-64-32 hidden layers &asymp; 8,800 parameters against ~7,600 training rows per fold - roughly 1 parameter per training row) has weight_decay=0 (no L2 penalty), relying on dropout (0.3) and early stopping alone. That's consistent with the NN also having the largest fold-to-fold variance (val RMSE sd=0.458, vs. 0.343 for XGBoost and 0.264 for LightGBM) and the worst held-out test performance of the three - it's the one model where "somewhat overparameterized for this dataset size" is a fair characterization, and it's the weakest performer for exactly that reason.</span></li>
+      <span class="why">XGBoost's winning config uses max_depth=2 (3-leaf trees) with colsample_bytree=0.5; LightGBM's uses num_leaves=7 with colsample_bytree=0.5 - both are heavily regularized by construction, since a deeper/wider config would have scored worse on the CV search that selected them. The NN is the exception worth flagging: its winning config (64-64-32 hidden layers &asymp; 8,800 parameters against ~7,600 training rows per fold - roughly 1 parameter per training row) has weight_decay=0 (no L2 penalty), relying on dropout (0.3) and early stopping alone. That's consistent with the NN also having the largest fold-to-fold variance (val RMSE sd=0.504, vs. 0.312 for XGBoost and 0.303 for LightGBM) and the worst held-out test performance of the three - it's the one model where "somewhat overparameterized for this dataset size" is a fair characterization, and it's the weakest performer for exactly that reason.</span></li>
   </ol>
 
   <div class="callout good">
@@ -445,28 +445,28 @@ a { color: var(--accent-strong); }
 <section id="results">
   <div class="section-label">Part 4 &middot; Results</div>
   <h2>Model performance</h2>
-  <p>LightGBM edges out XGBoost on held-out test RMSE and R&sup2;; the neural net trails both and shows the largest bias. Rankings are consistent between the out-of-fold CV metrics (partitions 1&ndash;4) and the final held-out test partition (partition 5, n=2,515).</p>
+  <p>XGBoost and LightGBM are essentially tied on held-out test RMSE (within 0.004&nbsp;m of each other, well inside noise), both clearly ahead of the neural net, which trails on every metric and shows by far the largest bias. Rankings are consistent between the out-of-fold CV metrics (partitions 1&ndash;4) and the final held-out test partition (partition 5, n=2,509).</p>
 
-  <h3>Held-out test set (partition 5, n=2,515)</h3>
+  <h3>Held-out test set (partition 5, n=2,509)</h3>
   <div class="table-wrap">
   <table>
     <thead><tr><th>Model</th><th>RMSE (m)</th><th>MAE (m)</th><th>MAPE</th><th>Bias (m)</th><th>%Bias</th><th>SMAPE</th><th>R&sup2;</th></tr></thead>
     <tbody>
-      <tr class="best"><td>LightGBM</td><td>1.866</td><td>1.159</td><td>0.616</td><td>&ndash;0.194</td><td>&ndash;5.83%</td><td>0.380</td><td>0.436</td></tr>
-      <tr><td>XGBoost</td><td>1.883</td><td>1.156</td><td>0.572</td><td>&ndash;0.170</td><td>&ndash;5.11%</td><td>0.372</td><td>0.427</td></tr>
-      <tr><td>Neural net</td><td>1.988</td><td>1.162</td><td>0.581</td><td>&ndash;0.369</td><td>&ndash;11.06%</td><td>0.378</td><td>0.379</td></tr>
+      <tr class="best"><td>XGBoost</td><td>1.865</td><td>1.145</td><td>0.576</td><td>&ndash;0.185</td><td>&ndash;5.56%</td><td>0.367</td><td>0.438</td></tr>
+      <tr><td>LightGBM</td><td>1.869</td><td>1.157</td><td>0.607</td><td>&ndash;0.190</td><td>&ndash;5.70%</td><td>0.378</td><td>0.435</td></tr>
+      <tr><td>Neural net</td><td>2.020</td><td>1.163</td><td>0.565</td><td>&ndash;0.439</td><td>&ndash;13.18%</td><td>0.381</td><td>0.373</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Out-of-fold CV (partitions 1&ndash;4, n=10,144)</h3>
+  <h3>Out-of-fold CV (partitions 1&ndash;4, n=10,128)</h3>
   <div class="table-wrap">
   <table>
     <thead><tr><th>Model</th><th>RMSE (m)</th><th>MAE (m)</th><th>Bias (m)</th><th>R&sup2;</th></tr></thead>
     <tbody>
-      <tr class="best"><td>LightGBM</td><td>1.506</td><td>1.052</td><td>0.030</td><td>0.595</td></tr>
-      <tr><td>XGBoost</td><td>1.588</td><td>1.093</td><td>0.129</td><td>0.572</td></tr>
-      <tr><td>Neural net</td><td>1.678</td><td>1.047</td><td>&ndash;0.128</td><td>0.513</td></tr>
+      <tr class="best"><td>LightGBM</td><td>1.518</td><td>1.059</td><td>0.057</td><td>0.589</td></tr>
+      <tr><td>XGBoost</td><td>1.534</td><td>1.057</td><td>0.055</td><td>0.584</td></tr>
+      <tr><td>Neural net</td><td>1.683</td><td>1.079</td><td>&ndash;0.193</td><td>0.513</td></tr>
     </tbody>
   </table>
   </div>
@@ -478,12 +478,12 @@ a { color: var(--accent-strong); }
 
   <figure>
     {{pred_vs_obs}}
-    <figcaption>Predicted vs. observed Secchi depth, held-out test set. All three models show the same "ceiling" pattern noted in the existing <code>04_make_models.Rmd</code> pipeline: predictions flatten out well below the 1:1 line as observed clarity increases, since squared-error loss is dominated by the dense low/mid-range cluster. One neural-net prediction near 37&nbsp;m against an observed value of ~4&nbsp;m is a clear extrapolation failure, visible as the isolated top-left point in the NN panel.</figcaption>
+    <figcaption>Predicted vs. observed Secchi depth, held-out test set. All three models show the same "ceiling" pattern noted in the existing <code>04_make_models.Rmd</code> pipeline: predictions flatten out well below the 1:1 line as observed clarity increases, since squared-error loss is dominated by the dense low/mid-range cluster. One neural-net prediction near 40&nbsp;m against an observed value of ~4&nbsp;m is a clear extrapolation failure, visible as the isolated top-left point in the NN panel.</figcaption>
   </figure>
 
   <figure>
     {{residuals_huc4}}
-    <figcaption>Test-set residuals (predicted &minus; observed) by HUC4 basin. Most basins center near zero; HUC 1009 shows the largest negative bias and spread across all three models, and HUC 1006 a small positive bias &mdash; consistent with generalization being uneven across basins, as previously observed in <code>04_make_models.Rmd</code>.</figcaption>
+    <figcaption>Test-set residuals (predicted &minus; observed) by HUC4 basin. Most basins center near zero; HUC 1009 stands out with the largest negative bias and widest spread across all three models &mdash; consistent with generalization being uneven across basins, as previously observed in <code>04_make_models.Rmd</code>.</figcaption>
   </figure>
 
   <figure>
@@ -501,15 +501,15 @@ a { color: var(--accent-strong); }
   <table>
     <thead><tr><th>Model</th><th>SDD range</th><th>n</th><th>RMSE unweighted</th><th>RMSE weighted</th><th>Bias unweighted</th><th>Bias weighted</th></tr></thead>
     <tbody>
-      <tr><td>XGBoost</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.098</td><td>2.999</td><td>&ndash;1.768</td><td>&ndash;1.568</td></tr>
-      <tr><td></td><td>rest</td><td>1,845</td><td>1.161</td><td>1.244</td><td>0.410</td><td>0.505</td></tr>
-      <tr><td></td><td>overall</td><td>2,515</td><td>1.883</td><td>1.880</td><td>&ndash;0.170</td><td>&ndash;0.047</td></tr>
-      <tr><td>LightGBM</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.097</td><td>2.983</td><td>&ndash;1.903</td><td>&ndash;1.711</td></tr>
-      <tr><td></td><td>rest</td><td>1,845</td><td>1.124</td><td>1.198</td><td>0.426</td><td>0.562</td></tr>
-      <tr class="best"><td></td><td>overall</td><td>2,515</td><td>1.866</td><td><b>1.850</b></td><td>&ndash;0.194</td><td>&ndash;0.043</td></tr>
-      <tr><td>Neural net</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.201</td><td>3.168</td><td>&ndash;2.155</td><td>&ndash;2.080</td></tr>
-      <tr><td></td><td>rest</td><td>1,845</td><td>1.292</td><td>1.277</td><td>0.280</td><td>0.292</td></tr>
-      <tr><td></td><td>overall</td><td>2,515</td><td>1.988</td><td>1.967</td><td>&ndash;0.369</td><td>&ndash;0.339</td></tr>
+      <tr><td>XGBoost</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.081</td><td>2.969</td><td>&ndash;1.801</td><td>&ndash;1.588</td></tr>
+      <tr><td></td><td>rest</td><td>1,839</td><td>1.135</td><td>1.216</td><td>0.403</td><td>0.509</td></tr>
+      <tr><td></td><td>overall</td><td>2,509</td><td>1.865</td><td>1.854</td><td>&ndash;0.185</td><td>&ndash;0.051</td></tr>
+      <tr><td>LightGBM</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.096</td><td>2.976</td><td>&ndash;1.870</td><td>&ndash;1.700</td></tr>
+      <tr><td></td><td>rest</td><td>1,839</td><td>1.129</td><td>1.207</td><td>0.422</td><td>0.577</td></tr>
+      <tr class="best"><td></td><td>overall</td><td>2,509</td><td>1.869</td><td><b>1.853</b></td><td>&ndash;0.190</td><td>&ndash;0.031</td></tr>
+      <tr><td>Neural net</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.208</td><td>3.085</td><td>&ndash;2.191</td><td>&ndash;2.010</td></tr>
+      <tr><td></td><td>rest</td><td>1,839</td><td>1.347</td><td>1.355</td><td>0.199</td><td>0.276</td></tr>
+      <tr><td></td><td>overall</td><td>2,509</td><td>2.020</td><td>1.971</td><td>&ndash;0.439</td><td>&ndash;0.335</td></tr>
     </tbody>
   </table>
   </div>
@@ -526,7 +526,7 @@ a { color: var(--accent-strong); }
 
   <div class="callout good">
     <span class="label">Recommendation as of this point</span>
-    <p><b>LightGBM, SDD-weighted (k=2)</b> was the best-performing configuration found so far: test RMSE 1.850&nbsp;m, versus 1.866&nbsp;m unweighted and 1.880&nbsp;m for the best XGBoost variant, with the smallest overall bias of any configuration (&ndash;0.043&nbsp;m). Part 5 revisits this once site and weather features are added.</p>
+    <p><b>LightGBM, SDD-weighted (k=2)</b> was the best-performing configuration found so far, by a hair: test RMSE 1.853&nbsp;m, versus 1.869&nbsp;m unweighted and 1.854&nbsp;m for the (essentially tied) best XGBoost variant, with the smallest overall bias of any configuration (&ndash;0.031&nbsp;m). Part 5 revisits this once site and weather features are added.</p>
   </div>
 </section>
 
@@ -544,18 +544,18 @@ a { color: var(--accent-strong); }
   <table>
     <thead><tr><th>Model</th><th>Feature group</th><th>Features selected</th><th>Test RMSE (m)</th><th>Test R&sup2;</th><th>Test bias (m)</th></tr></thead>
     <tbody>
-      <tr><td>XGBoost</td><td>optical (baseline)</td><td>39</td><td>1.880</td><td>0.429</td><td>&ndash;0.047</td></tr>
-      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.802</td><td>0.487</td><td>+0.263</td></tr>
-      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>1.846</td><td>0.446</td><td>&ndash;0.039</td></tr>
-      <tr class="best"><td></td><td>+ both</td><td>59</td><td>1.767</td><td>0.502</td><td>+0.234</td></tr>
-      <tr><td>LightGBM</td><td>optical (baseline)</td><td>39</td><td>1.850</td><td>0.440</td><td>&ndash;0.043</td></tr>
-      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.820</td><td>0.475</td><td>+0.255</td></tr>
-      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>1.834</td><td>0.450</td><td>&ndash;0.035</td></tr>
-      <tr><td></td><td>+ both</td><td>59</td><td>1.770</td><td>0.499</td><td>+0.229</td></tr>
-      <tr><td>Neural net</td><td>optical (baseline)</td><td>39</td><td>1.967</td><td>0.390</td><td>&ndash;0.339</td></tr>
-      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.896</td><td>0.443</td><td>+0.252</td></tr>
-      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>2.006</td><td>0.369</td><td>&ndash;0.100</td></tr>
-      <tr><td></td><td>+ both</td><td>59</td><td>1.947</td><td>0.395</td><td>&ndash;0.012</td></tr>
+      <tr><td>XGBoost</td><td>optical (baseline)</td><td>39</td><td>1.854</td><td>0.442</td><td>&ndash;0.051</td></tr>
+      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.791</td><td>0.493</td><td>+0.253</td></tr>
+      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>1.843</td><td>0.449</td><td>&ndash;0.040</td></tr>
+      <tr class="best"><td></td><td>+ both</td><td>59</td><td>1.751</td><td>0.507</td><td>+0.192</td></tr>
+      <tr><td>LightGBM</td><td>optical (baseline)</td><td>39</td><td>1.853</td><td>0.439</td><td>&ndash;0.031</td></tr>
+      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.826</td><td>0.474</td><td>+0.268</td></tr>
+      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>1.822</td><td>0.458</td><td>&ndash;0.029</td></tr>
+      <tr><td></td><td>+ both</td><td>59</td><td>1.797</td><td>0.488</td><td>+0.258</td></tr>
+      <tr><td>Neural net</td><td>optical (baseline)</td><td>39</td><td>1.971</td><td>0.391</td><td>&ndash;0.335</td></tr>
+      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.911</td><td>0.431</td><td>+0.236</td></tr>
+      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>2.005</td><td>0.368</td><td>&ndash;0.126</td></tr>
+      <tr><td></td><td>+ both</td><td>59</td><td>2.019</td><td>0.362</td><td>+0.025</td></tr>
     </tbody>
   </table>
   </div>
@@ -568,67 +568,84 @@ a { color: var(--accent-strong); }
   <p>Three findings, each holding consistently across both XGBoost and LightGBM:</p>
   <ol class="steps">
     <li><b>Site characteristics are the bigger lever, and they're not redundant with the optical signal.</b>
-      <span class="why">RMSE drops 4.1-4.4%, R&sup2; rises by ~0.035-0.058, and all 7 offered site features (elevation, catchment area, and all 5 land-cover percentages) survive |r|&gt;0.95 correlation pruning for every model - none of them are close substitutes for a spectral band or index.</span></li>
-    <li><b>...but site characteristics come with a real cost: bias roughly sextuples in magnitude</b>, flipping from small-and-negative to +0.25-0.26&nbsp;m (~7-8% of the mean SDD). This shows up in the pooled CV metrics (parts 1-4) as well as the held-out test partition - it's not a partition-5 fluke. The likely mechanism: these are static, per-site features (identical for every observation at a given lake), and SDD-weighted training already trades low/mid-range accuracy for high-SDD accuracy (Part 4b); giving the model a persistent per-lake signal appears to let it lean harder into that trade, overcorrecting upward more broadly.</span></li>
-    <li><b>Antecedent weather helps more modestly (~0.9-1.8% RMSE) and doesn't reintroduce that bias</b> - bias stays within ±0.04 m for both tree models, the smallest-magnitude bias of any non-baseline configuration. 13 of the 20 candidate weather features survive pruning (all four precip windows, most temperature windows, most solar-radiation windows), suggesting genuine, broadly-distributed signal rather than one or two lucky features.</span></li>
+      <span class="why">RMSE drops 1.5-3.4%, R&sup2; rises by ~0.035-0.051, and all 7 offered site features (elevation, catchment area, and all 5 land-cover percentages) survive |r|&gt;0.95 correlation pruning for every model - none of them are close substitutes for a spectral band or index.</span></li>
+    <li><b>...but site characteristics come with a real cost: bias flips sign and grows several-fold in magnitude</b>, from small-and-negative to +0.24-0.27&nbsp;m (~7-8% of the mean SDD). This shows up in the pooled CV metrics (parts 1-4) as well as the held-out test partition - it's not a partition-5 fluke. The likely mechanism: these are static, per-site features (identical for every observation at a given lake), and SDD-weighted training already trades low/mid-range accuracy for high-SDD accuracy (Part 4b); giving the model a persistent per-lake signal appears to let it lean harder into that trade, overcorrecting upward more broadly.</span></li>
+    <li><b>Antecedent weather helps more modestly (~0.5-1.7% RMSE) and doesn't reintroduce that bias</b> - bias stays within ±0.04 m for both tree models, the smallest-magnitude bias of any non-baseline configuration. 13 of the 20 candidate weather features survive pruning (all four precip windows, most temperature windows, most solar-radiation windows), suggesting genuine, broadly-distributed signal rather than one or two lucky features.</span></li>
   </ol>
 
-  <p>Combining both gets the best RMSE/R&sup2; of everything tried in this investigation - <b>XGBoost, optical+site+weather, SDD-weighted: RMSE 1.767&nbsp;m, R&sup2; 0.502</b> - but inherits roughly the same elevated bias as site-characteristics-alone (+0.23&nbsp;m), since weather doesn't cancel out whatever site characteristics are doing to the bias. The neural net, consistent with Part 3b's finding that it's the one relatively overparameterized model here, gets comparatively little benefit from either addition and is actively hurt by weather alone.</p>
+  <p>Combining both gets the best RMSE/R&sup2; of everything tried in this investigation for the two boosted-tree models - <b>XGBoost, optical+site+weather, SDD-weighted: RMSE 1.751&nbsp;m, R&sup2; 0.507</b> - but inherits roughly the same elevated bias as site-characteristics-alone (+0.19&nbsp;m), since weather doesn't fully cancel out whatever site characteristics are doing to the bias. The neural net doesn't follow this pattern: site characteristics alone still help it, but weather alone hurts it, and combining the two leaves it slightly <i>worse</i> than the optical baseline (2.019 vs. 1.971&nbsp;m) - consistent with Part 3b's finding that it's the one relatively overparameterized model here, extra features seem to cost it more than they're worth.</p>
 
   <div class="callout good">
     <span class="label">Which to ship depends on what you're optimizing for</span>
-    <p>Lowest RMSE/highest R&sup2;: <b>XGBoost, optical+site+weather</b> (1.767&nbsp;m, R&sup2;=0.502, bias +0.234&nbsp;m). Lowest bias: <b>LightGBM, optical+weather</b> (1.834&nbsp;m, R&sup2;=0.450, bias &ndash;0.035&nbsp;m) or the original <b>LightGBM, optical-only</b> (1.850&nbsp;m, bias &ndash;0.043&nbsp;m) from Part 4b. If this model feeds trend detection or change-over-time analysis, a consistent, near-zero bias matters more than a marginal RMSE gain; if it feeds single-observation clarity estimates, the lower-RMSE option may be worth the bias trade. This wasn't decided here - it's a call for whoever sets the model's actual use case.</p>
+    <p>Lowest RMSE/highest R&sup2;: <b>XGBoost, optical+site+weather</b> (1.751&nbsp;m, R&sup2;=0.507, bias +0.192&nbsp;m). Lowest bias: <b>LightGBM, optical+weather</b> (1.822&nbsp;m, R&sup2;=0.458, bias &ndash;0.029&nbsp;m) or the original <b>LightGBM, optical-only</b> (1.853&nbsp;m, bias &ndash;0.031&nbsp;m) from Part 4b. If this model feeds trend detection or change-over-time analysis, a consistent, near-zero bias matters more than a marginal RMSE gain; if it feeds single-observation clarity estimates, the lower-RMSE option may be worth the bias trade. This wasn't decided here - it's a call for whoever sets the model's actual use case.</p>
+  </div>
+</section>
+
+<section id="data-correction">
+  <div class="section-label">Part 5b &middot; Mid-investigation correction</div>
+  <h2>A weather-window bug, and a new outlier filter</h2>
+  <p>Two issues surfaced during review of the feature-engineering above, both addressed before any further work: an asymmetry in how the antecedent-weather windows were anchored, and a new outlier-removal filter for large rain events between the image and field dates. Both are upstream of every model in this report - fixing them meant regenerating the weather data and re-running the entire modeling pipeline (all numbers above already reflect the fix).</p>
+
+  <div class="callout flag">
+    <span class="label">Weather-window anchor bug</span>
+    <p>The antecedent-weather windows (Part 5's "previous N days") were originally computed as "N days before the satellite image," full stop. The +-5 day match window is close to a 50/50 split on which side leads (5,360 image-before-field vs. 6,384 image-after-field observations) - when the field sample came <i>after</i> the image, that window never reaches forward to the field date at all, silently missing the image-to-field gap for essentially half the dataset. Fixed by anchoring each window on <code>max(image_date, field_date)</code> instead, which always covers the full gap regardless of which one led. A proposed alternative - anchoring on the field date always, plus a before/after-overpass categorical - was considered and set aside: at deployment there's no field date to anchor to or compare against (the model scores a bare satellite image), so a model trained on that definition would be fed a systematically different feature at inference time. The <code>max()</code> anchor has no such train/deploy mismatch, since it collapses to the image date whenever no field date exists.</p>
+  </div>
+
+  <div class="callout flag">
+    <span class="label">New filter: heavy single-day rain between image and field dates</span>
+    <p>A large rain event between the image and field dates - in either order - means the reflectance and the target describe genuinely different water states, independent of which one came first. Flagged on <b>peak single-day precipitation</b> within the gap (not cumulative gap-total, which conflates a real storm with a longer gap just having more days to accumulate ordinary rain) exceeding the standard NOAA/EPA "heavy precipitation day" threshold of 25.4&nbsp;mm (1 inch) in 24 hours - a flat, externally-grounded cut, not a percentile of this dataset, and no regional normalization since this dataset is overwhelmingly semi-arid Mountain West sites where 25.4&nbsp;mm is already unusual almost everywhere in it.</p>
+    <p>Result: <b>22 of 12,659 observations flagged (0.17%)</b>, spread across 11 different HUC4 basins with no single basin losing more than 2.4% of its rows - exactly the small, distributed effect expected going in. Final training set: <b>12,637 rows</b>, still comfortably above the 10k floor from Part 2.</p>
   </div>
 </section>
 
 <section id="candidate-features">
   <div class="section-label">Part 6 &middot; Feature inventory</div>
   <h2>Every candidate feature, before correlation pruning</h2>
-  <p>85 candidates total, offered to correlation pruning before any model in this report ever sees them: 58 optical, 7 site, 20 weather. Correlation pruning (|r| &gt; 0.95 connected components, keeping the feature most correlated with Secchi depth in each cluster, computed on train_val only) brings this down to 39 (optical-only) through 59 (optical+site+weather) depending on the feature group being tested.</p>
+  <p>84 candidates total, offered to correlation pruning before any model in this report ever sees them: 57 optical, 7 site, 20 weather. Correlation pruning (|r| &gt; 0.95 connected components, keeping the feature most correlated with Secchi depth in each cluster, computed on train_val only) brings this down further depending on the feature group being tested - see the pruning-method comparison below.</p>
 
-  <div class="callout flag">
-    <span class="label">Found while building this table: two real bugs in the spectral-index formulas</span>
-    <p>These are in the original <code>04_make_models.Rmd</code> (lines 143, 145, 158), inherited here for a fair comparison against the existing pipeline - not introduced by this investigation, but worth fixing regardless of what the feature-reduction plan below ends up doing:</p>
-    <p><b><code>G_BR</code> and <code>G_BS</code> are byte-for-byte identical</b>: both compute <code>green/(blue+swir1)</code>. <code>G_BR</code>'s name implies <code>green/(blue+red)</code>, which doesn't exist anywhere in the candidate set. Correlation pruning catches this specific pair fine (r=1.0 trivially clears any threshold), so it isn't costing anything statistically - but whichever twin survives carries a name that doesn't describe what it measures.</p>
-    <p><b><code>N_GS</code> is mislabeled</b>: its name implies <code>nir/(green+swir1)</code>, but it actually computes <code>nir/(green+nir)</code> - a monotonic (nonlinear) transform of the already-present <code>GN</code> (<code>green/nir</code>) feature. Because the transform is nonlinear, Pearson correlation pruning may or may not catch it depending on the value range in this dataset - unlike the exact duplicate above, this one isn't guaranteed to be removed, and is a plausible concrete instance of the "same information, diluted across two features" pattern.</p>
+  <div class="callout good">
+    <span class="label">Found and fixed: two real bugs in the spectral-index formulas</span>
+    <p>Both were in the original <code>04_make_models.Rmd</code> (lines 143, 145, 158), inherited here for a fair comparison against the existing pipeline - not introduced by this investigation, and now fixed on this branch:</p>
+    <p><b><code>G_BR</code> was byte-for-byte identical to <code>G_BS</code></b> (both computed <code>green/(blue+swir1)</code>); <code>G_BR</code>'s name implied <code>green/(blue+red)</code>, which didn't exist anywhere else in the candidate set and was already covered by <code>G_RB</code>. Removed outright - 57 optical candidates now, down from 58.</p>
+    <p><b><code>N_GS</code> was mislabeled</b>: it computed <code>nir/(green+nir)</code> - a near-duplicate of the already-present <code>GN</code> (<code>green/nir</code>) - instead of what its name implied, <code>nir/(green+swir1)</code>. Fixed to compute what its name says; this also happened to fill the one genuinely missing 2-band-sum pair in the <code>N_</code> index family, so the candidate count didn't drop further.</p>
   </div>
 
-  <h3>Optical (58 candidates)</h3>
-  <p>7 Gardner-corrected reflectance/temperature bands, 1 atmospheric-correction indicator, and 49 band-ratio/normalized-difference indices (all pairwise ratios and 2-band-sum ratios across the 6 reflectance bands, plus a handful of named indices), replicated exactly from <code>04_make_models.Rmd</code>.</p>
+  <h3>Optical (57 candidates)</h3>
+  <p>7 Gardner-corrected reflectance/temperature bands, 1 atmospheric-correction indicator, and the remaining band-ratio/normalized-difference indices, replicated from <code>04_make_models.Rmd</code> with the <code>G_BR</code>/<code>N_GS</code> fixes above applied.</p>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>Name</th><th>Definition</th><th>Name</th><th>Definition</th></tr></thead>
-    <tbody>
-      <tr><td>red_corr7</td><td>corrected red reflectance</td><td>R_NS</td><td>red / (nir+swir1)</td></tr>
-      <tr><td>green_corr7</td><td>corrected green reflectance</td><td>G_BR</td><td>green / (blue+swir1) <i>(mislabeled, = G_BS)</i></td></tr>
-      <tr><td>blue_corr7</td><td>corrected blue reflectance</td><td>G_BN</td><td>green / (blue+nir)</td></tr>
-      <tr><td>nir_corr7</td><td>corrected NIR reflectance</td><td>G_BS</td><td>green / (blue+swir1)</td></tr>
-      <tr><td>swir1_corr7</td><td>corrected SWIR1 reflectance</td><td>G_RN</td><td>green / (red+nir)</td></tr>
-      <tr><td>swir2_corr7</td><td>corrected SWIR2 reflectance</td><td>G_RB</td><td>green / (red+blue)</td></tr>
-      <tr><td>temp_corr7</td><td>corrected surface temperature</td><td>G_NS</td><td>green / (nir+swir1)</td></tr>
-      <tr><td>atm_corr_LaSRC</td><td>1 = LaSRC (LC08/09), 0 = LEDAPS (LT04/05/LE07)</td><td>B_RG</td><td>blue / (red+green)</td></tr>
-      <tr><td>NR</td><td>nir / red</td><td>B_RS</td><td>blue / (red+swir1)</td></tr>
-      <tr><td>BR</td><td>blue / red</td><td>B_GN</td><td>blue / (green+nir)</td></tr>
-      <tr><td>GR</td><td>green / red</td><td>B_GS</td><td>blue / (green+swir1)</td></tr>
-      <tr><td>SR</td><td>swir1 / red</td><td>B_NS</td><td>blue / (nir+swir1)</td></tr>
-      <tr><td>BG</td><td>blue / green</td><td>N_RG</td><td>nir / (red+green)</td></tr>
-      <tr><td>RG</td><td>red / green</td><td>N_RB</td><td>nir / (red+blue)</td></tr>
-      <tr><td>NG</td><td>nir / green</td><td>N_RS</td><td>nir / (red+swir1)</td></tr>
-      <tr><td>SG</td><td>swir1 / green</td><td>N_GB</td><td>nir / (green+blue)</td></tr>
-      <tr><td>BN</td><td>blue / nir</td><td>N_GS</td><td>nir / (green+nir) <i>(mislabeled, &asymp;dupe of GN)</i></td></tr>
-      <tr><td>GN</td><td>green / nir</td><td>N_BS</td><td>nir / (blue+swir1)</td></tr>
-      <tr><td>RN</td><td>red / nir</td><td>GR_2</td><td>(red+green) / 2</td></tr>
-      <tr><td>SN</td><td>swir1 / nir</td><td>GN_2</td><td>(nir+green) / 2</td></tr>
-      <tr><td>BS</td><td>blue / swir1</td><td>BR_G</td><td>(blue&minus;red) / green</td></tr>
-      <tr><td>GS</td><td>green / swir1</td><td>NS_NR</td><td>(nir&minus;swir1) / (red&minus;swir1)</td></tr>
-      <tr><td>RS</td><td>red / swir1</td><td>fai</td><td>floating algae index</td></tr>
-      <tr><td>NS</td><td>nir / swir1</td><td>NmS</td><td>nir &minus; swir1</td></tr>
-      <tr><td>R_GN</td><td>red / (green+nir)</td><td>NmR</td><td>nir &minus; red</td></tr>
-      <tr><td>R_GB</td><td>red / (green+blue)</td><td>NDVI</td><td>(nir&minus;red) / (nir+red)</td></tr>
-      <tr><td>R_GS</td><td>red / (green+swir1)</td><td>NDWI</td><td>(green&minus;swir1) / (green+swir1)</td></tr>
-      <tr><td>R_BN</td><td>red / (blue+nir)</td><td>NDSSI</td><td>(blue&minus;nir) / (blue+nir)</td></tr>
-      <tr><td>R_BS</td><td>red / (blue+swir1)</td><td>GN_GN</td><td>(green&minus;nir) / (green+nir)</td></tr>
-    </tbody>
+  <thead><tr><th>Name</th><th>Definition</th><th>Name</th><th>Definition</th></tr></thead>
+  <tbody>
+      <tr><td>BG</td><td>blue / green</td><td>N_GB</td><td>nir / (green+blue)</td></tr>
+      <tr><td>BN</td><td>blue / nir</td><td>N_GS</td><td>nir / (green+swir1)</td></tr>
+      <tr><td>BR</td><td>blue / red</td><td>N_RB</td><td>nir / (red+blue)</td></tr>
+      <tr><td>BR_G</td><td>(blue&minus;red) / green</td><td>N_RG</td><td>nir / (red+green)</td></tr>
+      <tr><td>BS</td><td>blue / swir1</td><td>N_RS</td><td>nir / (red+swir1)</td></tr>
+      <tr><td>B_GN</td><td>blue / (green+nir)</td><td>NmR</td><td>nir &minus; red</td></tr>
+      <tr><td>B_GS</td><td>blue / (green+swir1)</td><td>NmS</td><td>nir &minus; swir1</td></tr>
+      <tr><td>B_NS</td><td>blue / (nir+swir1)</td><td>RG</td><td>red / green</td></tr>
+      <tr><td>B_RG</td><td>blue / (red+green)</td><td>RN</td><td>red / nir</td></tr>
+      <tr><td>B_RS</td><td>blue / (red+swir1)</td><td>RS</td><td>red / swir1</td></tr>
+      <tr><td>GN</td><td>green / nir</td><td>R_BN</td><td>red / (blue+nir)</td></tr>
+      <tr><td>GN_2</td><td>(nir+green) / 2</td><td>R_BS</td><td>red / (blue+swir1)</td></tr>
+      <tr><td>GN_GN</td><td>(green&minus;nir) / (green+nir)</td><td>R_GB</td><td>red / (green+blue)</td></tr>
+      <tr><td>GR</td><td>green / red</td><td>R_GN</td><td>red / (green+nir)</td></tr>
+      <tr><td>GR_2</td><td>(red+green) / 2</td><td>R_GS</td><td>red / (green+swir1)</td></tr>
+      <tr><td>GS</td><td>green / swir1</td><td>R_NS</td><td>red / (nir+swir1)</td></tr>
+      <tr><td>G_BN</td><td>green / (blue+nir)</td><td>SG</td><td>swir1 / green</td></tr>
+      <tr><td>G_BS</td><td>green / (blue+swir1)</td><td>SN</td><td>swir1 / nir</td></tr>
+      <tr><td>G_NS</td><td>green / (nir+swir1)</td><td>SR</td><td>swir1 / red</td></tr>
+      <tr><td>G_RB</td><td>green / (red+blue)</td><td>atm_corr_LaSRC</td><td>1 = LaSRC (LC08/09), 0 = LEDAPS (LT04/05/LE07)</td></tr>
+      <tr><td>G_RN</td><td>green / (red+nir)</td><td>blue_corr7</td><td>corrected blue reflectance</td></tr>
+      <tr><td>NDSSI</td><td>(blue&minus;nir) / (blue+nir)</td><td>fai</td><td>floating algae index</td></tr>
+      <tr><td>NDVI</td><td>(nir&minus;red) / (nir+red)</td><td>green_corr7</td><td>corrected green reflectance</td></tr>
+      <tr><td>NDWI</td><td>(green&minus;swir1) / (green+swir1)</td><td>nir_corr7</td><td>corrected NIR reflectance</td></tr>
+      <tr><td>NG</td><td>nir / green</td><td>red_corr7</td><td>corrected red reflectance</td></tr>
+      <tr><td>NR</td><td>nir / red</td><td>swir1_corr7</td><td>corrected SWIR1 reflectance</td></tr>
+      <tr><td>NS</td><td>nir / swir1</td><td>swir2_corr7</td><td>corrected SWIR2 reflectance</td></tr>
+      <tr><td>NS_NR</td><td>(nir&minus;swir1) / (red&minus;swir1)</td><td>temp_corr7</td><td>corrected surface temperature</td></tr>
+      <tr><td>N_BS</td><td>nir / (blue+swir1)</td><td></td><td></td></tr>
+  </tbody>
   </table>
   </div>
 
@@ -664,8 +681,45 @@ a { color: var(--accent-strong); }
   </div>
 </section>
 
+<section id="pruning-comparison">
+  <div class="section-label">Part 7 &middot; Feature reduction, round 1</div>
+  <h2>Is flat correlation pruning splitting decisions it shouldn't?</h2>
+  <p>Every model in this report so far used the same redundancy-pruning method: |Pearson r| &gt; 0.95 connected components, keeping the feature most correlated with target per cluster. That method has a known failure mode - "chaining": if A correlates with B, and B with C, they all land in one cluster even if A and C barely correlate with each other. Two alternatives were run side by side on train_val only (never the test partition) to check whether this was actually costing anything here:</p>
+  <div class="param-grid">
+    <div class="param-card"><div class="k">flat, two-pass</div><div class="v">the current method, applied a second time to its own survivors - catches cluster-winners that are still correlated with each other post-pruning</div></div>
+    <div class="param-card"><div class="k">hierarchical</div><div class="v">average-linkage clustering on 1&minus;max(|Pearson r|, |Spearman &rho;|), cut at the same 0.95 threshold - average linkage requires <i>every</i> pair in a cluster to clear the threshold, not just a chain of neighbors; the Spearman term also catches monotonic-but-nonlinear redundancy Pearson alone can miss</div></div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Feature group</th><th>Candidates</th><th>Flat, 1 pass</th><th>Flat, 2 pass</th><th>Hierarchical</th></tr></thead>
+    <tbody>
+      <tr><td>optical</td><td>57</td><td>39</td><td>39</td><td>35</td></tr>
+      <tr><td>optical+site</td><td>64</td><td>46</td><td>46</td><td>42</td></tr>
+      <tr><td>optical+weather</td><td>77</td><td>52</td><td>52</td><td>52*</td></tr>
+      <tr><td>optical+site+weather</td><td>84</td><td>59</td><td>59</td><td>59*</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--text-muted)">*Same final count as flat pruning, but not the same features - see below.</p>
+
+  <p>Two-pass flat pruning never changes anything here - every survivor of the first pass is already mutually below the 0.95 threshold, so there's no chaining artifact within <i>this</i> correlation structure for the flat method to catch on a second pass. Hierarchical clustering does differ, in two distinct ways:</p>
+
+  <h3>Optical: single-band ratios vs. 2-band-sum ratios</h3>
+  <p>In every feature group, hierarchical clustering drops the same 9 single-band ratios flat pruning keeps (<code>BN, BR, GN, NDSSI, NR, NmR, RN, RS, SN</code>) in favor of 5 different features (<code>B_RG, G_NS, N_GS, R_NS, blue_corr7</code>). This is a real, not cosmetic, difference in what gets modeled: the single-band ratios are the classic, standard water-color indices (blue/red and NIR/red ratios are textbook turbidity/chlorophyll proxies); the 2-band-sum ratios hierarchical prefers are custom combinations with no equivalent standing in the water-quality remote sensing literature. Hierarchical's picks may be marginally tighter statistically in this dataset - the tie-break rule is "most correlated with target," which doesn't know or care about conventional naming - but that's a real interpretability cost, not a free win. Worth deciding deliberately rather than by default before this goes further: keep the tie-break as pure target-correlation, or bias it toward named/conventional indices when the correlation gap between candidates is small?</p>
+
+  <h3>Antecedent weather: which windows actually survive, and does the 5-day match window make that reasonable?</h3>
+  <p>For the weather-inclusive groups, hierarchical additionally keeps 4 temperature-window features flat pruning treats as redundant (<code>tmax_degC_prev3, tmean_degC_prev1, tmean_degC_prev7, tmin_degC_prev3</code>), balancing out its optical-side reduction to an identical final count - a coincidence in the total, not in which features survive.</p>
+  <p>On whether the short (1/3-day) vs. long (7/30-day) windows are mechanistically reasonable given the up-to-5-day gap between image and field dates: the literature doesn't give one clean answer, but it does bound the question usefully. This project's own underlying dataset, <a href="https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019WR024883">AquaSat</a>, uses a &plusmn;1 day matchup window as its primary standard; related work (<a href="https://www.nature.com/articles/s41597-025-05600-w">LAGOS-US LANDSAT</a>) goes out to &plusmn;7 days. This project's 5-day window sits inside that established range - tighter than LAGOS, looser than AquaSat's strict standard - so it isn't an outlier choice, but it does mean short antecedent-weather windows (computed relative to the image date) can end up describing conditions several days removed from the actual field measurement when the gap runs toward the 5-day end, which is exactly the failure mode the anchor-date fix in Part 5b addresses for the window's endpoint, though not its length. Separately, storm-driven turbidity in streams peaks and largely clears within hours to a couple of days of the event itself, while once sediment reaches a lake it can take much longer to settle out - one study of an oil sands pit lake reported roughly a 25-day e-folding decay time for elevated epilimnetic turbidity. That asymmetry argues both windows are picking up something real rather than noise: short windows (1/3-day) are closer to "was there an active runoff pulse," longer windows (7/30-day) closer to "how much sediment is still suspended from whatever fell recently" - genuinely different signals, not redundant ones, which is consistent with hierarchical clustering finding more of them worth keeping separately than flat pruning did.</p>
+
+  <div class="callout">
+    <span class="label">Where this leaves the plan</span>
+    <p>Hierarchical clustering is doing real work, not just relabeling the same decision - it changes which specific features are offered to every downstream model, in a way that's defensible on both statistical grounds (average linkage vs. chaining) and, for the weather windows, on physical grounds. The open call is the optical tie-break (interpretability vs. raw target-correlation) flagged above. Next: cross-fold-consensus backward elimination (Part 3b's already-established technique, automated with a shadow/permuted-decoy stopping rule) on top of whichever pruning method is chosen, run per model, plus a shared-feature benchmark arm for a fair cross-model comparison - as scoped earlier, pending the tie-break decision.</p>
+  </div>
+</section>
+
 <section id="recommendations">
-  <div class="section-label">Part 7 &middot; Limitations &amp; next steps</div>
+  <div class="section-label">Part 8 &middot; Limitations &amp; next steps</div>
   <h2>What to check before trusting this in production</h2>
   <ol class="steps">
     <li><b>Spot-check the relaxed geometry QA</b> on a sample of newly-admitted near-shore sites.
@@ -675,13 +729,13 @@ a { color: var(--accent-strong); }
     <li><b>Investigate HUC 1009's larger residual spread</b> specifically before deploying basin-level predictions there.</li>
     <li><b>Decide the RMSE-vs-bias tradeoff from Part 5 before picking a final model</b> - it wasn't resolved here on purpose.
       <span class="why">Also worth trying: diagnosing exactly why site characteristics shift bias upward (per-HUC4 bias breakdown, the way Part 4 already does for the baseline model) rather than the plausible-but-unconfirmed mechanism proposed in Part 5; and testing whether it's specific to SDD-weighted training or shows up unweighted too.</span></li>
-    <li><b>Consider a real backward-elimination pass</b> per model (as in <code>04_make_models.Rmd</code>) rather than the shared 39-feature correlation-pruned set used here for a fair three-way comparison &mdash; each model may prefer a different, smaller feature subset.</li>
+    <li><b>Feature reduction is in progress, not finished</b> (Part 7): the pruning-method comparison is done, but cross-fold-consensus backward elimination (with a shadow/permuted-decoy stopping rule), per-model vs. shared feature sets, and a shared-feature benchmark arm are still scoped, not run.</li>
     <li><b>Re-render the tracked pipeline docs</b> (<code>01_make_matches.Rmd</code> through <code>04_make_models.Rmd</code>) with the new parameters once these are reviewed, since this investigation ran as standalone scripts in <code>regional_clarity/outlier_rework/</code> rather than editing the Rmd pipeline in place.</li>
   </ol>
 </section>
 
 <footer>
-  Branch <code>outlier-removal-rework</code>, commit history in <code>regional_clarity/outlier_rework/</code>: numbered R scripts 00&ndash;12 are the diagnostic ablations and final pipeline (with logs), <code>python/</code> holds the model comparison code and results.
+  Branch <code>outlier-removal-rework</code>, commit history in <code>regional_clarity/outlier_rework/</code>: numbered R scripts 00&ndash;25 are the diagnostic ablations and final pipeline (with logs), <code>python/</code> holds the model comparison code and results.
 </footer>
 
 </div>

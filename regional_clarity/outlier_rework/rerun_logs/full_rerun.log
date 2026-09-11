@@ -1,0 +1,190 @@
+=== xgboost: baseline ===
+[07:56:22] loading data for xgboost
+[07:56:22] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[07:56:22] === tuning xgboost (25 trials) ===
+[07:57:04] tuning done in 41.8s, best mean CV RMSE=1.4960
+[07:57:04] best params: {'eta': 0.01, 'max_depth': 4, 'min_child_weight': 7, 'subsample': 0.9, 'colsample_bytree': 0.5}
+[07:57:07] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.5342246969487678, 'mae': 1.057241734515487, 'mape': 0.5417489963924007, 'bias': 0.05534060593191269, 'p_bias': 1.6921203606695416, 'smape': 0.3692454836007624, 'r2': 0.5838508732185532, 'n': 10128}
+[07:57:07] TEST (part 5, held out) metrics: {'rmse': 1.8651880261903266, 'mae': 1.145193384457699, 'mape': 0.5755979339193449, 'bias': -0.18527132290585102, 'p_bias': -5.5617063613626305, 'smape': 0.3674553581078502, 'r2': 0.4381276211505958, 'n': 2509}
+[07:57:07] xgboost done
+=== xgboost: weighted ===
+[07:57:09] reusing tuned params for xgboost: {'eta': 0.01, 'max_depth': 4, 'min_child_weight': 7, 'subsample': 0.9, 'colsample_bytree': 0.5}
+[07:57:09] top-quartile SDD cutoff (from train_val): 4.500 m
+[07:57:09] training unweighted xgboost fold ensemble (for this comparison's baseline)
+[07:57:12] training SDD-weighted xgboost fold ensemble (k=2.0)
+[07:57:15] xgboost weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.080808       2.968762        -1.800664      -1.588309
+        rest 1839         1.135085       1.216048         0.403262       0.508506
+     overall 2509         1.865188       1.854034        -0.185271      -0.051425
+[07:57:15] xgboost weighted comparison done
+=== xgboost: fold diagnostics ===
+[07:57:17] part 1: n_train=7523 n_val=2605 train_rmse=1.226 val_rmse=1.155 gap=-0.070 val_r2=0.626
+[07:57:18] part 2: n_train=7621 n_val=2507 train_rmse=1.193 val_rmse=1.398 gap=+0.205 val_r2=0.535
+[07:57:19] part 3: n_train=7620 n_val=2508 train_rmse=1.040 val_rmse=1.887 gap=+0.846 val_r2=0.463
+[07:57:20] part 4: n_train=7620 n_val=2508 train_rmse=1.205 val_rmse=1.614 gap=+0.409 val_r2=0.587
+[07:57:20] xgboost fold summary: mean val_rmse=1.514 (sd=0.312), mean gap=0.348 (sd=0.386)
+[07:57:20] xgboost fold diagnostics done
+=== xgboost: feature-group optical ===
+[07:57:21] loading expanded data for xgboost / optical
+[07:57:21] candidate features: 57 optical + 0 extra = 57
+[07:57:21] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[07:57:21] === tuning xgboost / optical (25 trials) ===
+[07:58:04] tuning done in 42.6s, best mean CV RMSE=1.4960
+[07:58:07] CV metrics: {'rmse': 1.5635835580588116, 'mae': 1.0909999728926103, 'mape': 0.5895019166730328, 'bias': 0.18336375967886354, 'p_bias': 5.6066164426038485, 'smape': 0.3818890641235232, 'r2': 0.5779475727150173, 'n': 10128}
+[07:58:07] TEST metrics: {'rmse': 1.85403394202389, 'mae': 1.15774377774223, 'mape': 0.6111498440715064, 'bias': -0.05142462340328691, 'p_bias': -1.543728681950843, 'smape': 0.37290190448451527, 'r2': 0.44208348488476723, 'n': 2509}
+[07:58:07] xgboost / optical done
+=== xgboost: feature-group optical+site ===
+[07:58:08] loading expanded data for xgboost / optical+site
+[07:58:08] candidate features: 57 optical + 7 extra = 64
+[07:58:08] 46 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006']
+[07:58:08] === tuning xgboost / optical+site (25 trials) ===
+[07:59:25] tuning done in 76.2s, best mean CV RMSE=1.4516
+[07:59:27] CV metrics: {'rmse': 1.5934274561369888, 'mae': 1.0886429666329294, 'mape': 0.5666483518064508, 'bias': -0.06655657116941006, 'p_bias': -2.0350649819532562, 'smape': 0.40288044239508164, 'r2': 0.5463751830014681, 'n': 10128}
+[07:59:27] TEST metrics: {'rmse': 1.7906351946563213, 'mae': 1.2140884683881923, 'mape': 0.7751147822991105, 'bias': 0.25285276516351435, 'p_bias': 7.5904506452554585, 'smape': 0.39012577484613387, 'r2': 0.4930800471516756, 'n': 2509}
+[07:59:27] xgboost / optical+site done
+=== xgboost: feature-group optical+weather ===
+[07:59:28] loading expanded data for xgboost / optical+weather
+[07:59:28] candidate features: 57 optical + 20 extra = 77
+[07:59:28] 52 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[07:59:28] === tuning xgboost / optical+weather (25 trials) ===
+[08:00:26] tuning done in 57.6s, best mean CV RMSE=1.5106
+[08:00:27] CV metrics: {'rmse': 1.6472221483675955, 'mae': 1.150180448152827, 'mape': 0.6242899226222086, 'bias': 0.18651473177549663, 'p_bias': 5.7029620454542105, 'smape': 0.4048804094578284, 'r2': 0.5412494290411972, 'n': 10128}
+[08:00:27] TEST metrics: {'rmse': 1.8427662321513758, 'mae': 1.1779629411833747, 'mape': 0.6308398166727729, 'bias': -0.040101787391389296, 'p_bias': -1.203825624703077, 'smape': 0.38271890593963065, 'r2': 0.4491736591745517, 'n': 2509}
+[08:00:27] xgboost / optical+weather done
+=== xgboost: feature-group optical+site+weather ===
+[08:00:28] loading expanded data for xgboost / optical+site+weather
+[08:00:28] candidate features: 57 optical + 27 extra = 84
+[08:00:28] 59 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[08:00:28] === tuning xgboost / optical+site+weather (25 trials) ===
+[08:02:06] tuning done in 97.2s, best mean CV RMSE=1.4648
+[08:02:16] CV metrics: {'rmse': 1.4970560261396355, 'mae': 1.0376113302554895, 'mape': 0.6047117392738844, 'bias': -0.004210381350269626, 'p_bias': -0.12873859779815233, 'smape': 0.37880592857884865, 'r2': 0.6052184238612602, 'n': 10128}
+[08:02:16] TEST metrics: {'rmse': 1.7513265670036522, 'mae': 1.1777982822506015, 'mape': 0.7587254652259556, 'bias': 0.19186286760640361, 'p_bias': 5.759579596773699, 'smape': 0.3808235683250429, 'r2': 0.5065629893636512, 'n': 2509}
+[08:02:16] xgboost / optical+site+weather done
+=== lightgbm: baseline ===
+[08:02:18] loading data for lightgbm
+[08:02:18] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[08:02:18] === tuning lightgbm (25 trials) ===
+[08:02:58] tuning done in 40.2s, best mean CV RMSE=1.4984
+[08:02:58] best params: {'learning_rate': 0.05, 'num_leaves': 7, 'min_child_samples': 10, 'subsample': 0.9, 'colsample_bytree': 0.7}
+[08:02:59] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.5181283401581185, 'mae': 1.0594268264264546, 'mape': 0.5759288421063193, 'bias': 0.057194019708502325, 'p_bias': 1.748791210858123, 'smape': 0.3781504042852008, 'r2': 0.5890295599561974, 'n': 10128}
+[08:02:59] TEST (part 5, held out) metrics: {'rmse': 1.8688820707516962, 'mae': 1.1566382314885943, 'mape': 0.6071210827718677, 'bias': -0.1899017986613251, 'p_bias': -5.700709775714254, 'smape': 0.3782517379657514, 'r2': 0.43539074609193434, 'n': 2509}
+[08:02:59] lightgbm done
+=== lightgbm: weighted ===
+[08:03:00] reusing tuned params for lightgbm: {'learning_rate': 0.05, 'num_leaves': 7, 'min_child_samples': 10, 'subsample': 0.9, 'colsample_bytree': 0.7}
+[08:03:00] top-quartile SDD cutoff (from train_val): 4.500 m
+[08:03:00] training unweighted lightgbm fold ensemble (for this comparison's baseline)
+[08:03:01] training SDD-weighted lightgbm fold ensemble (k=2.0)
+[08:03:02] lightgbm weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.095611       2.975740        -1.870191      -1.700263
+        rest 1839         1.128684       1.207494         0.422275       0.576611
+     overall 2509         1.868882       1.852923        -0.189902      -0.031402
+[08:03:02] lightgbm weighted comparison done
+=== lightgbm: fold diagnostics ===
+[08:03:04] part 1: n_train=7523 n_val=2605 train_rmse=1.266 val_rmse=1.149 gap=-0.118 val_r2=0.630
+[08:03:04] part 2: n_train=7621 n_val=2507 train_rmse=1.312 val_rmse=1.410 gap=+0.098 val_r2=0.527
+[08:03:05] part 3: n_train=7620 n_val=2508 train_rmse=1.134 val_rmse=1.875 gap=+0.740 val_r2=0.468
+[08:03:05] part 4: n_train=7620 n_val=2508 train_rmse=1.353 val_rmse=1.560 gap=+0.207 val_r2=0.598
+[08:03:05] lightgbm fold summary: mean val_rmse=1.498 (sd=0.303), mean gap=0.232 (sd=0.365)
+[08:03:05] lightgbm fold diagnostics done
+=== lightgbm: feature-group optical ===
+[08:03:06] loading expanded data for lightgbm / optical
+[08:03:06] candidate features: 57 optical + 0 extra = 57
+[08:03:06] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[08:03:06] === tuning lightgbm / optical (25 trials) ===
+[08:03:46] tuning done in 39.8s, best mean CV RMSE=1.4984
+[08:03:47] CV metrics: {'rmse': 1.5435622940069116, 'mae': 1.0976348179756852, 'mape': 0.6276109137565578, 'bias': 0.17092076020867994, 'p_bias': 5.226153446278823, 'smape': 0.39170010856793414, 'r2': 0.579404605570583, 'n': 10128}
+[08:03:47] TEST metrics: {'rmse': 1.8529232339881323, 'mae': 1.1758449178199668, 'mape': 0.6804675048443358, 'bias': -0.031402476150136194, 'p_bias': -0.9426788162758627, 'smape': 0.3905122909395745, 'r2': 0.4393711076341668, 'n': 2509}
+[08:03:47] lightgbm / optical done
+=== lightgbm: feature-group optical+site ===
+[08:03:48] loading expanded data for lightgbm / optical+site
+[08:03:48] candidate features: 57 optical + 7 extra = 64
+[08:03:49] 46 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006']
+[08:03:49] === tuning lightgbm / optical+site (25 trials) ===
+[08:04:59] tuning done in 70.0s, best mean CV RMSE=1.4342
+[08:05:01] CV metrics: {'rmse': 1.4579769084338654, 'mae': 1.0282336571086046, 'mape': 0.6349748420867898, 'bias': 0.053472016090352584, 'p_bias': 1.6349854799901669, 'smape': 0.3859185488119592, 'r2': 0.6262448291032695, 'n': 10128}
+[08:05:01] TEST metrics: {'rmse': 1.8264392310923427, 'mae': 1.2362763963287455, 'mape': 0.8030054220828639, 'bias': 0.2682827111117524, 'p_bias': 8.053646066920399, 'smape': 0.395297049770061, 'r2': 0.4736121951721063, 'n': 2509}
+[08:05:01] lightgbm / optical+site done
+=== lightgbm: feature-group optical+weather ===
+[08:05:02] loading expanded data for lightgbm / optical+weather
+[08:05:02] candidate features: 57 optical + 20 extra = 77
+[08:05:02] 52 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[08:05:02] === tuning lightgbm / optical+weather (25 trials) ===
+[08:05:57] tuning done in 54.9s, best mean CV RMSE=1.5151
+[08:05:58] CV metrics: {'rmse': 1.5720659645537376, 'mae': 1.115086726457839, 'mape': 0.6552477586088933, 'bias': 0.16270958554348208, 'p_bias': 4.975084712895422, 'smape': 0.39928697237189653, 'r2': 0.5630769937819019, 'n': 10128}
+[08:05:58] TEST metrics: {'rmse': 1.8216087224494697, 'mae': 1.1639093387002892, 'mape': 0.6792038288093826, 'bias': -0.02907817852873794, 'p_bias': -0.8729051423803087, 'smape': 0.385209812962305, 'r2': 0.45809049858779644, 'n': 2509}
+[08:05:58] lightgbm / optical+weather done
+=== lightgbm: feature-group optical+site+weather ===
+[08:06:00] loading expanded data for lightgbm / optical+site+weather
+[08:06:00] candidate features: 57 optical + 27 extra = 84
+[08:06:00] 59 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[08:06:00] === tuning lightgbm / optical+site+weather (25 trials) ===
+[08:07:50] tuning done in 110.1s, best mean CV RMSE=1.4653
+[08:07:52] CV metrics: {'rmse': 1.493253078640213, 'mae': 1.0345697995865428, 'mape': 0.6000732826021999, 'bias': 0.001486553816934844, 'p_bias': 0.045453567746643095, 'smape': 0.37860284091586704, 'r2': 0.6079634157935949, 'n': 10128}
+[08:07:53] TEST metrics: {'rmse': 1.796690767227895, 'mae': 1.2213415626766706, 'mape': 0.7962929778844994, 'bias': 0.25812007743257886, 'p_bias': 7.748571414809343, 'smape': 0.3908975214291147, 'r2': 0.4882310655356974, 'n': 2509}
+[08:07:53] lightgbm / optical+site+weather done
+=== nn: baseline ===
+[08:07:54] loading data for nn
+[08:07:54] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[08:07:54] === tuning nn (15 trials) ===
+[08:08:36] tuning done in 42.2s, best mean CV RMSE=1.6392
+[08:08:36] best params: {'hidden_sizes': (64, 64, 32), 'dropout': 0.3, 'lr': 0.01, 'weight_decay': 0.0}
+[08:08:39] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.6834075646681343, 'mae': 1.0785936963388705, 'mape': 0.5541004838161512, 'bias': -0.19347510552260366, 'p_bias': -5.915785702460065, 'smape': 0.3918422112319107, 'r2': 0.5132648896212892, 'n': 10128}
+[08:08:39] TEST (part 5, held out) metrics: {'rmse': 2.019686513473269, 'mae': 1.1634310349846988, 'mape': 0.5649674200995823, 'bias': -0.43906094551419017, 'p_bias': -13.180280765486154, 'smape': 0.3805011182349145, 'r2': 0.3728323332154798, 'n': 2509}
+[08:08:39] nn done
+=== nn: weighted ===
+[08:08:40] reusing tuned params for nn: {'hidden_sizes': (64, 64, 32), 'dropout': 0.3, 'lr': 0.01, 'weight_decay': 0.0}
+[08:08:40] top-quartile SDD cutoff (from train_val): 4.500 m
+[08:08:40] training unweighted nn fold ensemble (for this comparison's baseline)
+[08:08:43] training SDD-weighted nn fold ensemble (k=2.0)
+[08:08:46] nn weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.208366       3.084603        -2.190655      -2.010478
+        rest 1839         1.347228       1.355049         0.199095       0.275682
+     overall 2509         2.019687       1.971458        -0.439061      -0.334811
+[08:08:46] nn weighted comparison done
+=== nn: fold diagnostics ===
+[08:08:49] part 1: n_train=7523 n_val=2605 train_rmse=1.501 val_rmse=1.077 gap=-0.424 val_r2=0.626
+[08:08:49] part 2: n_train=7621 n_val=2507 train_rmse=1.480 val_rmse=1.384 gap=-0.096 val_r2=0.527
+[08:08:50] part 3: n_train=7620 n_val=2508 train_rmse=1.293 val_rmse=1.839 gap=+0.546 val_r2=0.489
+[08:08:50] part 4: n_train=7620 n_val=2508 train_rmse=1.844 val_rmse=2.224 gap=+0.380 val_r2=0.356
+[08:08:50] nn fold summary: mean val_rmse=1.631 (sd=0.504), mean gap=0.101 (sd=0.444)
+[08:08:50] nn fold diagnostics done
+=== nn: feature-group optical ===
+[08:08:51] loading expanded data for nn / optical
+[08:08:51] candidate features: 57 optical + 0 extra = 57
+[08:08:51] 39 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI']
+[08:08:51] === tuning nn / optical (15 trials) ===
+[08:09:33] tuning done in 41.4s, best mean CV RMSE=1.6392
+[08:09:36] CV metrics: {'rmse': 1.6859791456490532, 'mae': 1.0952346032893205, 'mape': 0.5832303569725996, 'bias': -0.11216626279915304, 'p_bias': -3.429648336271796, 'smape': 0.39576868466436577, 'r2': 0.5093326148838383, 'n': 10128}
+[08:09:36] TEST metrics: {'rmse': 1.9714577490495075, 'mae': 1.1474073547607118, 'mape': 0.5913832286802111, 'bias': -0.3348113432881746, 'p_bias': -10.050785780638481, 'smape': 0.3760323479224682, 'r2': 0.39121832866378137, 'n': 2509}
+[08:09:36] nn / optical done
+=== nn: feature-group optical+site ===
+[08:09:37] loading expanded data for nn / optical+site
+[08:09:37] candidate features: 57 optical + 7 extra = 64
+[08:09:37] 46 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006']
+[08:09:37] === tuning nn / optical+site (15 trials) ===
+[08:10:07] tuning done in 29.8s, best mean CV RMSE=1.5499
+[08:10:11] CV metrics: {'rmse': 1.5658653283065165, 'mae': 1.057450994226911, 'mape': 0.6200018338381311, 'bias': -0.014514178871331575, 'p_bias': -0.44379235053545407, 'smape': 0.39003075496161166, 'r2': 0.5631618147326419, 'n': 10128}
+[08:10:11] TEST metrics: {'rmse': 1.91063148521702, 'mae': 1.208622055635266, 'mape': 0.7383433140992305, 'bias': 0.23564547263468913, 'p_bias': 7.073900610320869, 'smape': 0.38278108471818045, 'r2': 0.43089858629472866, 'n': 2509}
+[08:10:11] nn / optical+site done
+=== nn: feature-group optical+weather ===
+[08:10:12] loading expanded data for nn / optical+weather
+[08:10:12] candidate features: 57 optical + 20 extra = 77
+[08:10:12] 52 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[08:10:12] === tuning nn / optical+weather (15 trials) ===
+[08:10:47] tuning done in 35.2s, best mean CV RMSE=1.6698
+[08:10:48] CV metrics: {'rmse': 1.7199824975811668, 'mae': 1.0982653424917685, 'mape': 0.5592112610056081, 'bias': 0.004982354264135527, 'p_bias': 0.15234280421116186, 'smape': 0.3810908868348621, 'r2': 0.499546165616601, 'n': 10128}
+[08:10:48] TEST metrics: {'rmse': 2.0047785842969086, 'mae': 1.2026914934572257, 'mape': 0.6378338146699335, 'bias': -0.126034064650203, 'p_bias': -3.783448232134829, 'smape': 0.38345851593283437, 'r2': 0.3681476731441417, 'n': 2509}
+[08:10:48] nn / optical+weather done
+=== nn: feature-group optical+site+weather ===
+[08:10:50] loading expanded data for nn / optical+site+weather
+[08:10:50] candidate features: 57 optical + 27 extra = 84
+[08:10:50] 59 features after correlation pruning: ['atm_corr_LaSRC', 'GR_2', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'NR', 'BR', 'SR', 'BG', 'RG', 'N_RG', 'NDWI', 'BN', 'GN', 'RN', 'SN', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'BR_G', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RS', 'N_BS', 'NS_NR', 'NmR', 'NmS', 'NDVI', 'NDSSI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[08:10:50] === tuning nn / optical+site+weather (15 trials) ===
+[08:11:22] tuning done in 32.2s, best mean CV RMSE=1.5985
+[08:11:24] CV metrics: {'rmse': 1.6643481395593247, 'mae': 1.0815213435869457, 'mape': 0.5972480768991935, 'bias': -0.02634307375569099, 'p_bias': -0.8054781965970343, 'smape': 0.38569127319144747, 'r2': 0.5230396932912985, 'n': 10128}
+[08:11:24] TEST metrics: {'rmse': 2.019308579838502, 'mae': 1.236456308641867, 'mape': 0.6896856095615035, 'bias': 0.024835813919259722, 'p_bias': 0.7455525339696439, 'smape': 0.3898829617983801, 'r2': 0.3617223902695118, 'n': 2509}
+[08:11:24] nn / optical+site+weather done
+ALL RERUNS DONE
