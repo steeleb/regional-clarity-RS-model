@@ -581,8 +581,91 @@ a { color: var(--accent-strong); }
   </div>
 </section>
 
+<section id="candidate-features">
+  <div class="section-label">Part 6 &middot; Feature inventory</div>
+  <h2>Every candidate feature, before correlation pruning</h2>
+  <p>85 candidates total, offered to correlation pruning before any model in this report ever sees them: 58 optical, 7 site, 20 weather. Correlation pruning (|r| &gt; 0.95 connected components, keeping the feature most correlated with Secchi depth in each cluster, computed on train_val only) brings this down to 39 (optical-only) through 59 (optical+site+weather) depending on the feature group being tested.</p>
+
+  <div class="callout flag">
+    <span class="label">Found while building this table: two real bugs in the spectral-index formulas</span>
+    <p>These are in the original <code>04_make_models.Rmd</code> (lines 143, 145, 158), inherited here for a fair comparison against the existing pipeline - not introduced by this investigation, but worth fixing regardless of what the feature-reduction plan below ends up doing:</p>
+    <p><b><code>G_BR</code> and <code>G_BS</code> are byte-for-byte identical</b>: both compute <code>green/(blue+swir1)</code>. <code>G_BR</code>'s name implies <code>green/(blue+red)</code>, which doesn't exist anywhere in the candidate set. Correlation pruning catches this specific pair fine (r=1.0 trivially clears any threshold), so it isn't costing anything statistically - but whichever twin survives carries a name that doesn't describe what it measures.</p>
+    <p><b><code>N_GS</code> is mislabeled</b>: its name implies <code>nir/(green+swir1)</code>, but it actually computes <code>nir/(green+nir)</code> - a monotonic (nonlinear) transform of the already-present <code>GN</code> (<code>green/nir</code>) feature. Because the transform is nonlinear, Pearson correlation pruning may or may not catch it depending on the value range in this dataset - unlike the exact duplicate above, this one isn't guaranteed to be removed, and is a plausible concrete instance of the "same information, diluted across two features" pattern.</p>
+  </div>
+
+  <h3>Optical (58 candidates)</h3>
+  <p>7 Gardner-corrected reflectance/temperature bands, 1 atmospheric-correction indicator, and 49 band-ratio/normalized-difference indices (all pairwise ratios and 2-band-sum ratios across the 6 reflectance bands, plus a handful of named indices), replicated exactly from <code>04_make_models.Rmd</code>.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Definition</th><th>Name</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td>red_corr7</td><td>corrected red reflectance</td><td>R_NS</td><td>red / (nir+swir1)</td></tr>
+      <tr><td>green_corr7</td><td>corrected green reflectance</td><td>G_BR</td><td>green / (blue+swir1) <i>(mislabeled, = G_BS)</i></td></tr>
+      <tr><td>blue_corr7</td><td>corrected blue reflectance</td><td>G_BN</td><td>green / (blue+nir)</td></tr>
+      <tr><td>nir_corr7</td><td>corrected NIR reflectance</td><td>G_BS</td><td>green / (blue+swir1)</td></tr>
+      <tr><td>swir1_corr7</td><td>corrected SWIR1 reflectance</td><td>G_RN</td><td>green / (red+nir)</td></tr>
+      <tr><td>swir2_corr7</td><td>corrected SWIR2 reflectance</td><td>G_RB</td><td>green / (red+blue)</td></tr>
+      <tr><td>temp_corr7</td><td>corrected surface temperature</td><td>G_NS</td><td>green / (nir+swir1)</td></tr>
+      <tr><td>atm_corr_LaSRC</td><td>1 = LaSRC (LC08/09), 0 = LEDAPS (LT04/05/LE07)</td><td>B_RG</td><td>blue / (red+green)</td></tr>
+      <tr><td>NR</td><td>nir / red</td><td>B_RS</td><td>blue / (red+swir1)</td></tr>
+      <tr><td>BR</td><td>blue / red</td><td>B_GN</td><td>blue / (green+nir)</td></tr>
+      <tr><td>GR</td><td>green / red</td><td>B_GS</td><td>blue / (green+swir1)</td></tr>
+      <tr><td>SR</td><td>swir1 / red</td><td>B_NS</td><td>blue / (nir+swir1)</td></tr>
+      <tr><td>BG</td><td>blue / green</td><td>N_RG</td><td>nir / (red+green)</td></tr>
+      <tr><td>RG</td><td>red / green</td><td>N_RB</td><td>nir / (red+blue)</td></tr>
+      <tr><td>NG</td><td>nir / green</td><td>N_RS</td><td>nir / (red+swir1)</td></tr>
+      <tr><td>SG</td><td>swir1 / green</td><td>N_GB</td><td>nir / (green+blue)</td></tr>
+      <tr><td>BN</td><td>blue / nir</td><td>N_GS</td><td>nir / (green+nir) <i>(mislabeled, &asymp;dupe of GN)</i></td></tr>
+      <tr><td>GN</td><td>green / nir</td><td>N_BS</td><td>nir / (blue+swir1)</td></tr>
+      <tr><td>RN</td><td>red / nir</td><td>GR_2</td><td>(red+green) / 2</td></tr>
+      <tr><td>SN</td><td>swir1 / nir</td><td>GN_2</td><td>(nir+green) / 2</td></tr>
+      <tr><td>BS</td><td>blue / swir1</td><td>BR_G</td><td>(blue&minus;red) / green</td></tr>
+      <tr><td>GS</td><td>green / swir1</td><td>NS_NR</td><td>(nir&minus;swir1) / (red&minus;swir1)</td></tr>
+      <tr><td>RS</td><td>red / swir1</td><td>fai</td><td>floating algae index</td></tr>
+      <tr><td>NS</td><td>nir / swir1</td><td>NmS</td><td>nir &minus; swir1</td></tr>
+      <tr><td>R_GN</td><td>red / (green+nir)</td><td>NmR</td><td>nir &minus; red</td></tr>
+      <tr><td>R_GB</td><td>red / (green+blue)</td><td>NDVI</td><td>(nir&minus;red) / (nir+red)</td></tr>
+      <tr><td>R_GS</td><td>red / (green+swir1)</td><td>NDWI</td><td>(green&minus;swir1) / (green+swir1)</td></tr>
+      <tr><td>R_BN</td><td>red / (blue+nir)</td><td>NDSSI</td><td>(blue&minus;nir) / (blue+nir)</td></tr>
+      <tr><td>R_BS</td><td>red / (blue+swir1)</td><td>GN_GN</td><td>(green&minus;nir) / (green+nir)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Site characteristics (7 candidates)</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Definition</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>elevation_m</td><td>site elevation</td><td>USGS 3DEP via AWS terrain tiles (elevatr)</td></tr>
+      <tr><td>catchment_area_sqkm</td><td>local NHDPlus catchment area</td><td>LakeCat</td></tr>
+      <tr><td>pct_impervious_2006</td><td>% impervious surface in catchment</td><td>LakeCat (NLCD 2006)</td></tr>
+      <tr><td>pct_urban_2006</td><td>% developed (all 4 NLCD intensity classes summed)</td><td>LakeCat (NLCD 2006)</td></tr>
+      <tr><td>pct_forest_2006</td><td>% forest (conifer+deciduous+mixed summed)</td><td>LakeCat (NLCD 2006)</td></tr>
+      <tr><td>pct_cropland_2006</td><td>% row crop</td><td>LakeCat (NLCD 2006)</td></tr>
+      <tr><td>pct_wetland_2006</td><td>% wetland (herbaceous+woody summed)</td><td>LakeCat (NLCD 2006)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Antecedent weather (20 candidates)</h3>
+  <p>4 window lengths (1/3/7/30 days before each satellite pass) &times; 5 variables. All from gridMET via climateR.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Aggregation</th><th>Windows</th></tr></thead>
+    <tbody>
+      <tr><td>precip_mm_prev{N}</td><td>sum</td><td>1, 3, 7, 30</td></tr>
+      <tr><td>tmax_degC_prev{N}</td><td>max</td><td>1, 3, 7, 30</td></tr>
+      <tr><td>tmean_degC_prev{N}</td><td>mean</td><td>1, 3, 7, 30</td></tr>
+      <tr><td>tmin_degC_prev{N}</td><td>min</td><td>1, 3, 7, 30</td></tr>
+      <tr><td>srad_Wm2_prev{N}</td><td>mean</td><td>1, 3, 7, 30</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
 <section id="recommendations">
-  <div class="section-label">Part 6 &middot; Limitations &amp; next steps</div>
+  <div class="section-label">Part 7 &middot; Limitations &amp; next steps</div>
   <h2>What to check before trusting this in production</h2>
   <ol class="steps">
     <li><b>Spot-check the relaxed geometry QA</b> on a sample of newly-admitted near-shore sites.
