@@ -1,0 +1,48 @@
+[18:04:16]  building SDD side: QAQC + gentle RANSAC filter 
+[18:04:17]  SDD rows: 1,654,029 QAQC-passed -> 1,642,252 after gentle RANSAC (dropped 11,777 confirmed outliers, 0.71%) 
+[18:04:23]  100m/same-waterbody site de-dup (for RANSAC representative-site selection) 
+[18:04:34]  scanning unified_data: HUC2 + relaxed geometry QA + metadata QA + cloud<40% QA 
+[18:04:36]  candidate rows (relaxed geometry + metadata + cloud QA): 13,261,133 
+[18:04:42]  representative sites for band RANSAC refit: 7,363,552 rows across 15,159 sites 
+[18:04:46]  running majority-vote band RANSAC across representative sites 
+[18:07:12]  scoring took 2.4 min 
+             used   (Mb) gc trigger    (Mb) limit (Mb)   max used    (Mb)
+Ncells    5833633  311.6   13011730   695.0         NA   13011730   695.0
+Vcells 1099164456 8386.0 1850430792 14117.7      65536 1846282725 14086.1
+[18:07:21]  representative-site band flagging: NA / 7,363,552 rows flagged as outliers (NA%) 
+[18:07:35]  siteSR final candidate rows after band RANSAC: 12,774,375 / 13,261,133 (96.33% retained) 
+            used   (Mb) gc trigger    (Mb) limit (Mb)   max used    (Mb)
+Ncells   5838495  311.9   13011730   695.0         NA   13011730   695.0
+Vcells 631248049 4816.1 2569389512 19602.9      65536 3209846504 24489.2
+[18:07:39]  matching with a 5-day window 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 43,103 matchups to 'regional_clarity/outlier_rework/sdd_final_matchups.parquet'.
+[18:07:41]  raw matchup rows: 43,103 
+Joining with `by = join_by(parameter, OrganizationIdentifier,
+MonitoringLocationIdentifier, MonitoringLocationTypeName,
+ResolvedMonitoringLocationTypeName, ActivityStartDate, ActivityStartTime.Time,
+ActivityStartTime.TimeZoneCode, harmonized_tz, harmonized_local_time,
+harmonized_utc, ActivityStartDateTime, harmonized_top_depth_value,
+harmonized_top_depth_unit, harmonized_bottom_depth_value,
+harmonized_bottom_depth_unit, harmonized_discrete_depth_value,
+harmonized_discrete_depth_unit, depth_flag, mdl_flag, approx_flag,
+greater_flag, tier, field_flag, misc_flag, subgroup_id, harmonized_row_count,
+harmonized_units, harmonized_value, harmonized_value_cv, lat, lon, datum,
+siteSR_id, dswe_filter, mission, sat_id, date, huc2, med_Blue, med_Green,
+med_Red, med_Nir, med_Swir1, med_Swir2, med_SurfaceTemp, min_SurfaceTemp,
+sd_Blue, sd_Green, sd_Red, sd_Nir, sd_Swir1, sd_Swir2, sd_SurfaceTemp,
+mean_Blue, mean_Green, mean_Red, mean_Nir, mean_Swir1, mean_Swir2,
+mean_SurfaceTemp, pCount_dswe_gt0, pCount_dswe1, pCount_dswe3, pCount_dswe1a,
+prop_clouds, prop_hillShadow, mean_hillShade, source, flag_temp_min,
+flag_temp_max, med_Aerosol, sd_Aerosol, mean_Aerosol, utc_seconds_offset,
+landsat_utc, time_diff, HUC4)`
+[18:07:42]  FINAL training rows (post region filter + closest-obs dedup + lake-type filter): 12,659 
+[18:07:42]  median |time_diff| (days) among final rows: 2.03 
+[18:07:42]  time_diff distribution (days, absolute): 
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+0.0000926 1.0124711 2.0276620 2.1997687 3.0569792 4.9998495 
+[18:07:42]  done 

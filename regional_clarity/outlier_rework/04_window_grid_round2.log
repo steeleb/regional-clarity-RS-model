@@ -1,0 +1,54 @@
+[17:55:01]  reading siteSR data, HUC2 + geometry QA scoped 
+[17:55:12]  running meta+cloud60_w14 (candidates=4,234,021, window=14 days) 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 53,292 matchups to 'regional_clarity/outlier_rework/tmp_match_meta+cloud60_w14.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+cloud…          14               4234021        53292                9658
+[17:55:16]  running meta+nocloud_w10 (candidates=4,318,504, window=10 days) 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 39,020 matchups to 'regional_clarity/outlier_rework/tmp_match_meta+nocloud_w10.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+noclo…          10               4318504        39020                8777
+[17:55:20]  running meta+nocloud_w14 (candidates=4,318,504, window=14 days) 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 54,220 matchups to 'regional_clarity/outlier_rework/tmp_match_meta+nocloud_w14.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+noclo…          14               4318504        54220                9708
+[17:55:24]  running meta+nocloud_w7 (candidates=4,318,504, window=7 days) 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 27,449 matchups to 'regional_clarity/outlier_rework/tmp_match_meta+nocloud_w7.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+noclo…           7               4318504        27449                7658
+[17:55:27]  ROUND 2 RESULTS: 
+# A tibble: 4 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+cloud…          14               4234021        53292                9658
+2 meta+noclo…          10               4318504        39020                8777
+3 meta+noclo…          14               4318504        54220                9708
+4 meta+noclo…           7               4318504        27449                7658
+[17:55:27]  done 

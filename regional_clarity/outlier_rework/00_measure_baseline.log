@@ -1,0 +1,21 @@
+[17:39:06]  reading sdd_quality_filter.feather (QAQC-passed SDD, ignoring is_inlier) 
+[17:39:07]  SDD baseline rows (QAQC only, no RANSAC): 1,654,029 
+[17:39:07]  scene_metadata rows (CLOUD_COVER < 20): 267,998 
+[17:39:12]  geometry-QA sites: 35,973 
+[17:39:12]  scanning unified_data for region/metadata/cloud/geometry QA (no RANSAC) - this is the slow step 
+[17:39:15]  scan took 0.0 min 
+[17:39:15]  siteSR baseline rows (no band RANSAC): 3,489,086 
+           used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
+Ncells  1739163  92.9    6114870 326.6         NA  5291016 282.6
+Vcells 26629698 203.2   88304578 673.8      65536 86994415 663.8
+[17:39:17]  running match_siteSR_to_WQP on unfiltered inputs 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 16,125 matchups to 'regional_clarity/outlier_rework/sdd_baseline_matchups_5d.parquet'.
+[17:39:18]  baseline 5-day matchup rows (no outlier removal at all): 16,125 
+[17:39:19]  replicating script 02's HUC4 region filter + closest-observation dedup 
+[17:39:25]  FINAL baseline training rows (no outlier removal, after region + closest-obs dedup): 5,381 
+[17:39:25]  done 

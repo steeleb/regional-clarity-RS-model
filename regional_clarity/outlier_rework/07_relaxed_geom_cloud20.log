@@ -1,0 +1,13 @@
+[18:02:35]  reading siteSR data, HUC2 + relaxed geometry QA scoped 
+[18:02:50]  candidates with relaxed geom + meta + cloud<20: 11,585,105 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 40,001 matchups to 'regional_clarity/outlier_rework/tmp_match_relaxedgeom+meta+cloud20_w5.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 relaxedgeo…           5              11585105        40001               11693
+[18:02:57]  done 

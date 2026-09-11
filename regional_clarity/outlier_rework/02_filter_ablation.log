@@ -1,0 +1,48 @@
+[17:51:13]  reading siteSR data, HUC2-scoped only (no other QA) 
+[17:51:16]  read took 0.1 min, rows: 37,708,910 
+           used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
+Ncells  1363126  72.8    2928962 156.5         NA  1563632  83.6
+Vcells 40017530 305.4   60203218 459.4      65536 40062816 305.7
+[17:51:21]  sites: 1,207,214 raw -> 35,973 pass geometry QA (3.0% retained) 
+[17:51:25]  SDD rows: old-style QA = 2,647,675, new-style QA = 1,654,029 
+[17:51:32]  candidate pool sizes (all geometry-QA'd) -> geom-only: 4,803,782, geom+meta: 4,318,504, geom+cloud: 3,765,491, geom+meta+cloud(current): 3,489,086 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 21,543 matchups to 'regional_clarity/outlier_rework/tmp_match_geom-only_sdd-old.parquet'.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 21,492 matchups to 'regional_clarity/outlier_rework/tmp_match_geom-only_sdd-new.parquet'.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 19,845 matchups to 'regional_clarity/outlier_rework/tmp_match_geom+meta_sdd-new.parquet'.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 16,991 matchups to 'regional_clarity/outlier_rework/tmp_match_geom+cloud_sdd-new.parquet'.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 16,125 matchups to 'regional_clarity/outlier_rework/tmp_match_geom+meta+cloud(current)_sdd-new.parquet'.
+[17:51:54]  ABLATION RESULTS: 
+# A tibble: 5 × 5
+  config siteSR_candidate_rows sdd_qaqc_rows matchup_5d_rows final_training_rows
+  <chr>                  <int>         <int>           <int>               <int>
+1 geom-…               4803782       2647675           21543                6839
+2 geom-…               4803782       1654029           21492                6821
+3 geom+…               4318504       1654029           19845                6438
+4 geom+…               3765491       1654029           16991                5573
+5 geom+…               3489086       1654029           16125                5381
+[17:51:54]  done 

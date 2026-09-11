@@ -1,0 +1,30 @@
+[17:56:01]  reading siteSR data, HUC2 + geometry QA scoped 
+[17:56:08]  running meta+nocloud_w16 (candidates=4,318,504, window=16 days) 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 62,175 matchups to 'regional_clarity/outlier_rework/tmp_match_meta+nocloud_w16.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+noclo…          16               4318504        62175               10027
+[17:56:12]  running meta+nocloud_w18 (candidates=4,318,504, window=18 days) 
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ /Users/steeleb/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+✔ Successfully wrote 70,035 matchups to 'regional_clarity/outlier_rework/tmp_match_meta+nocloud_w18.parquet'.
+# A tibble: 1 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+noclo…          18               4318504        70035               10254
+[17:56:16]  ROUND 3 RESULTS: 
+# A tibble: 2 × 5
+  config      window_days siteSR_candidate_rows matchup_rows final_training_rows
+  <chr>             <dbl>                 <int>        <int>               <int>
+1 meta+noclo…          16               4318504        62175               10027
+2 meta+noclo…          18               4318504        70035               10254
+[17:56:16]  done 

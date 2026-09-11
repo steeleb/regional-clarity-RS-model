@@ -1,0 +1,12 @@
+[17:42:44]  loading siteSR_regional_corr_diag (already-corrected representative-site pool) 
+[17:42:46]  rows: 1,913,564, sites: 3,328 
+[17:42:46]  running majority-vote RANSAC v2 across 3,328 site-groups on 10 cores 
+[17:43:00]  scoring took 0.2 min 
+            used   (Mb) gc trigger   (Mb) limit (Mb)  max used   (Mb)
+Ncells    986332   52.7    2285721  122.1         NA   1858597   99.3
+Vcells 176066636 1343.3  416481470 3177.6      65536 357978631 2731.2
+[17:43:01]  wrote vote scores: 1,913,564 rows, vote_frac NA (unresolved sites): 11 
+[17:43:01]  vote_frac distribution: 
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.     NAs 
+ 0.0000  0.9533  0.9867  0.9220  1.0000  1.0000      11 
+[17:43:02]  done 
