@@ -173,7 +173,6 @@ a { color: var(--accent-strong); }
     <li><a href="#weighting">SDD-weighted training</a></li>
     <li><a href="#feature-groups">Feature group comparison</a></li>
     <li><a href="#attribution">Site &amp; weather contribution (SHAP)</a></li>
-    <li><a href="#candidates">Candidate feature inventory</a></li>
     <li><a href="#reduction">Feature reduction</a></li>
     <li><a href="#next-steps">Next steps</a></li>
   </ol>
@@ -210,8 +209,8 @@ a { color: var(--accent-strong); }
 
 <section id="features">
   <div class="section-label">Feature engineering</div>
-  <h2>Three feature groups: optical, site, weather</h2>
-  <p>Every model in this report is trained on some combination of three feature groups, always built in the same way:</p>
+  <h2>44 candidates across three feature groups, before pruning</h2>
+  <p>Every model in this report draws from some combination of three feature groups - optical, site characteristics, and antecedent weather - each built the same way for every model, before correlation pruning removes redundant features:</p>
 
   <h3>Optical (17 candidates)</h3>
   <p>Seven Gardner-corrected reflectance/temperature bands, an atmospheric-correction indicator, and eight band ratios/indices, each included for a specific reason rather than as an exhaustive sweep of every possible band combination:</p>
@@ -219,6 +218,8 @@ a { color: var(--accent-strong); }
   <table>
     <thead><tr><th>Feature</th><th>Definition</th><th>Basis</th></tr></thead>
     <tbody>
+      <tr><td>blue_corr7, green_corr7, red_corr7, nir_corr7, swir1_corr7, swir2_corr7, temp_corr7</td><td>raw corrected band/temperature</td><td>always included as candidates</td></tr>
+      <tr><td>atm_corr_LaSRC</td><td>atmospheric-correction indicator</td><td>always included as a candidate</td></tr>
       <tr><td>BR</td><td>blue / red</td><td>Kloiber et al.'s canonical Landsat Secchi-depth ratio; basis of the statewide MN/WI clarity mapping programs</td></tr>
       <tr><td>BG</td><td>blue / green</td><td>classic ocean-color chlorophyll-a ratio</td></tr>
       <tr><td>NR</td><td>nir / red</td><td>established chlorophyll-a ratio in turbid inland waters</td></tr>
@@ -231,12 +232,29 @@ a { color: var(--accent-strong); }
     </tbody>
   </table>
   </div>
-  <p style="font-size:0.85rem;color:var(--text-muted)">Plus the 7 raw corrected bands and the LaSRC/LEDAPS atmospheric-correction indicator, always included as candidates.</p>
 
   <h3>Site characteristics (7 candidates)</h3>
-  <p>Elevation (USGS 3DEP) and LakeCat catchment metrics (2006 land cover, matching Topp et al. 2021's variable vintage): imperviousness, urban/forest/cropland/wetland %, and catchment area.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Feature</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>elevation_m</td><td>USGS 3DEP, via elevatr</td></tr>
+      <tr><td>catchment_area_sqkm, pct_impervious_2006, pct_urban_2006, pct_forest_2006, pct_cropland_2006, pct_wetland_2006</td><td>LakeCat (StreamCatTools), 2006 vintage - matches Topp et al. 2021's variable vintage</td></tr>
+    </tbody>
+  </table>
+  </div>
 
   <h3>Antecedent weather (20 candidates)</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Windows</th></tr></thead>
+    <tbody>
+      <tr><td>precip_mm (sum)</td><td>prev 1, 3, 7, 30 days</td></tr>
+      <tr><td>tmax_degC, tmean_degC, tmin_degC</td><td>prev 1, 3, 7, 30 days</td></tr>
+      <tr><td>srad_Wm2 (mean)</td><td>prev 1, 3, 7, 30 days</td></tr>
+    </tbody>
+  </table>
+  </div>
   <p>gridMET precipitation, max/mean/min temperature, and solar radiation, summarized over the 1/3/7/30 days before each matchup. The window is anchored on whichever is later, the image date or the field-sample date, so it always covers the full gap between them regardless of which one came first - the match window runs up to 5 days in either direction, and a window anchored only on the image date would miss that gap entirely for roughly half the matchups.</p>
 </section>
 
@@ -441,49 +459,6 @@ a { color: var(--accent-strong); }
   </div>
 </section>
 
-<section id="candidates">
-  <div class="section-label">Candidate feature inventory</div>
-  <h2>44 candidates across three groups, before pruning</h2>
-  <p>The full candidate list every model's feature search draws from, before correlation pruning removes redundant features:</p>
-
-  <h3>Optical (17)</h3>
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Feature</th><th>Type</th></tr></thead>
-    <tbody>
-      <tr><td>blue_corr7, green_corr7, red_corr7, nir_corr7, swir1_corr7, swir2_corr7, temp_corr7</td><td>raw corrected band/temperature</td></tr>
-      <tr><td>atm_corr_LaSRC</td><td>atmospheric-correction indicator</td></tr>
-      <tr><td>BR, BG, NR, GR</td><td>single-band ratios</td></tr>
-      <tr><td>fai, NDVI, NDSSI, NDWI, MNDWI</td><td>named indices</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <h3>Site characteristics (7)</h3>
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Feature</th><th>Source</th></tr></thead>
-    <tbody>
-      <tr><td>elevation_m</td><td>USGS 3DEP, via elevatr</td></tr>
-      <tr><td>catchment_area_sqkm, pct_impervious_2006, pct_urban_2006, pct_forest_2006, pct_cropland_2006, pct_wetland_2006</td><td>LakeCat (StreamCatTools), 2006 vintage - matches Topp et al. 2021</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <h3>Antecedent weather (20)</h3>
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Variable</th><th>Windows</th></tr></thead>
-    <tbody>
-      <tr><td>precip_mm (sum)</td><td>prev 1, 3, 7, 30 days</td></tr>
-      <tr><td>tmax_degC, tmean_degC, tmin_degC</td><td>prev 1, 3, 7, 30 days</td></tr>
-      <tr><td>srad_Wm2 (mean)</td><td>prev 1, 3, 7, 30 days</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <p style="font-size:0.85rem;color:var(--text-muted)">All weather windows are anchored on <code>max(image_date, field_date)</code>, so they cover the full image-to-field gap regardless of which date leads.</p>
-</section>
-
 <section id="reduction">
   <div class="section-label">Feature reduction</div>
   <h2>Correlation pruning: flat vs. hierarchical</h2>
@@ -508,6 +483,12 @@ a { color: var(--accent-strong); }
   <div class="section-label">Next steps</div>
   <h2>Formal feature pruning</h2>
   <p>Correlation pruning removes redundancy but doesn't test whether a surviving feature actually helps. The next phase is cross-fold-consensus backward elimination: features are dropped one at a time based on their impact across all 4 CV folds simultaneously (not just one), stopped by comparison against a shadow/permuted decoy feature rather than a fixed feature count. This phase will also build the shared-feature benchmark - one feature set forced across all three model architectures - to compare against the per-model-optimized sets used throughout this report.</p>
+
+  <p>Two decisions from this report carry forward into that phase, on domain-expertise grounds rather than pure correlation statistics:</p>
+  <ol class="steps">
+    <li><b>Weather candidates narrow to two.</b> Of the 20 antecedent-weather candidates, only <code>precip_mm_prev30</code> and <code>tmax_degC_prev30</code> showed a consistently, physically sensible SHAP direction across every model and configuration. The remaining 18 - including the shorter 1/3/7-day windows and the less consistent 30-day temperature/radiation variables - are dropped from the candidate pool before backward elimination begins, rather than left for correlation pruning or the elimination process to sort out. <span class="why">Why: a variable whose sign flips depending on which other features happen to be in the model isn't a reliable input to hand a backward-elimination search, whatever its raw correlation with the target.</span></li>
+    <li><b>Flat single-pass correlation pruning, not hierarchical.</b> The two methods compared earlier in this report agree closely on this feature set; flat single-pass is the simpler method and is carried forward as the correlation-reduction step feeding into backward elimination.</li>
+  </ol>
 </section>
 
 <footer>
