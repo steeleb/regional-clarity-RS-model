@@ -1,0 +1,9 @@
+[23:01:58]  loaded 3226571 weather rows across 1525 sites 
+[23:01:59]  computing rolling summaries across 1525 sites 
+Error in frollapply(df$tmax_degC, n = w, max) : 
+  argument "FUN" is missing, with no default
+Calls: rbindlist -> lapply -> FUN -> frollapply -> match.fun
+In addition: Warning message:
+In frollapply(df$tmax_degC, n = w, max) :
+  'n' is deprecated in frollapply, use 'N' instead
+Execution halted

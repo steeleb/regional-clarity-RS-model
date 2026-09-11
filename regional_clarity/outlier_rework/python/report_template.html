@@ -258,7 +258,7 @@ a { color: var(--accent-strong); }
 <header class="hero">
   <div class="eyebrow">Regional Clarity RS Model &middot; overnight investigation</div>
   <h1>Outlier removal rework: from 5,199 to 12,659 training rows</h1>
-  <p class="dek">Diagnosis of why the RANSAC filtering step cut training data to 30% of its prior size, a redesigned outlier/QA pipeline that recovers most of that loss while keeping the 5-day match window, a comparison of XGBoost, LightGBM, and a feedforward NN under the existing spatial holdout cross-validation, and an SDD-weighted refinement that reduces every model's high-clarity bias.</p>
+  <p class="dek">Diagnosis of why the RANSAC filtering step cut training data to 30% of its prior size, a redesigned outlier/QA pipeline that recovers most of that loss while keeping the 5-day match window, a comparison of XGBoost, LightGBM, and a feedforward NN under the existing spatial holdout cross-validation, an SDD-weighted refinement that reduces every model's high-clarity bias, and a test of whether catchment characteristics and antecedent weather (per Topp et al. 2021) improve on the optical-only model.</p>
   <div class="meta">
     <span>Branch: <code>outlier-removal-rework</code></span>
     <span>Target: Secchi disk depth (m) from Landsat surface reflectance</span>
@@ -283,9 +283,9 @@ a { color: var(--accent-strong); }
     <span class="stat-sub">unchanged, as directed</span>
   </div>
   <div class="stat">
-    <span class="stat-label">Best model (test RMSE)</span>
-    <span class="stat-value">LightGBM (weighted)</span>
-    <span class="stat-sub">1.85 m, bias &ndash;0.04 m</span>
+    <span class="stat-label">Lowest RMSE / lowest bias</span>
+    <span class="stat-value" style="font-size:1.15rem">XGB+site+wx / LGBM+wx</span>
+    <span class="stat-sub">1.77m (+0.23 bias) / 1.83m (&minus;0.04 bias)</span>
   </div>
 </div>
 
@@ -525,13 +525,64 @@ a { color: var(--accent-strong); }
   </figure>
 
   <div class="callout good">
-    <span class="label">Updated recommendation</span>
-    <p><b>LightGBM, SDD-weighted (k=2)</b> is the best-performing configuration found: test RMSE 1.850&nbsp;m, versus 1.866&nbsp;m unweighted and 1.880&nbsp;m for the best XGBoost variant. It also has the smallest overall bias of any configuration (&ndash;0.043&nbsp;m) and the best top-quartile RMSE among the two boosted-tree models.</p>
+    <span class="label">Recommendation as of this point</span>
+    <p><b>LightGBM, SDD-weighted (k=2)</b> was the best-performing configuration found so far: test RMSE 1.850&nbsp;m, versus 1.866&nbsp;m unweighted and 1.880&nbsp;m for the best XGBoost variant, with the smallest overall bias of any configuration (&ndash;0.043&nbsp;m). Part 5 revisits this once site and weather features are added.</p>
+  </div>
+</section>
+
+<section id="site-weather">
+  <div class="section-label">Part 5 &middot; Extending the feature set</div>
+  <h2>Do site characteristics or antecedent weather help?</h2>
+  <p>Topp <i>et al.</i> 2021 (<i>Environ. Res. Lett.</i> 16 055025) paired 3 optical variables with 8 static LakeCat catchment variables for a national Secchi-depth model - notably, <b>not</b> antecedent weather: their weather/climate variables (temperature, precipitation, PDO) were used only in a separate trend-correlation analysis, never as a model input. This section tests both anyway: 7 site characteristics (elevation via 3DEP/AWS terrain tiles, plus LakeCat catchment land cover - imperviousness, urban/forest/cropland/wetland %, matching Topp's variable categories at the same 2006 vintage) and 20 antecedent-weather summaries (gridMET precip/max-temp/min-temp/solar radiation over the 1/3/7/30 days before each satellite pass, the same "previous days" convention used elsewhere in this group's pipelines), added to the existing optical baseline and run through the identical spatial-CV, correlation-pruning, and SDD-weighted-training pipeline as every other result in this report.</p>
+
+  <div class="callout">
+    <span class="label">wb_nhd_id &rarr; LakeCat COMID join, verified</span>
+    <p>Before trusting this join, its provenance was checked directly: the upstream <code>AquaMatch_siteSR_WQP</code> pipeline sets <code>wb_nhd_id</code> from either NHDPlusV2's <code>comid</code> (CONUS, HUC4 &lt; 1900) or NHD Best-Resolution's <code>permanent_identifier</code> (non-CONUS) depending on region - two different ID spaces. All 1,525 sites in this study carry <code>wb_nhd_source == "NHDPlusv2"</code> (our 7-HUC2 region never reaches the non-CONUS branch), and a fresh, independent <code>nhdplusTools::get_waterbodies()</code> lookup on a real study site (Utah Lake) returned an exact COMID and area match against its <code>wb_nhd_id</code>.</p>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Feature group</th><th>Features selected</th><th>Test RMSE (m)</th><th>Test R&sup2;</th><th>Test bias (m)</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>optical (baseline)</td><td>39</td><td>1.880</td><td>0.429</td><td>&ndash;0.047</td></tr>
+      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.802</td><td>0.487</td><td>+0.263</td></tr>
+      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>1.846</td><td>0.446</td><td>&ndash;0.039</td></tr>
+      <tr class="best"><td></td><td>+ both</td><td>59</td><td>1.767</td><td>0.502</td><td>+0.234</td></tr>
+      <tr><td>LightGBM</td><td>optical (baseline)</td><td>39</td><td>1.850</td><td>0.440</td><td>&ndash;0.043</td></tr>
+      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.820</td><td>0.475</td><td>+0.255</td></tr>
+      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>1.834</td><td>0.450</td><td>&ndash;0.035</td></tr>
+      <tr><td></td><td>+ both</td><td>59</td><td>1.770</td><td>0.499</td><td>+0.229</td></tr>
+      <tr><td>Neural net</td><td>optical (baseline)</td><td>39</td><td>1.967</td><td>0.390</td><td>&ndash;0.339</td></tr>
+      <tr><td></td><td>+ site characteristics</td><td>46</td><td>1.896</td><td>0.443</td><td>+0.252</td></tr>
+      <tr><td></td><td>+ antecedent weather</td><td>52</td><td>2.006</td><td>0.369</td><td>&ndash;0.100</td></tr>
+      <tr><td></td><td>+ both</td><td>59</td><td>1.947</td><td>0.395</td><td>&ndash;0.012</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    {{feature_group_comparison}}
+    <figcaption>Test RMSE, R&sup2;, and bias by model and feature group. Both boosted-tree models improve monotonically in RMSE/R&sup2; as site and weather features are added; the neural net barely moves and gets worse with weather alone.</figcaption>
+  </figure>
+
+  <p>Three findings, each holding consistently across both XGBoost and LightGBM:</p>
+  <ol class="steps">
+    <li><b>Site characteristics are the bigger lever, and they're not redundant with the optical signal.</b>
+      <span class="why">RMSE drops 4.1-4.4%, R&sup2; rises by ~0.035-0.058, and all 7 offered site features (elevation, catchment area, and all 5 land-cover percentages) survive |r|&gt;0.95 correlation pruning for every model - none of them are close substitutes for a spectral band or index.</span></li>
+    <li><b>...but site characteristics come with a real cost: bias roughly sextuples in magnitude</b>, flipping from small-and-negative to +0.25-0.26&nbsp;m (~7-8% of the mean SDD). This shows up in the pooled CV metrics (parts 1-4) as well as the held-out test partition - it's not a partition-5 fluke. The likely mechanism: these are static, per-site features (identical for every observation at a given lake), and SDD-weighted training already trades low/mid-range accuracy for high-SDD accuracy (Part 4b); giving the model a persistent per-lake signal appears to let it lean harder into that trade, overcorrecting upward more broadly.</span></li>
+    <li><b>Antecedent weather helps more modestly (~0.9-1.8% RMSE) and doesn't reintroduce that bias</b> - bias stays within ±0.04 m for both tree models, the smallest-magnitude bias of any non-baseline configuration. 13 of the 20 candidate weather features survive pruning (all four precip windows, most temperature windows, most solar-radiation windows), suggesting genuine, broadly-distributed signal rather than one or two lucky features.</span></li>
+  </ol>
+
+  <p>Combining both gets the best RMSE/R&sup2; of everything tried in this investigation - <b>XGBoost, optical+site+weather, SDD-weighted: RMSE 1.767&nbsp;m, R&sup2; 0.502</b> - but inherits roughly the same elevated bias as site-characteristics-alone (+0.23&nbsp;m), since weather doesn't cancel out whatever site characteristics are doing to the bias. The neural net, consistent with Part 3b's finding that it's the one relatively overparameterized model here, gets comparatively little benefit from either addition and is actively hurt by weather alone.</p>
+
+  <div class="callout good">
+    <span class="label">Which to ship depends on what you're optimizing for</span>
+    <p>Lowest RMSE/highest R&sup2;: <b>XGBoost, optical+site+weather</b> (1.767&nbsp;m, R&sup2;=0.502, bias +0.234&nbsp;m). Lowest bias: <b>LightGBM, optical+weather</b> (1.834&nbsp;m, R&sup2;=0.450, bias &ndash;0.035&nbsp;m) or the original <b>LightGBM, optical-only</b> (1.850&nbsp;m, bias &ndash;0.043&nbsp;m) from Part 4b. If this model feeds trend detection or change-over-time analysis, a consistent, near-zero bias matters more than a marginal RMSE gain; if it feeds single-observation clarity estimates, the lower-RMSE option may be worth the bias trade. This wasn't decided here - it's a call for whoever sets the model's actual use case.</p>
   </div>
 </section>
 
 <section id="recommendations">
-  <div class="section-label">Part 5 &middot; Limitations &amp; next steps</div>
+  <div class="section-label">Part 6 &middot; Limitations &amp; next steps</div>
   <h2>What to check before trusting this in production</h2>
   <ol class="steps">
     <li><b>Spot-check the relaxed geometry QA</b> on a sample of newly-admitted near-shore sites.
@@ -539,6 +590,8 @@ a { color: var(--accent-strong); }
     <li><b>The high-Secchi ceiling effect is mitigated, not solved</b>, by SDD-weighted training (Part 4b).
       <span class="why">Weighting reduces bias substantially and improves top-quartile RMSE in all three models, but the pred-vs-observed ceiling is still visible - a bigger structural fix (e.g. a log-transformed target, quantile loss, or a two-stage model) may be worth trying if high-clarity accuracy matters most for the end use case.</span></li>
     <li><b>Investigate HUC 1009's larger residual spread</b> specifically before deploying basin-level predictions there.</li>
+    <li><b>Decide the RMSE-vs-bias tradeoff from Part 5 before picking a final model</b> - it wasn't resolved here on purpose.
+      <span class="why">Also worth trying: diagnosing exactly why site characteristics shift bias upward (per-HUC4 bias breakdown, the way Part 4 already does for the baseline model) rather than the plausible-but-unconfirmed mechanism proposed in Part 5; and testing whether it's specific to SDD-weighted training or shows up unweighted too.</span></li>
     <li><b>Consider a real backward-elimination pass</b> per model (as in <code>04_make_models.Rmd</code>) rather than the shared 39-feature correlation-pruned set used here for a fair three-way comparison &mdash; each model may prefer a different, smaller feature subset.</li>
     <li><b>Re-render the tracked pipeline docs</b> (<code>01_make_matches.Rmd</code> through <code>04_make_models.Rmd</code>) with the new parameters once these are reviewed, since this investigation ran as standalone scripts in <code>regional_clarity/outlier_rework/</code> rather than editing the Rmd pipeline in place.</li>
   </ol>

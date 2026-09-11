@@ -1,0 +1,37 @@
+[22:09:40]  fetching gridMET for 1525 sites 
+[[1]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[2]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[3]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[4]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[5]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[6]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[7]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[[8]]
+[1] "sf"        "climateR"  "stats"     "graphics"  "grDevices" "utils"    
+[7] "datasets"  "methods"   "base"     
+
+[23:01:34]  fetch took 51.9 min 
+[23:01:34]  succeeded: 1525 sites, failed: 0 sites 
+[23:01:35]  total weather rows: 3226571 
+[23:01:35]  done 

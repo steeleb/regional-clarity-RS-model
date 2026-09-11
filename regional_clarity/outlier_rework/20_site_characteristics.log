@@ -1,0 +1,15 @@
+[22:05:36]  n unique sites: 1525 
+[22:05:41]  sites with a valid wb_nhd_id (comid): 1525 / 1525 
+[22:05:41]  fetching elevation for all sites 
+Mosaicing & Projecting
+Note: Elevation units are in meters
+[22:08:09]  elevation fetch took 2.5 min 
+[22:08:09]  elevation summary: 
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    586    1258    1645    1706    2182    3506 
+[22:08:09]  fetching LakeCat catchment metrics 
+[22:08:09]  n unique comids: 578 
+[22:08:16]  LakeCat rows returned: 578 / 578 comids requested 
+[22:08:16]  sites with LakeCat data: 1525 / 1525 
+[22:08:16]  wrote site_characteristics.feather (13 cols, 1525 rows) 
+[22:08:16]  done 
