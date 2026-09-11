@@ -1,0 +1,328 @@
+<title>Outlier-HUC Investigation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F5F8F9;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F3;
+  --border: #D7E3E6;
+  --text: #16262E;
+  --text-muted: #55707A;
+  --accent: #1B6E8C;
+  --accent-strong: #0D4A5E;
+  --accent-soft: #DCEEF3;
+  --flag: #C1442D;
+  --flag-soft: #F7E3DF;
+  --good: #3E7D53;
+  --good-soft: #E1EEE3;
+  --shadow: 0 1px 2px rgba(15, 40, 50, 0.06), 0 4px 16px rgba(15, 40, 50, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E171B;
+    --surface: #16232A;
+    --surface-2: #1D2C33;
+    --border: #2A3D45;
+    --text: #E7EEF0;
+    --text-muted: #9AB0B8;
+    --accent: #57B8D6;
+    --accent-strong: #8ED2E8;
+    --accent-soft: #163540;
+    --flag: #E2695A;
+    --flag-soft: #3A2320;
+    --good: #74C08D;
+    --good-soft: #1C2E22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E171B;
+  --surface: #16232A;
+  --surface-2: #1D2C33;
+  --border: #2A3D45;
+  --text: #E7EEF0;
+  --text-muted: #9AB0B8;
+  --accent: #57B8D6;
+  --accent-strong: #8ED2E8;
+  --accent-soft: #163540;
+  --flag: #E2695A;
+  --flag-soft: #3A2320;
+  --good: #74C08D;
+  --good-soft: #1C2E22;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; text-wrap: balance; color: var(--text); }
+.mono, table, .stat-value, code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.page { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+
+header.hero { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+header.hero .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; margin-bottom: 10px; }
+header.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 12px; line-height: 1.15; }
+header.hero p.dek { color: var(--text-muted); font-size: 1.08rem; max-width: 62ch; margin: 0; }
+header.hero .meta { display: flex; gap: 20px; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; }
+
+.stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 44px; }
+.stat { background: var(--surface); padding: 18px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+.stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-strong); }
+.stat-value.flag { color: var(--flag); }
+.stat-value.good { color: var(--good); }
+.stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 44px; }
+nav.toc .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+nav.toc ol { margin: 0; padding-left: 1.2em; columns: 2; column-gap: 24px; font-size: 0.9rem; }
+nav.toc li { margin-bottom: 5px; break-inside: avoid; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+
+section { margin-bottom: 52px; scroll-margin-top: 20px; }
+section > .section-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+section > h2 { font-size: 1.55rem; margin: 0 0 16px; }
+section > h3 { font-size: 1.15rem; margin: 28px 0 10px; color: var(--text); }
+p { margin: 0 0 14px; max-width: 72ch; }
+ol.steps { margin: 0 0 20px; padding-left: 0; list-style: none; counter-reset: step; }
+ol.steps li { counter-increment: step; position: relative; padding: 12px 16px 12px 52px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+ol.steps li::before { content: counter(step); position: absolute; left: 14px; top: 12px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+ol.steps b { color: var(--text); }
+ol.steps .why { color: var(--text-muted); font-size: 0.92rem; display: block; margin-top: 2px; }
+
+.callout { border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 14px 18px; margin: 18px 0; font-size: 0.95rem; }
+.callout.flag { border-left-color: var(--flag); background: var(--flag-soft); }
+.callout.good { border-left-color: var(--good); background: var(--good-soft); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .label { font-weight: 600; display: block; margin-bottom: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 8px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; font-family: 'Public Sans', sans-serif; }
+th { background: var(--surface-2); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-muted); }
+tr:last-child td { border-bottom: none; }
+tr.flag td { color: var(--flag); font-weight: 600; }
+
+figure { margin: 22px 0; }
+figure img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: var(--surface); }
+figcaption { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; max-width: 72ch; }
+
+footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 60px; color: var(--text-muted); font-size: 0.82rem; }
+a { color: var(--accent-strong); }
+</style>
+
+<div class="page">
+
+<header class="hero">
+  <div class="eyebrow">Regional Clarity RS Model &middot; Outlier-HUC Investigation</div>
+  <h1>Why partitions 3 and 5 perform worse: two basins, one physical cause</h1>
+  <p class="dek">Partition 3 has carried the largest train-val gap of any CV fold at every stage of this project, and partition 5 (the untouched test set) regressed further than CV alone predicted at final evaluation. This investigation looks directly at the basins and waterbodies behind both partitions - LakeCat catchment characteristics, waterbody identity, and the Secchi depth (SDD) distribution itself - to ask what's physically different about them, and how this pipeline's accuracy in the range that matters compares to the published literature.</p>
+  <div class="meta">
+    <span>Branch: <code>outlier-removal-rework</code></span>
+    <span>Built from: <code>outlier_rework</code> final production models (intersection-16 features, gap-aware-tuned)</span>
+    <span>Scope: Next-steps thread&nbsp;#1</span>
+  </div>
+</header>
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">Error at SDD&le;6&nbsp;m (test)</span>
+    <span class="stat-value good">1.50 / 1.05 m</span>
+    <span class="stat-sub">RMSE/MAE &ndash; vs. Topp et al.'s national 1.0 / 0.6 m</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Error at SDD&gt;6&nbsp;m (test)</span>
+    <span class="stat-value flag">3.52 / 2.79 m</span>
+    <span class="stat-sub">only 11.3% of test rows, but where accuracy is unestablished for anyone</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">High-clarity tail bias</span>
+    <span class="stat-value flag">&minus;5.2 to &minus;5.6 m</span>
+    <span class="stat-sub">every partition, every model, SDD&gt;10&nbsp;m</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Two basins' share of the region's SDD&gt;6&nbsp;m rows</span>
+    <span class="stat-value">44%</span>
+    <span class="stat-sub">HUC4 1701 + 1407, of 33 HUC4s region-wide</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Lake Powell catchment area</span>
+    <span class="stat-value flag">97th pct.</span>
+    <span class="stat-sub">of the training distribution it was evaluated against</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">HUC4 1701 catchment forest cover</span>
+    <span class="stat-value flag">93rd pct.</span>
+    <span class="stat-sub">of partition 3's own training folds</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="label">Contents</div>
+  <ol>
+    <li><a href="#question">The question</a></li>
+    <li><a href="#compression">A universal compression bias at high clarity</a></li>
+    <li><a href="#literature">How this compares to the literature</a></li>
+    <li><a href="#partition3">Partition 3: a clear-water, forested-lake cluster</a></li>
+    <li><a href="#partition5">Partition 5: a large, hydrologically dynamic reservoir</a></li>
+    <li><a href="#wbtype">Ruling out waterbody type</a></li>
+    <li><a href="#conclusion">What this means</a></li>
+  </ol>
+</nav>
+
+<section id="question">
+  <div class="section-label">The question</div>
+  <h2>Model diagnostics, then direct basin evidence</h2>
+  <p>Fold diagnostics established the pattern from the model side: partition 3's train-val gap (0.85&ndash;1.01 RMSE, depending on architecture) has been the largest of any partition at every stage of this project, including after gap-aware tuning aimed squarely at closing it. Partition 5, held out entirely as the test set, showed a larger-than-CV error jump at final evaluation that the most feature-reduced, most regularized model widened rather than closed. Neither pattern had been explained by a modeling choice - every architecture and every hyperparameter search reproduced both.</p>
+  <p>This investigation goes to the basins directly: LakeCat catchment characteristics (imperviousness, land cover, catchment area), waterbody identity (NHD comid, GNIS name, fcode), and the SDD distribution itself, joined against the exact row-level predictions of the final production models (regenerated for CV with the same intersection-16 features and gap-aware hyperparameters used throughout, since the CV predictions saved earlier in the pipeline predate backward elimination and no longer reflect the final feature set).</p>
+</section>
+
+<section id="compression">
+  <div class="section-label">Root cause</div>
+  <h2>A universal compression bias, worst at the clear end</h2>
+  <p>Every model, in every partition, compresses its predictions toward the training mean: it over-predicts the clearest low-SDD water and under-predicts the clearest high-SDD water. Pooled across all three architectures and all four CV partitions, the mean error swings from +0.69&nbsp;m at 0&ndash;2&nbsp;m observed SDD to &minus;5.4&nbsp;m at 10&ndash;20&nbsp;m observed SDD - and that high-end bias is remarkably stable across partitions (&minus;5.15 to &minus;5.49&nbsp;m), not something unique to partition 3. The same shape appears in the untouched test set.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Observed SDD bin</th><th>Part 1</th><th>Part 2</th><th>Part 3</th><th>Part 4</th></tr></thead>
+    <tbody>
+      <tr><td>0&ndash;2 m</td><td>+0.82</td><td>+0.50</td><td>+0.68</td><td>+0.68</td></tr>
+      <tr><td>2&ndash;4 m</td><td>+0.44</td><td>+0.15</td><td>+0.69</td><td>+0.14</td></tr>
+      <tr><td>4&ndash;6 m</td><td>&minus;0.59</td><td>&minus;0.49</td><td>&minus;0.05</td><td>&minus;0.18</td></tr>
+      <tr><td>6&ndash;10 m</td><td>&minus;2.58</td><td>&minus;1.87</td><td>&minus;2.11</td><td>&minus;1.47</td></tr>
+      <tr><td>10&ndash;20 m</td><td>&minus;5.15</td><td>&minus;5.43</td><td>&minus;5.49</td><td>&minus;5.23</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Mean error (pred &minus; obs, m), pooled across xgboost/lightgbm/nn out-of-fold CV predictions, by held-out partition.</p>
+
+  <p>This is a known physical limit of Landsat-based clarity retrieval, not a bug in this pipeline. As water gets clearer, chlorophyll and suspended-sediment concentrations drop toward zero, and with them the backscattered, water-leaving signal the visible bands depend on - the water column approaches optically "black," and reflectance in blue/green/red converges toward pure-water absorption regardless of exactly how clear the water is. The blue/green/red ratios this model relies on compress toward a narrow range at exactly the point where more precision is needed to tell an 8&nbsp;m lake from a 15&nbsp;m lake, and whatever signal remains competes with atmospheric-correction residual error that doesn't shrink along with it - a smaller true signal against a roughly fixed noise floor. Different SDD values above roughly 6&ndash;10&nbsp;m increasingly produce nearly indistinguishable spectral signatures; this is closer to an information limit than an architecture limit, and it's the same ceiling effect Topp et al. (2021) and other satellite-SDD literature report. What differs between partitions isn't the size of this bias where it occurs - it's how much of each partition's rows fall into the regime where it occurs.</p>
+
+  <figure>
+    <img src="{{compression_bias}}" alt="Compression bias by SDD bin, partition 3 vs rest and HUC4 1407 vs rest">
+    <figcaption>Mean prediction error by observed-SDD bin. Left: partition 3 (held out) vs. the other three CV partitions. Right: HUC4 1407 (Lake Powell) vs. the rest of the test set. The bias shape is nearly identical in both panels - what differs is which basin sits in the tail.</figcaption>
+  </figure>
+</section>
+
+<section id="literature">
+  <div class="section-label">Context</div>
+  <h2>How this compares to the literature</h2>
+  <p>Simon Topp's national Landsat clarity-trend model (the same 2021 <i>Environ. Res. Lett.</i> paper this pipeline draws its LakeCat catchment methodology from) reports roughly 1.0&nbsp;m RMSE and 0.6&nbsp;m MAE, on a much larger national training set - and, consistent with the physical limit above, its reported skill effectively runs out around 6&nbsp;m of clarity. That's not a number this pipeline should chase directly (different region, different training size, different era of Landsat coverage), but it's the right yardstick for whether this pipeline's accuracy is reasonable where the underlying signal is expected to support a prediction at all.</p>
+
+  <p>Splitting this pipeline's own error at that same 6&nbsp;m line shows why: in the well-populated range below it - 88% of all rows, in both CV and test - CV RMSE/MAE are 1.13/0.86&nbsp;m and test RMSE/MAE are 1.50/1.05&nbsp;m, close to the same neighborhood as Topp's national numbers despite a far smaller, single-region training set. Above 6&nbsp;m, error more than doubles in both CV and test (CV: 2.98/2.43&nbsp;m; test: 3.52/2.79&nbsp;m) - not because this pipeline is uniquely bad there, but because 6&nbsp;m is roughly where the retrieval problem itself runs out of signal for any Landsat-based approach, this one included.</p>
+
+  <figure>
+    <img src="{{literature_context}}" alt="RMSE and MAE inside vs outside the 6 m literature range, vs Topp et al. reference lines">
+    <figcaption>RMSE/MAE overall, at SDD&le;6&nbsp;m, and at SDD&gt;6&nbsp;m, for CV and test. Dashed/dotted green lines mark Topp et al.'s reported national RMSE (1.0&nbsp;m) and MAE (0.6&nbsp;m).</figcaption>
+  </figure>
+
+  <div class="callout">
+    <span class="label">Why this matters for partitions 3 and 5</span>
+    <p>Only 11.7% of all 12,637 rows in this dataset exceed 6&nbsp;m SDD - genuinely rare water across the region. But 44% of those rare rows sit in just two HUC4 basins, 1701 and 1407, out of the 33 HUC4s the region spans. Partitions 3 and 5 don't have unusually bad models; they have an unusually large helping of the one regime where accuracy is limited for everyone.</p>
+  </div>
+</section>
+
+<section id="partition3">
+  <div class="section-label">Partition 3</div>
+  <h2>A cluster of naturally clear, forested-catchment lakes</h2>
+  <p>Partition 3 holds about 20% of all training rows - the same as every other CV partition, by design of the HUC4-grouped split. But it holds 42% of the region's top-decile-clarity observations (SDD &gt; 6.3&nbsp;m) and 51% of its high-forest-catchment observations (&gt;30% catchment forest cover), roughly 2&ndash;2.5&times; its proportional share. Its median catchment is 45% forest against 1&ndash;16% for the other four partitions, and its median SDD (4.44&nbsp;m) is 50&ndash;85% higher than every other partition's.</p>
+
+  <figure>
+    <img src="{{partition_composition}}" alt="Partition 3 concentrates high-clarity and high-forest rows">
+    <figcaption>Share of all rows, top-decile-clarity rows, and high-forest-catchment rows, by partition. Partitions 1,2,4,5 track their ~20% row share reasonably closely; partition 3 does not.</figcaption>
+  </figure>
+
+  <p>Most of this concentration traces to one HUC4: <b>1701, Kootenai&ndash;Pend Oreille&ndash;Spokane</b> (northern Idaho/Montana/Washington), which supplies 1,363 of partition 3's 2,508 rows (54%) and a disproportionate share of its clearest water - 67% of the 4&ndash;6&nbsp;m bin, 84% of the 6&ndash;10&nbsp;m bin, and 77% of the 10&ndash;20&nbsp;m bin. The rows aren't concentrated in a single waterbody the way partition 5's are (below) - they're spread across a genuine cluster of deep, oligotrophic glacial lakes: Flathead Lake, Lake Pend Oreille, Whitefish Lake, Seeley Lake, Salmon Lake, Placid Lake, and about a dozen more, all sharing the same high-forest, low-development catchment profile.</p>
+
+  <p>Physically, this is close to a worst case for the compression mechanism above. A deep glacial lake in a heavily forested, minimally developed catchment has little allochthonous sediment or nutrient input and correspondingly low phytoplankton biomass - the two dominant optical constituents this model's reflectance features are built to sense are both naturally scarce here. That leaves a weak, low-magnitude reflectance signal for the model to work with in the first place, on top of the general clear-water compression already described, and it means these lakes sit clustered together at the sparse, hard-to-resolve end of the region's SDD distribution rather than scattered through it. None of that is a flaw in these lakes or in the data describing them - clear, forested, glacial lakes are a real and substantial part of this region's population of waterbodies, not an edge case.</p>
+
+  <p>It also shows up directly in the model's own catchment input, not just in the target variable. <code>pct_forest_2006</code> - one of the intersection-16 features every model was trained on - is 54.5% for HUC4 1701's median site, but only 6.7% of the training rows partition 3's own CV fold actually saw (partitions 1, 2, and 4) have a forest cover value that high. Partition 3 isn't just a fold that happens to score worse; when it's held out, the remaining training data has almost no examples near the catchment-forest-cover value its held-out sites actually carry, so the model must extrapolate past the edge of what it was fit on for this input.</p>
+
+  <figure>
+    <img src="{{forest_envelope_1701}}" alt="Distribution of catchment forest cover in training vs HUC4 1701's value">
+    <figcaption>Distribution of <code>pct_forest_2006</code> across partition 3's own training folds (partitions 1, 2, 4), with HUC4 1701's median value marked. Fewer than 7% of training rows carry a forest-cover value this high.</figcaption>
+  </figure>
+
+  <div class="callout">
+    <span class="label">What this explains</span>
+    <p>Partition 3's outsized train-val gap isn't a partition-3-specific modeling failure. It's the universal high-clarity compression bias landing hardest on the one CV fold that happens - by chance, under a HUC4-grouped split - to concentrate the region's clear, forested glacial lakes at more than double their proportional rate. A 4-fold spatial CV has no mechanism to spread a geographically clustered water-type evenly across folds; it either lands disproportionately in one fold or it doesn't, and this time it did.</p>
+  </div>
+</section>
+
+<section id="partition5">
+  <div class="section-label">Partition 5 (test)</div>
+  <h2>A large, hydrologically dynamic reservoir, under-represented in training</h2>
+  <p>Partition 5's regression traces largely to a single waterbody. HUC4 1407 (Upper Colorado&ndash;Dirty Devil) contributes 642 of the test set's 2,509 rows - 25.6% of the entire test set - and its pooled test RMSE (2.98&nbsp;m) is more than double every other HUC4 in the partition, tracking the same high-clarity compression bias described above rather than a separate failure mode.</p>
+
+  <figure>
+    <img src="{{huc4_test_rmse}}" alt="Test RMSE by HUC4 within partition 5">
+    <figcaption>Pooled (3-model) test RMSE by HUC4 basin within partition 5. HUC4 1407 is both the second-largest basin by row count and, by a wide margin, the worst-predicted.</figcaption>
+  </figure>
+
+  <p>Fifty-two of HUC4 1407's 67 sites share one NHD comid (3528295): <b>Lake Powell</b>, a 653&nbsp;km&sup2; reservoir on the main-stem Colorado River with a 2,667&nbsp;km&sup2; contributing catchment. Lake Powell contributes 517 matchups across the whole dataset (4.1% of all 12,637 rows) - an unusually well-sampled single waterbody, and a legitimate, substantial part of the region's population of monitored lakes. Its main body falls in HUC4 1407 (partition 5, test), while a smaller San Juan arm of the same reservoir, sharing the same comid and catchment metrics, falls in HUC4 1408 (partition 2, training) - Lake Powell genuinely straddles that HUC4 boundary. The practical effect is that 462 of its 517 rows (89%) landed in the untouched test set, and only 55 (11%) were ever available to train or validate against - not enough exposure for any model to learn how this specific, unusually dynamic reservoir behaves.</p>
+
+  <p>That 2,667&nbsp;km&sup2; catchment is itself a value the model rarely trained against. <code>catchment_area_sqkm</code> is another of the intersection-16 features every model uses directly, and against the training set actually used to build and select the final models (partitions 1-4), Lake Powell's catchment sits at the 97th percentile - only about 3% of training rows describe a larger contributing catchment. The training distribution isn't empty above that point (a handful of even larger catchments exist, up to 20,188&nbsp;km&sup2;), but it's sparse there: most of what the model learned about how catchment area relates to SDD came from catchments two to three orders of magnitude smaller.</p>
+
+  <figure>
+    <img src="{{catchment_envelope_powell}}" alt="Distribution of catchment area in training vs Lake Powell's value">
+    <figcaption>Distribution of <code>catchment_area_sqkm</code> (log scale) across the models' actual training set (partitions 1-4), with Lake Powell's value marked. Only ~3% of training rows sit above it.</figcaption>
+  </figure>
+
+  <p>That dynamism is real, not a data-quality artifact. Lake Powell's own annual mean SDD swings from 2.4&nbsp;m to 10.5&nbsp;m across the observed record, with wide within-year spread on top of that - consistent with a reservoir whose optical regime tracks Colorado River inflow, sediment load, and multi-year lake-level change (Lake Powell has seen large, well-documented water-level swings tied to Colorado River basin drought conditions over the period this dataset spans), not a fixed lake-specific baseline. A static catchment-area feature has no way to represent that kind of year-to-year hydrologic forcing.</p>
+
+  <figure>
+    <img src="{{powell_interannual}}" alt="Lake Powell annual mean and range of Secchi depth by year">
+    <figcaption>Lake Powell's observed SDD by year (mean in red, sized by observation count; full min-max range in grey). Years with fewer than 3 observations are omitted.</figcaption>
+  </figure>
+
+  <p>A model trained on only 55 rows of this variability, isolated to one arm, predicts almost none of the range back: every architecture's predictions for Lake Powell compress into roughly a 4&ndash;7&nbsp;m band regardless of the true value, over-predicting the clearest low readings by ~2.9&nbsp;m on average and under-predicting the clearest high readings by ~5.2&ndash;5.6&nbsp;m - the same compression signature as partition 3, applied to a single very-high-dynamic-range waterbody instead of a cluster of lakes.</p>
+
+  <figure>
+    <img src="{{lake_powell_pred_vs_obs}}" alt="Lake Powell predicted vs observed">
+    <figcaption>Lake Powell observed vs. predicted SDD (averaged across the 3-model ensemble), colored by which split each row fell into. The 55 training-arm points (blue) track the 1:1 line reasonably; the 462 test-body points (red) compress toward the middle regardless of the true value.</figcaption>
+  </figure>
+</section>
+
+<section id="wbtype">
+  <div class="section-label">Ruling out an alternative</div>
+  <h2>Waterbody type isn't the driver</h2>
+  <p>Partition 5 is the only partition containing any reservoirs by NHD fcode (5.1% of its rows, all in the Lake Powell/Bowns Reservoir footprint), which raises an obvious alternative hypothesis: maybe reservoirs, as a class, are simply harder to predict and worth discounting. They aren't - reservoirs are the best-predicted waterbody type in the test set, not the worst.</p>
+
+  <figure>
+    <img src="{{wbtype_test_error}}" alt="Test RMSE by waterbody type">
+    <figcaption>Test RMSE by waterbody type (NHD fcode 390xx = natural Lake/Pond, 436xx = Reservoir). Reservoirs are predicted roughly 2.5&ndash;3&times; more accurately than lakes/ponds, for every architecture.</figcaption>
+  </figure>
+
+  <p>That makes sense once Lake Powell's specific dynamics are separated out: most of its rows sit in the moderate, well-sampled 2&ndash;6&nbsp;m range where every model does reasonably well; it's specifically the sparse extremes - the very clearest and very lowest-clarity readings, still under-represented in training - that drive its error up, not its status as a reservoir. There's no case here for treating reservoirs, or Lake Powell specifically, as lower-quality or less-representative data to be filtered out; the opposite conclusion follows - the model needs more exposure to the range these rows cover, not less.</p>
+</section>
+
+<section id="conclusion">
+  <div class="section-label">Conclusion</div>
+  <h2>Two basins, the same physical mechanism, and a split that concentrated it</h2>
+  <p>Partitions 3 and 5 aren't failing for different reasons, and neither points to a bug in the pipeline or to weak data that should be set aside. Both trace to the same physical mechanism: at SDD above roughly 6&ndash;10&nbsp;m, the optical signal Landsat-based retrieval depends on genuinely runs thin, a pattern present in every partition, every model tried, and - by the comparison against Topp et al. above - in the broader literature this model sits within. Partition 3 and HUC4 1407 stand out only because each happens to concentrate that hard, low-signal regime at 2&ndash;3&times; its proportional rate: partition 3 through a geographic cluster of naturally clear, forested glacial lakes (chiefly HUC4 1701) that a HUC4-grouped 4-fold CV had no way to spread evenly, and partition 5 through a single, unusually well-sampled, hydrologically dynamic reservoir (Lake Powell) that the same kind of split happened to assign almost entirely to the untouched test set rather than to training.</p>
+
+  <p>In the range that makes up 88% of this dataset - below the ~6&nbsp;m point where even an established national product's skill runs out - this pipeline's CV and test accuracy sit in roughly the same neighborhood as Topp et al.'s reported national numbers, on a much smaller, single-region training set. That's the right baseline for judging whether this model is performing reasonably, and by it, it is.</p>
+
+  <p>Both basins also share a second, more mechanical problem on top of the physical one: for the specific catchment inputs that matter most to each, the training data the model actually had to learn from was thin exactly where these basins sit. Partition 3's held-out training folds carry almost no examples near HUC4 1701's forest-cover value (93rd percentile); the test-eval training set carries almost no examples near Lake Powell's catchment area (97th percentile). Both are real, physically legitimate values - not data errors - but the model was never given enough neighbors in feature space to interpolate confidently there. That's a training-density problem, distinct from (and compounding) the signal-compression problem, and it's fixable in a way the physical limit isn't: more, and more varied, training exposure to these catchment profiles would close it.</p>
+
+  <div class="callout">
+    <span class="label">The actionable next step: more splits, not less data</span>
+    <p>The clean fix here isn't to exclude Lake Powell or the HUC 1701 lake cluster - both are legitimate, physically distinct parts of this region's lake population, and the whole point of this investigation is that their difficulty is explainable rather than anomalous. The fix is to stop asking one 4-fold CV and one held-out test partition to represent all of that diversity at once. A single HUC4-to-partition assignment will always risk concentrating a geographically clustered regime - a lake type, a single huge reservoir - into one fold by chance, the way this one did twice, and starving the rest of the training data of exposure to its catchment profile at the same time. Revisiting the train/val/test split design (deferred next-steps thread&nbsp;#2) and building a larger ensemble across multiple split assignments - several reseeds, and variants that deliberately keep Lake Powell's site clusters together or spread HUC4 1701's lakes across more than one partition - would let every model see more of this hard-but-real regime, and more of its catchment profile, during training somewhere, and would stop any single fold's score from being read as this pipeline's ceiling. It also strengthens the case for thread&nbsp;#3 (systemic gap-aware tuning): if the compression bias is a modeling-capacity issue as well as a split-concentration one, it should reproduce under gap-aware tuning at every earlier pipeline stage, not just the final one.</p>
+  </div>
+</section>
+
+<footer>
+  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; outlier-HUC investigation (next-steps thread&nbsp;#1) &middot; row-level CV predictions regenerated with the final production config (intersection-16 features, gap-aware-tuned hyperparameters, SDD-weighted for xgboost/lightgbm) for consistency with the published report. Literature comparison: Topp, S.N. et al. 2021, <i>Environ. Res. Lett.</i> 16 055025 (RMSE&asymp;1.0&nbsp;m, MAE&asymp;0.6&nbsp;m nationally).
+</footer>
+
+</div>

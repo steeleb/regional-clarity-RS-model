@@ -1,0 +1,5 @@
+[11:59:59] === xgboost: regenerating row-level OOF CV predictions ===
+[12:00:06] xgboost overall OOF RMSE (sanity check): 1.4492
+[12:00:06] === lightgbm: regenerating row-level OOF CV predictions ===
+[12:00:20] lightgbm overall OOF RMSE (sanity check): 1.4653
+[12:00:20] === nn: regenerating row-level OOF CV predictions ===

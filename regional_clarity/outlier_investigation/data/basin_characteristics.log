@@ -1,0 +1,22 @@
+[12:02:18] modeling dataset: (12637, 45)
+[12:02:22] waterbody type counts (rows):
+wb_type
+Lake/Pond    12510
+Reservoir      127
+Name: count, dtype: int64
+[12:02:22] partition summary:
+   part  n_obs  n_sites  n_huc4  sdd_median  sdd_mean  sdd_p90  sdd_max  catchment_area_sqkm_median  pct_impervious_median  pct_urban_median  pct_forest_median  pct_cropland_median  pct_wetland_median  elevation_m_median  obs_per_site
+0     1   2605      120       1        2.10  2.197263      4.5    10.50                     39.5856               1.133080          6.004456          11.770253             1.220899            1.270917              1650.0     21.708333
+1     2   2507      252       8        3.00  3.265197      5.8    14.71                     36.9612               0.368146          1.669620          16.350915             0.000000            0.460212              1856.0      9.948413
+2     3   2508      376       7        4.44  4.682404      8.3    18.25                     24.0300               0.552317          2.881789          44.829233             0.000000            1.486812              1257.0      6.670213
+3     4   2508      383       8        2.39  2.978596      6.4    13.90                     36.8676               0.704478          2.761970           2.568171             0.000000            2.188479              1678.0      6.548303
+4     5   2509      394       9        2.80  3.331196      6.3    17.20                     25.4880               0.359768          0.483582           1.100089             0.000000            1.034168              1470.0      6.368020
+[12:02:22] waterbody type pct by partition:
+wb_type   Lake/Pond  Reservoir
+part                          
+1        100.000000   0.000000
+2        100.000000   0.000000
+3        100.000000   0.000000
+4        100.000000   0.000000
+5         94.938222   5.061778
+[12:02:22] done
