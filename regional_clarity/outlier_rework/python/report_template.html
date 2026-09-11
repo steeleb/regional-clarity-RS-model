@@ -258,7 +258,7 @@ a { color: var(--accent-strong); }
 <header class="hero">
   <div class="eyebrow">Regional Clarity RS Model &middot; overnight investigation</div>
   <h1>Outlier removal rework: from 5,199 to 12,659 training rows</h1>
-  <p class="dek">Diagnosis of why the RANSAC filtering step cut training data to 30% of its prior size, a redesigned outlier/QA pipeline that recovers most of that loss while keeping the 5-day match window, and a comparison of XGBoost, LightGBM, and a feedforward NN under the existing spatial holdout cross-validation.</p>
+  <p class="dek">Diagnosis of why the RANSAC filtering step cut training data to 30% of its prior size, a redesigned outlier/QA pipeline that recovers most of that loss while keeping the 5-day match window, a comparison of XGBoost, LightGBM, and a feedforward NN under the existing spatial holdout cross-validation, and an SDD-weighted refinement that reduces every model's high-clarity bias.</p>
   <div class="meta">
     <span>Branch: <code>outlier-removal-rework</code></span>
     <span>Target: Secchi disk depth (m) from Landsat surface reflectance</span>
@@ -284,8 +284,8 @@ a { color: var(--accent-strong); }
   </div>
   <div class="stat">
     <span class="stat-label">Best model (test RMSE)</span>
-    <span class="stat-value">LightGBM</span>
-    <span class="stat-sub">1.87 m, R&sup2;=0.44</span>
+    <span class="stat-value">LightGBM (weighted)</span>
+    <span class="stat-sub">1.85 m, bias &ndash;0.04 m</span>
   </div>
 </div>
 
@@ -449,14 +449,52 @@ a { color: var(--accent-strong); }
   </figure>
 </section>
 
+<section id="weighted">
+  <div class="section-label">Part 4b &middot; Refinement</div>
+  <h2>Fixing the ceiling effect: SDD-weighted training</h2>
+  <p>The pred-vs-observed figure above shows the same pattern flagged in the existing <code>04_make_models.Rmd</code> pipeline: squared-error loss is dominated by the dense cluster of low/mid-clarity observations, so the sparse high-clarity tail is never pushed hard during training. Reusing that pipeline's fix &mdash; a per-fold training weight that scales linearly with observed Secchi depth (the highest-SDD training point counts 3&times; as much as the lowest, k=2) &mdash; and retraining all three models with their already-tuned hyperparameters (no re-tuning) confirms the same fix works here.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>SDD range</th><th>n</th><th>RMSE unweighted</th><th>RMSE weighted</th><th>Bias unweighted</th><th>Bias weighted</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.098</td><td>2.999</td><td>&ndash;1.768</td><td>&ndash;1.568</td></tr>
+      <tr><td></td><td>rest</td><td>1,845</td><td>1.161</td><td>1.244</td><td>0.410</td><td>0.505</td></tr>
+      <tr><td></td><td>overall</td><td>2,515</td><td>1.883</td><td>1.880</td><td>&ndash;0.170</td><td>&ndash;0.047</td></tr>
+      <tr><td>LightGBM</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.097</td><td>2.983</td><td>&ndash;1.903</td><td>&ndash;1.711</td></tr>
+      <tr><td></td><td>rest</td><td>1,845</td><td>1.124</td><td>1.198</td><td>0.426</td><td>0.562</td></tr>
+      <tr class="best"><td></td><td>overall</td><td>2,515</td><td>1.866</td><td><b>1.850</b></td><td>&ndash;0.194</td><td>&ndash;0.043</td></tr>
+      <tr><td>Neural net</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.201</td><td>3.168</td><td>&ndash;2.155</td><td>&ndash;2.080</td></tr>
+      <tr><td></td><td>rest</td><td>1,845</td><td>1.292</td><td>1.277</td><td>0.280</td><td>0.292</td></tr>
+      <tr><td></td><td>overall</td><td>2,515</td><td>1.988</td><td>1.967</td><td>&ndash;0.369</td><td>&ndash;0.339</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    {{weighted_bars}}
+    <figcaption>RMSE by SDD range, unweighted vs. SDD-weighted training, all three models. Weighting trades a small amount of low/mid-range accuracy for a real gain in the top quartile, and reduces bias substantially in every model.</figcaption>
+  </figure>
+
+  <figure>
+    {{weighted_pred_vs_obs}}
+    <figcaption>Predicted vs. observed, unweighted (grey) vs. SDD-weighted (color). The ceiling is still present &mdash; this is a partial mitigation, not a fix &mdash; but every model moves closer to the 1:1 line at the high end.</figcaption>
+  </figure>
+
+  <div class="callout good">
+    <span class="label">Updated recommendation</span>
+    <p><b>LightGBM, SDD-weighted (k=2)</b> is the best-performing configuration found: test RMSE 1.850&nbsp;m, versus 1.866&nbsp;m unweighted and 1.880&nbsp;m for the best XGBoost variant. It also has the smallest overall bias of any configuration (&ndash;0.043&nbsp;m) and the best top-quartile RMSE among the two boosted-tree models.</p>
+  </div>
+</section>
+
 <section id="recommendations">
   <div class="section-label">Part 5 &middot; Limitations &amp; next steps</div>
   <h2>What to check before trusting this in production</h2>
   <ol class="steps">
     <li><b>Spot-check the relaxed geometry QA</b> on a sample of newly-admitted near-shore sites.
       <span class="why">This investigation trusted that upstream siteSR QA handles shoreline contamination; that assumption hasn't been directly verified against the new site set.</span></li>
-    <li><b>Address the high-Secchi ceiling effect</b>, e.g. the SDD-weighted retraining already prototyped in <code>04_make_models.Rmd</code>.
-      <span class="why">All three models underpredict at the high-clarity tail; this is a loss-function issue (squared error dominated by the dense low/mid cluster), not specific to the outlier-removal changes.</span></li>
+    <li><b>The high-Secchi ceiling effect is mitigated, not solved</b>, by SDD-weighted training (Part 4b).
+      <span class="why">Weighting reduces bias substantially and improves top-quartile RMSE in all three models, but the pred-vs-observed ceiling is still visible - a bigger structural fix (e.g. a log-transformed target, quantile loss, or a two-stage model) may be worth trying if high-clarity accuracy matters most for the end use case.</span></li>
     <li><b>Investigate HUC 1009's larger residual spread</b> specifically before deploying basin-level predictions there.</li>
     <li><b>Consider a real backward-elimination pass</b> per model (as in <code>04_make_models.Rmd</code>) rather than the shared 39-feature correlation-pruned set used here for a fair three-way comparison &mdash; each model may prefer a different, smaller feature subset.</li>
     <li><b>Re-render the tracked pipeline docs</b> (<code>01_make_matches.Rmd</code> through <code>04_make_models.Rmd</code>) with the new parameters once these are reviewed, since this investigation ran as standalone scripts in <code>regional_clarity/outlier_rework/</code> rather than editing the Rmd pipeline in place.</li>

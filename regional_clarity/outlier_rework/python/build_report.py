@@ -30,6 +30,8 @@ figures = {
     "comparison_bars": img_tag(PY_FIG / "model_comparison_bars.png", "Model comparison metrics"),
     "residuals_huc4": img_tag(PY_FIG / "residuals_by_huc4.png", "Residuals by HUC4"),
     "timeseries": img_tag(PY_FIG / "timeseries_examples.png", "Timeseries examples"),
+    "weighted_bars": img_tag(PY_FIG / "weighted_vs_unweighted_rmse.png", "Weighted vs unweighted RMSE by SDD range"),
+    "weighted_pred_vs_obs": img_tag(PY_FIG / "weighted_pred_vs_obs.png", "Weighted vs unweighted predicted vs observed"),
 }
 
 with open(ROOT / "report_template.html") as fh:

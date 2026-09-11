@@ -53,13 +53,14 @@ def _sample_params(rng: random.Random) -> dict:
     return {k: rng.choice(v) for k, v in PARAM_SPACE.items()}
 
 
-def _fit_fold(train_X, train_y, val_X, val_y, params, max_epochs=500, patience=30, seed=47):
+def _fit_fold(train_X, train_y, val_X, val_y, params, max_epochs=500, patience=30, seed=47, train_weight=None):
     torch.manual_seed(seed)
     prep = Preprocessor().fit(train_X)
     Xtr = torch.tensor(prep.transform(train_X), dtype=torch.float32)
     ytr = torch.tensor(train_y, dtype=torch.float32)
     Xval = torch.tensor(prep.transform(val_X), dtype=torch.float32)
     yval = torch.tensor(val_y, dtype=torch.float32)
+    wtr = torch.tensor(train_weight, dtype=torch.float32) if train_weight is not None else None
 
     model = MLP(Xtr.shape[1], params["hidden_sizes"], params["dropout"]).to(DEVICE)
     opt = torch.optim.Adam(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
@@ -73,10 +74,16 @@ def _fit_fold(train_X, train_y, val_X, val_y, params, max_epochs=500, patience=3
         model.train()
         opt.zero_grad()
         pred = model(Xtr)
-        loss = loss_fn(pred, ytr)
+        if wtr is not None:
+            loss = (wtr * (pred - ytr) ** 2).mean()
+        else:
+            loss = loss_fn(pred, ytr)
         loss.backward()
         opt.step()
 
+        # validation loss/early-stopping stays unweighted regardless of
+        # train_weight, so it remains directly comparable to the
+        # unweighted model's reported val-rmse (mirrors 04_make_models.Rmd)
         model.eval()
         with torch.no_grad():
             val_pred = model(Xval)
@@ -113,12 +120,14 @@ def tune(folds: list, feats: list, target: str, n_trials: int = 15, seed: int = 
     return {"best_params": best_params, "best_score": best_score, "trials": trials}
 
 
-def train_fold_models(folds: list, feats: list, target: str, params: dict) -> list:
+def train_fold_models(folds: list, feats: list, target: str, params: dict, weight_fn=None) -> list:
     models = []
     for fold in folds:
-        model, prep, _ = _fit_fold(fold.train[feats].values, fold.train[target].values,
+        y_train = fold.train[target].values
+        w = weight_fn(y_train) if weight_fn is not None else None
+        model, prep, _ = _fit_fold(fold.train[feats].values, y_train,
                                     fold.val[feats].values, fold.val[target].values, params,
-                                    max_epochs=1000, patience=50)
+                                    max_epochs=1000, patience=50, train_weight=w)
         models.append((model, prep))
     return models
 

@@ -1,0 +1,10 @@
+[18:26:55] reusing tuned params for lightgbm: {'learning_rate': 0.1, 'num_leaves': 7, 'min_child_samples': 10, 'subsample': 0.7, 'colsample_bytree': 0.5}
+[18:26:55] top-quartile SDD cutoff (from train_val): 4.500 m
+[18:26:55] training unweighted lightgbm fold ensemble (for this comparison's baseline)
+[18:26:56] training SDD-weighted lightgbm fold ensemble (k=2.0)
+[18:26:57] lightgbm weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.097095       2.982681        -1.902914      -1.710854
+        rest 1845         1.124032       1.197937         0.426185       0.562412
+     overall 2515         1.866062       1.850072        -0.194291      -0.043189
+[18:26:57] lightgbm weighted comparison done

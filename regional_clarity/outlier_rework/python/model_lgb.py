@@ -19,8 +19,8 @@ def _sample_params(rng: random.Random) -> dict:
     return {k: rng.choice(v) for k, v in PARAM_SPACE.items()}
 
 
-def _fit_fold(train_X, train_y, val_X, val_y, params, nrounds=3000, early_stop=100):
-    dtrain = lgb.Dataset(train_X, label=train_y)
+def _fit_fold(train_X, train_y, val_X, val_y, params, nrounds=3000, early_stop=100, train_weight=None):
+    dtrain = lgb.Dataset(train_X, label=train_y, weight=train_weight)
     dval = lgb.Dataset(val_X, label=val_y, reference=dtrain)
     full_params = dict(objective="regression", metric="rmse", verbosity=-1, **params)
     booster = lgb.train(full_params, dtrain, num_boost_round=nrounds,
@@ -48,12 +48,13 @@ def tune(folds: list, feats: list, target: str, n_trials: int = 25, seed: int = 
     return {"best_params": best_params, "best_score": best_score, "trials": trials}
 
 
-def train_fold_models(folds: list, feats: list, target: str, params: dict) -> list:
+def train_fold_models(folds: list, feats: list, target: str, params: dict, weight_fn=None) -> list:
     models = []
     for fold in folds:
+        w = weight_fn(fold.train[target].values) if weight_fn is not None else None
         booster, _ = _fit_fold(fold.train[feats], fold.train[target],
                                 fold.val[feats], fold.val[target], params,
-                                nrounds=5000, early_stop=250)
+                                nrounds=5000, early_stop=250, train_weight=w)
         models.append(booster)
     return models
 

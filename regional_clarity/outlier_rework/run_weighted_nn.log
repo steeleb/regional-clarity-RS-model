@@ -1,0 +1,10 @@
+[18:26:58] reusing tuned params for nn: {'hidden_sizes': (64, 64, 32), 'dropout': 0.3, 'lr': 0.01, 'weight_decay': 0.0}
+[18:26:58] top-quartile SDD cutoff (from train_val): 4.500 m
+[18:26:58] training unweighted nn fold ensemble (for this comparison's baseline)
+[18:27:01] training SDD-weighted nn fold ensemble (k=2.0)
+[18:27:04] nn weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.201091       3.167566        -2.155013      -2.079556
+        rest 1845         1.291817       1.276634         0.280006       0.292436
+     overall 2515         1.988476       1.966862        -0.368687      -0.339466
+[18:27:04] nn weighted comparison done

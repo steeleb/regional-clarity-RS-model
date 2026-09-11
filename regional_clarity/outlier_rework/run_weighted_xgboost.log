@@ -1,0 +1,10 @@
+[18:26:52] reusing tuned params for xgboost: {'eta': 0.1, 'max_depth': 2, 'min_child_weight': 5, 'subsample': 1.0, 'colsample_bytree': 0.5}
+[18:26:52] top-quartile SDD cutoff (from train_val): 4.500 m
+[18:26:52] training unweighted xgboost fold ensemble (for this comparison's baseline)
+[18:26:53] training SDD-weighted xgboost fold ensemble (k=2.0)
+[18:26:54] xgboost weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.098405       2.999887        -1.767820      -1.567793
+        rest 1845         1.161010       1.243916         0.409997       0.505003
+     overall 2515         1.883172       1.879508        -0.170177      -0.047193
+[18:26:54] xgboost weighted comparison done
