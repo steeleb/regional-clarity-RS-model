@@ -397,6 +397,49 @@ a { color: var(--accent-strong); }
     <span class="label">Environment note</span>
     <p>PyTorch and XGBoost/LightGBM each bundle their own OpenMP runtime; importing both in one process segfaulted on this machine (a known macOS conda/pip packaging conflict, not a computation bug). Each model now trains in its own process, with thread counts capped to avoid the conflict entirely.</p>
   </div>
+
+  <h3>Are these models overfitting?</h3>
+  <p>The headline CV numbers above are pooled across all 4 folds, which hides fold-to-fold variance. Retraining each fold individually (same tuned hyperparameters) and comparing that fold's own training RMSE to its held-out validation RMSE tells a more precise story:</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Held-out partition</th><th>Train RMSE</th><th>Val RMSE</th><th>Gap (val&minus;train)</th><th>Val R&sup2;</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>1</td><td>1.237</td><td>1.172</td><td>&ndash;0.065</td><td>0.615</td></tr>
+      <tr><td></td><td>2</td><td>1.148</td><td>1.452</td><td>+0.304</td><td>0.539</td></tr>
+      <tr><td></td><td>3</td><td>1.109</td><td>1.990</td><td>+0.881</td><td>0.436</td></tr>
+      <tr><td></td><td>4</td><td>1.236</td><td>1.636</td><td>+0.400</td><td>0.583</td></tr>
+      <tr><td>LightGBM</td><td>1</td><td>1.310</td><td>1.156</td><td>&ndash;0.154</td><td>0.628</td></tr>
+      <tr><td></td><td>2</td><td>1.267</td><td>1.464</td><td>+0.197</td><td>0.535</td></tr>
+      <tr><td></td><td>3</td><td>1.215</td><td>1.797</td><td>+0.583</td><td>0.492</td></tr>
+      <tr><td></td><td>4</td><td>1.359</td><td>1.546</td><td>+0.187</td><td>0.604</td></tr>
+      <tr><td>Neural net</td><td>1</td><td>1.577</td><td>1.110</td><td>&ndash;0.467</td><td>0.582</td></tr>
+      <tr><td></td><td>2</td><td>1.460</td><td>1.464</td><td>+0.004</td><td>0.517</td></tr>
+      <tr><td></td><td>3</td><td>1.311</td><td>1.783</td><td>+0.473</td><td>0.497</td></tr>
+      <tr><td></td><td>4</td><td>1.655</td><td>2.184</td><td>+0.530</td><td>0.352</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    {{fold_diagnostics}}
+    <figcaption>Per-fold train vs. held-out validation RMSE. If this were classic overfitting, the gap would be uniformly positive and roughly constant across folds. Instead it tracks which partition is held out: negative (val better than train) on partition 1, largest on partition 3 - for all three model types simultaneously.</figcaption>
+  </figure>
+
+  <p>Three things stand out:</p>
+  <ol class="steps">
+    <li><b>Partition 3 is hard for every model architecture, not just one.</b>
+      <span class="why">All three independently-tuned models show their largest train-val gap and worst R&sup2; on partition 3 (and partition 4 for the NN). If any single model were simply memorizing its training data, the hard fold would be architecture-specific; instead the same partition is hard across a shallow tree ensemble, a different shallow tree ensemble, and a neural net. That points to genuine spatial heterogeneity - partition 3's HUC4 basins likely differ systematically from the others - rather than overfitting.</span></li>
+    <li><b>Partition 1 shows a <em>negative</em> gap for every model.</b>
+      <span class="why">Validation RMSE is lower than training RMSE on the easiest partition for all three models. Overfitting produces a positive gap by definition (worse on unseen data); a negative gap on one fold and a large positive gap on another is the signature of uneven partition difficulty, not a leaky or memorizing model.</span></li>
+    <li><b>The hyperparameter search itself pushed toward simple models</b>, which is reassuring but not a substitute for the check above.
+      <span class="why">XGBoost's winning config uses max_depth=2 (3-leaf trees) with colsample_bytree=0.5; LightGBM's uses num_leaves=7 with colsample_bytree=0.5 - both are heavily regularized by construction, since a deeper/wider config would have scored worse on the CV search that selected them. The NN is the exception worth flagging: its winning config (64-64-32 hidden layers &asymp; 8,800 parameters against ~7,600 training rows per fold - roughly 1 parameter per training row) has weight_decay=0 (no L2 penalty), relying on dropout (0.3) and early stopping alone. That's consistent with the NN also having the largest fold-to-fold variance (val RMSE sd=0.458, vs. 0.343 for XGBoost and 0.264 for LightGBM) and the worst held-out test performance of the three - it's the one model where "somewhat overparameterized for this dataset size" is a fair characterization, and it's the weakest performer for exactly that reason.</span></li>
+  </ol>
+
+  <div class="callout good">
+    <span class="label">Bottom line</span>
+    <p>The CV-to-test RMSE gap reported in Part 4 is better explained by spatial heterogeneity across HUC4 partitions (visible consistently across all three architectures, and consistent with the HUC-1009 outlier already visible in the residuals-by-HUC4 figure) than by overfitting. LightGBM is the most stable model across folds as well as the most accurate on average - a second, independent reason to prefer it over XGBoost or the NN.</p>
+  </div>
 </section>
 
 <section id="results">

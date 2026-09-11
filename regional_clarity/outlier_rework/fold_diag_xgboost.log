@@ -1,0 +1,6 @@
+[21:38:20] part 1: n_train=7539 n_val=2605 train_rmse=1.237 val_rmse=1.172 gap=-0.065 val_r2=0.615
+[21:38:20] part 2: n_train=7631 n_val=2513 train_rmse=1.148 val_rmse=1.452 gap=+0.304 val_r2=0.539
+[21:38:20] part 3: n_train=7630 n_val=2514 train_rmse=1.109 val_rmse=1.990 gap=+0.881 val_r2=0.436
+[21:38:21] part 4: n_train=7632 n_val=2512 train_rmse=1.236 val_rmse=1.636 gap=+0.400 val_r2=0.583
+[21:38:21] xgboost fold summary: mean val_rmse=1.563 (sd=0.343), mean gap=0.380 (sd=0.390)
+[21:38:21] xgboost fold diagnostics done

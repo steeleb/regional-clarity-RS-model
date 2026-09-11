@@ -1,0 +1,6 @@
+[21:38:25] part 1: n_train=7539 n_val=2605 train_rmse=1.577 val_rmse=1.110 gap=-0.467 val_r2=0.582
+[21:38:26] part 2: n_train=7631 n_val=2513 train_rmse=1.460 val_rmse=1.464 gap=+0.004 val_r2=0.517
+[21:38:26] part 3: n_train=7630 n_val=2514 train_rmse=1.311 val_rmse=1.783 gap=+0.473 val_r2=0.497
+[21:38:27] part 4: n_train=7632 n_val=2512 train_rmse=1.655 val_rmse=2.184 gap=+0.530 val_r2=0.352
+[21:38:27] nn fold summary: mean val_rmse=1.635 (sd=0.458), mean gap=0.135 (sd=0.465)
+[21:38:27] nn fold diagnostics done

@@ -32,6 +32,7 @@ figures = {
     "timeseries": img_tag(PY_FIG / "timeseries_examples.png", "Timeseries examples"),
     "weighted_bars": img_tag(PY_FIG / "weighted_vs_unweighted_rmse.png", "Weighted vs unweighted RMSE by SDD range"),
     "weighted_pred_vs_obs": img_tag(PY_FIG / "weighted_pred_vs_obs.png", "Weighted vs unweighted predicted vs observed"),
+    "fold_diagnostics": img_tag(PY_FIG / "fold_diagnostics.png", "Per-fold train vs validation RMSE"),
 }
 
 with open(ROOT / "report_template.html") as fh:

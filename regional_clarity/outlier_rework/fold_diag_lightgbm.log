@@ -1,0 +1,6 @@
+[21:38:22] part 1: n_train=7539 n_val=2605 train_rmse=1.310 val_rmse=1.156 gap=-0.154 val_r2=0.628
+[21:38:22] part 2: n_train=7631 n_val=2513 train_rmse=1.267 val_rmse=1.464 gap=+0.197 val_r2=0.535
+[21:38:23] part 3: n_train=7630 n_val=2514 train_rmse=1.215 val_rmse=1.797 gap=+0.583 val_r2=0.492
+[21:38:23] part 4: n_train=7632 n_val=2512 train_rmse=1.359 val_rmse=1.546 gap=+0.187 val_r2=0.604
+[21:38:23] lightgbm fold summary: mean val_rmse=1.491 (sd=0.264), mean gap=0.203 (sd=0.301)
+[21:38:23] lightgbm fold diagnostics done
