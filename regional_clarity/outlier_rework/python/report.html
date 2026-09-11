@@ -176,6 +176,7 @@ a { color: var(--accent-strong); }
     <li><a href="#attribution">Site &amp; weather contribution (SHAP)</a></li>
     <li><a href="#backward-elimination">Backward feature elimination</a></li>
     <li><a href="#final-model">Final tuning &amp; evaluation</a></li>
+    <li><a href="#next-steps">Next steps</a></li>
   </ol>
 </nav>
 
@@ -586,6 +587,44 @@ a { color: var(--accent-strong); }
   </div>
 
   <p>Test partition 5 has shown a larger-than-CV error jump throughout this entire project, independent of today's changes - visible as far back as the original baseline comparison. What's new here is that a smaller, more regularized, weather-free model widens that jump rather than narrowing it, which raises a real question this report cannot answer on its own: is that because the feature/hyperparameter choices genuinely cost something partition 5 specifically needed, or because CV built from partitions 1-4 doesn't represent partition 5 well enough for decisions made on it to transfer - a question about the train/val/test split itself, not about any model. That question is the subject of a separate, upcoming sensitivity analysis - holding today's features and hyperparameters fixed and instead varying which partition is held out as test, and the random seed used to assign HUC4 basins to partitions in the first place - to be run and reported on its own.</p>
+</section>
+
+<section id="next-steps">
+  <div class="section-label">Next steps</div>
+  <h2>Four threads, sequenced</h2>
+  <p>None of these change the production configuration documented above. They're separate work, listed here so the sequencing and the reasoning behind it are on the record.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>Thread</th><th>What</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Outlier-HUC investigation</td>
+        <td>Look directly at what's different about partition 3 and partition 5 as basins - site count and density, lake types, clarity range, land use mix, data-quality flags - rather than continuing to infer their behavior only from model diagnostics.</td>
+        <td>Partition 3 has had the largest train-val gap of any partition at every stage of this project, for every architecture, including after gap-aware tuning specifically targeted it. Partition 5 (test) has shown a larger-than-CV error jump since the original baseline comparison, and the most reduced, most regularized model widened that jump rather than closing it. Two persistent, partition-specific patterns that predate today's changes and haven't been explained by any modeling choice tried so far.</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Train/val/test split sensitivity analysis</td>
+        <td>Hold today's features and hyperparameters fixed. Re-run evaluation with a different partition assigned as test, and separately, with a different random seed used to assign HUC4 basins to the 5 partitions in the first place, to see whether results and the partition-3/5 pattern move with the split. Reported as its own separate analysis, not folded into this report.</td>
+        <td>Directly tests whether partition 3 and 5's behavior is a property of those specific basins or an artifact of one particular train/val/test assignment - the question the final-evaluation regression above raises but can't answer on its own.</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Gap-aware tuning, applied systemically</td>
+        <td>Re-examine (and likely re-run) the earlier tuning steps in this pipeline - baseline models, feature-group comparison, backward elimination's fixed hyperparameters - with the same gap-aware selection logic used for final tuning, instead of only the last step.</td>
+        <td>The naive, RMSE-only tuning used at every earlier stage showed the same failure mode gap-aware tuning was built to fix (search-space regularization alone didn't close the train-val gap, and let the NN tuner pick zero dropout/weight-decay). Every decision made upstream of final tuning - including which features survived backward elimination - was made under that same un-fixed objective.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Shoreline-proximity flag</td>
+        <td>Add the near-shore/shoreline-distance flag already computed in the siteSR pipeline (currently used only for QA filtering) as a categorical model feature, on a new branch separate from <code>outlier-removal-rework</code>.</td>
+        <td>Flagged as an option if performance plateaus. Deliberately sequenced last and on its own branch so it can't complicate the feature-set conclusions already reached here.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <footer>
