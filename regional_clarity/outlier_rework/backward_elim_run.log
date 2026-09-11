@@ -1,0 +1,54 @@
+[09:47:49] loading data
+[09:47:49] candidate pool: 17 optical + 7 site + 2 weather = 26
+[09:47:49] flat single-pass correlation pruning: 26 -> 22 features
+[09:47:49] pruned starting set: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[09:47:49] xgboost fixed hyperparameters (reused from optical+site+weather tuning): {'eta': 0.01, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 0.7, 'colsample_bytree': 0.5}
+[09:47:49] lightgbm fixed hyperparameters (reused from optical+site+weather tuning): {'learning_rate': 0.05, 'num_leaves': 7, 'min_child_samples': 30, 'subsample': 1.0, 'colsample_bytree': 0.9}
+[09:47:49] nn fixed hyperparameters (reused from optical+site+weather tuning): {'hidden_sizes': (4, 4), 'dropout': 0.2, 'lr': 0.01, 'weight_decay': 0.0001}
+[09:47:49] === backward elimination: xgboost ===
+[09:48:01]   [xgboost] step 0: n=22 cv_rmse=1.4912 shadow_floor=0.0005
+[09:48:01]   [xgboost] drop 'pct_impervious_2006' (importance -0.0039 <= shadow floor 0.0005)
+[09:48:11]   [xgboost] step 1: n=21 cv_rmse=1.4997 shadow_floor=0.0006
+[09:48:11]   [xgboost] stop: cv_rmse degraded >0.5% from best (1.4912)
+[09:48:11] xgboost final set (22): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[09:48:11] === backward elimination: lightgbm ===
+[09:48:19]   [lightgbm] step 0: n=22 cv_rmse=1.4990 shadow_floor=0.0008
+[09:48:19]   [lightgbm] drop 'precip_mm_prev30' (importance -0.0044 <= shadow floor 0.0008)
+[09:48:26]   [lightgbm] step 1: n=21 cv_rmse=1.4901 shadow_floor=0.0009
+[09:48:26]   [lightgbm] drop 'elevation_m' (importance -0.0065 <= shadow floor 0.0009)
+[09:48:32]   [lightgbm] step 2: n=20 cv_rmse=1.4616 shadow_floor=0.0010
+[09:48:32]   [lightgbm] drop 'swir1_corr7' (importance -0.0016 <= shadow floor 0.0010)
+[09:48:38]   [lightgbm] step 3: n=19 cv_rmse=1.4585 shadow_floor=0.0011
+[09:48:38]   [lightgbm] drop 'pct_urban_2006' (importance -0.0015 <= shadow floor 0.0011)
+[09:48:43]   [lightgbm] step 4: n=18 cv_rmse=1.4403 shadow_floor=0.0008
+[09:48:43]   [lightgbm] stop: worst real feature 'temp_corr7' (0.0038) beats shadow floor (0.0008)
+[09:48:43] lightgbm final set (18): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'tmax_degC_prev30']
+[09:48:43] === backward elimination: nn ===
+[09:48:44]   [nn] step 0: n=22 cv_rmse=1.6961 shadow_floor=0.0011
+[09:48:44]   [nn] drop 'elevation_m' (importance -0.0324 <= shadow floor 0.0011)
+[09:48:45]   [nn] step 1: n=21 cv_rmse=1.6647 shadow_floor=0.0007
+[09:48:45]   [nn] drop 'tmax_degC_prev30' (importance -0.0048 <= shadow floor 0.0007)
+[09:48:46]   [nn] step 2: n=20 cv_rmse=1.6299 shadow_floor=0.0018
+[09:48:46]   [nn] drop 'BR' (importance -0.0146 <= shadow floor 0.0018)
+[09:48:47]   [nn] step 3: n=19 cv_rmse=1.5891 shadow_floor=0.0032
+[09:48:47]   [nn] drop 'pct_forest_2006' (importance -0.0020 <= shadow floor 0.0032)
+[09:48:48]   [nn] step 4: n=18 cv_rmse=1.5961 shadow_floor=0.0011
+[09:48:48]   [nn] drop 'catchment_area_sqkm' (importance -0.0041 <= shadow floor 0.0011)
+[09:48:49]   [nn] step 5: n=17 cv_rmse=1.5761 shadow_floor=0.0005
+[09:48:49]   [nn] stop: worst real feature 'precip_mm_prev30' (0.0010) beats shadow floor (0.0005)
+[09:48:49] nn final set (17): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'pct_impervious_2006', 'pct_urban_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30']
+[09:48:49] === joint backward elimination (all 3 models at once) ===
+[09:49:09]   [joint] step 0: n=22 xgboost_rmse=1.4912 lightgbm_rmse=1.4990 nn_rmse=1.6961
+[09:49:09]   [joint] drop 'elevation_m' (norm importance -11.848 <= 1.0)
+[09:49:27]   [joint] step 1: n=21 xgboost_rmse=1.4926 lightgbm_rmse=1.4725 nn_rmse=1.6647
+[09:49:27]   [joint] drop 'tmax_degC_prev30' (norm importance -3.541 <= 1.0)
+[09:49:44]   [joint] step 2: n=20 xgboost_rmse=1.4750 lightgbm_rmse=1.4562 nn_rmse=1.6299
+[09:49:44]   [joint] drop 'precip_mm_prev30' (norm importance -3.502 <= 1.0)
+[09:50:04]   [joint] step 3: n=19 xgboost_rmse=1.4691 lightgbm_rmse=1.4520 nn_rmse=1.6038
+[09:50:04]   [joint] drop 'pct_forest_2006' (norm importance -0.014 <= 1.0)
+[09:50:17]   [joint] step 4: n=18 xgboost_rmse=1.4886 lightgbm_rmse=1.4550 nn_rmse=1.6269
+[09:50:17]   [joint] stop: ['xgboost', 'nn'] degraded >0.5% from their own best on this path
+[09:50:17] joint final set (22): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[09:50:17] intersection of 3 per-model sets (14): ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_impervious_2006', 'pct_wetland_2006', 'red_corr7', 'temp_corr7']
+[09:50:17] union of 3 per-model sets (22): ['BG', 'BR', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'catchment_area_sqkm', 'elevation_m', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_impervious_2006', 'pct_urban_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'red_corr7', 'swir1_corr7', 'temp_corr7', 'tmax_degC_prev30']
+[09:50:17] BACKWARD ELIMINATION DONE

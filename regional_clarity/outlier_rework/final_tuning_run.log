@@ -1,0 +1,26 @@
+[10:38:46] intersection-16 features: ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'catchment_area_sqkm', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'temp_corr7']
+[10:38:46] === tuning xgboost on intersection-16 (40 trials) ===
+[10:40:03] xgboost best params: {'eta': 0.05, 'max_depth': 3, 'min_child_weight': 7, 'subsample': 0.6, 'colsample_bytree': 0.7, 'reg_alpha': 1, 'reg_lambda': 10} (mean CV RMSE=1.4113)
+[10:40:03] === xgboost per-fold train/val diagnostics ===
+[10:40:04]   part 1: train_rmse=1.052 val_rmse=1.151 gap=+0.099 val_r2=0.619
+[10:40:04]   part 2: train_rmse=0.924 val_rmse=1.352 gap=+0.428 val_r2=0.547
+[10:40:05]   part 3: train_rmse=0.838 val_rmse=1.814 gap=+0.976 val_r2=0.527
+[10:40:05]   part 4: train_rmse=0.923 val_rmse=1.357 gap=+0.434 val_r2=0.697
+[10:40:05] xgboost fold summary: mean val_rmse=1.419 (sd=0.281), mean gap=0.484 (sd=0.363), mean train_rmse=0.934
+[10:40:05] === tuning lightgbm on intersection-16 (40 trials) ===
+[10:41:15] lightgbm best params: {'learning_rate': 0.01, 'num_leaves': 15, 'min_child_samples': 30, 'subsample': 0.8, 'colsample_bytree': 0.5, 'reg_alpha': 1, 'reg_lambda': 10} (mean CV RMSE=1.4122)
+[10:41:15] === lightgbm per-fold train/val diagnostics ===
+[10:41:16]   part 1: train_rmse=1.050 val_rmse=1.133 gap=+0.083 val_r2=0.637
+[10:41:18]   part 2: train_rmse=0.861 val_rmse=1.341 gap=+0.480 val_r2=0.556
+[10:41:20]   part 3: train_rmse=0.792 val_rmse=1.867 gap=+1.075 val_r2=0.494
+[10:41:22]   part 4: train_rmse=0.895 val_rmse=1.307 gap=+0.413 val_r2=0.717
+[10:41:22] lightgbm fold summary: mean val_rmse=1.412 (sd=0.317), mean gap=0.513 (sd=0.413), mean train_rmse=0.899
+[10:41:22] === tuning nn on intersection-16 (15 trials) ===
+[10:41:41] nn best params: {'hidden_sizes': (8, 4, 4), 'dropout': 0.0, 'lr': 0.01, 'weight_decay': 0.0} (mean CV RMSE=1.4728)
+[10:41:41] === nn per-fold train/val diagnostics ===
+[10:41:41]   part 1: train_rmse=1.608 val_rmse=1.135 gap=-0.473 val_r2=0.558
+[10:41:41]   part 2: train_rmse=1.294 val_rmse=1.286 gap=-0.009 val_r2=0.595
+[10:41:41]   part 3: train_rmse=1.309 val_rmse=1.859 gap=+0.550 val_r2=0.507
+[10:41:41]   part 4: train_rmse=1.472 val_rmse=1.612 gap=+0.140 val_r2=0.566
+[10:41:41] nn fold summary: mean val_rmse=1.473 (sd=0.325), mean gap=0.052 (sd=0.422), mean train_rmse=1.421
+[10:41:41] FINAL TUNING DONE

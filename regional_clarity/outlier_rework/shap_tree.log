@@ -1,0 +1,37 @@
+=== xgboost: shap optical ===
+xgboost / optical
+  group contribution (% of total mean|SHAP|): {'optical': 100.0}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.7560217380523682, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.4595460593700409, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.2120218724012375, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.165849968791008, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.16076795756816864, 'group': 'optical'}]
+=== xgboost: shap optical+site ===
+xgboost / optical+site
+  group contribution (% of total mean|SHAP|): {'optical': 71.71670532226562, 'site': 28.283292770385742}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.673981785774231, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.36896252632141113, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.24658256769180298, 'group': 'site'}, {'feature': 'BR', 'mean_abs_shap': 0.2159615457057953, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.197649747133255, 'group': 'optical'}]
+=== xgboost: shap optical+weather ===
+xgboost / optical+weather
+  group contribution (% of total mean|SHAP|): {'optical': 90.82365417480469, 'weather': 9.176347732543945}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.7204537987709045, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.42231953144073486, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.22887463867664337, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.16510236263275146, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.1607588231563568, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.7317018633146475, 'precip_mm_prev3': -0.10828665501887574, 'precip_mm_prev7': -0.39122412426364045, 'precip_mm_prev30': -0.7555313526943703, 'tmin_degC_prev1': -0.07557101334269868, 'tmax_degC_prev7': -0.481975248388579, 'tmax_degC_prev30': -0.6483492148077626, 'tmean_degC_prev30': 0.6684001331493674, 'tmin_degC_prev7': 0.5024532097482293, 'tmin_degC_prev30': 0.15125072876394102, 'srad_Wm2_prev1': 0.5530224924542148, 'srad_Wm2_prev7': -0.7007291760607767, 'srad_Wm2_prev30': 0.18682420810884065}
+=== xgboost: shap optical+site+weather ===
+xgboost / optical+site+weather
+  group contribution (% of total mean|SHAP|): {'optical': 64.97661590576172, 'site': 26.2601261138916, 'weather': 8.76325798034668}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.5886257290840149, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.38659822940826416, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.2503567337989807, 'group': 'site'}, {'feature': 'BR', 'mean_abs_shap': 0.2500647008419037, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.18694384396076202, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': 0.24789901156647415, 'precip_mm_prev3': 0.11701183465796917, 'precip_mm_prev7': -0.40582671246702623, 'precip_mm_prev30': -0.6286550989456892, 'tmin_degC_prev1': 0.03596882407566685, 'tmax_degC_prev7': 0.46365935966173366, 'tmax_degC_prev30': -0.8491734077973121, 'tmean_degC_prev30': -0.3553009351074103, 'tmin_degC_prev7': 0.5776163052491032, 'tmin_degC_prev30': 0.24257639586453578, 'srad_Wm2_prev1': 0.7037748695404836, 'srad_Wm2_prev7': -0.5609085073242073, 'srad_Wm2_prev30': -0.2654050857014505}
+=== lightgbm: shap optical ===
+lightgbm / optical
+  group contribution (% of total mean|SHAP|): {'optical': 100.0}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.7067655625161386, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.4354021435203984, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.22659471682367338, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.17448377747768024, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.16051971785214308, 'group': 'optical'}]
+=== lightgbm: shap optical+site ===
+lightgbm / optical+site
+  group contribution (% of total mean|SHAP|): {'optical': 72.93616443577667, 'site': 27.063835564223325}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.679170684276281, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.45181925034868825, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.2465825712581716, 'group': 'site'}, {'feature': 'BR', 'mean_abs_shap': 0.22121759582659337, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.17524352376346003, 'group': 'optical'}]
+=== lightgbm: shap optical+weather ===
+lightgbm / optical+weather
+  group contribution (% of total mean|SHAP|): {'optical': 88.18585653672064, 'weather': 11.814143463279372}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.706460392641796, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.4279402151715975, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.22414665281813517, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.16277838374898618, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.15959336379309197, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.44111670149742105, 'precip_mm_prev3': -0.09289827105225809, 'precip_mm_prev7': -0.5288506519871786, 'precip_mm_prev30': -0.7454567366855789, 'tmin_degC_prev1': -0.16313618277556657, 'tmax_degC_prev7': -0.32232957088996106, 'tmax_degC_prev30': -0.4265866601571083, 'tmean_degC_prev30': 0.392121574216809, 'tmin_degC_prev7': 0.7292391862376009, 'tmin_degC_prev30': -0.23753608935313955, 'srad_Wm2_prev1': 0.5781966885037729, 'srad_Wm2_prev7': -0.5285564360147575, 'srad_Wm2_prev30': -0.16657291616211262}
+=== lightgbm: shap optical+site+weather ===
+lightgbm / optical+site+weather
+  group contribution (% of total mean|SHAP|): {'optical': 64.19511651367313, 'site': 28.5783661280174, 'weather': 7.226517358309467}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.6712041891276304, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.3935609099992618, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.286664339040733, 'group': 'site'}, {'feature': 'BR', 'mean_abs_shap': 0.196520700309384, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.1787650565190091, 'group': 'site'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': 0.07411963472741134, 'precip_mm_prev3': -0.06263355685089153, 'precip_mm_prev7': -0.5614466414390787, 'precip_mm_prev30': -0.5700243424951202, 'tmin_degC_prev1': 0.14495382158201084, 'tmax_degC_prev7': 0.5061916790650567, 'tmax_degC_prev30': -0.7245698796581461, 'tmean_degC_prev30': -0.4570793924021508, 'tmin_degC_prev7': 0.05464092228923451, 'tmin_degC_prev30': 0.1380601922238346, 'srad_Wm2_prev1': 0.6072785295716348, 'srad_Wm2_prev7': -0.4625405683355316, 'srad_Wm2_prev30': -0.33505563466426114}
+TREE SHAP DONE

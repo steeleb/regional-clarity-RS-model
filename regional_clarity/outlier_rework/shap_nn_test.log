@@ -1,0 +1,3 @@
+nn / optical
+  group contribution (% of total mean|SHAP|): {'optical': 100.0}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.4157316939434182, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.37702962985061006, 'group': 'optical'}, {'feature': 'NDSSI', 'mean_abs_shap': 0.25564786178253757, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.2530789835494551, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.24786272258459513, 'group': 'optical'}]

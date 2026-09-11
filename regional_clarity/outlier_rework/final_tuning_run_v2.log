@@ -1,0 +1,29 @@
+[10:43:21] intersection-16 features: ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'catchment_area_sqkm', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'temp_corr7']
+[10:43:21] === gap-aware tuning xgboost on intersection-16 (40 trials) ===
+[10:45:30] xgboost chosen params: {'eta': 0.05, 'max_depth': 2, 'min_child_weight': 7, 'subsample': 0.6, 'colsample_bytree': 0.5, 'reg_alpha': 0, 'reg_lambda': 20}
+[10:45:30] xgboost chosen: val_rmse=1.4382 train_rmse=1.0628 gap=0.3754 | pure-best val_rmse would have been 1.4124 (29/40 trials within 2% tolerance band)
+[10:45:30] === xgboost per-fold train/val diagnostics ===
+[10:45:30]   part 1: train_rmse=1.199 val_rmse=1.186 gap=-0.014 val_r2=0.596
+[10:45:31]   part 2: train_rmse=1.054 val_rmse=1.353 gap=+0.298 val_r2=0.543
+[10:45:31]   part 3: train_rmse=0.951 val_rmse=1.806 gap=+0.855 val_r2=0.534
+[10:45:32]   part 4: train_rmse=1.047 val_rmse=1.409 gap=+0.362 val_r2=0.670
+[10:45:32] xgboost fold summary: mean val_rmse=1.438 (sd=0.263), mean gap=0.375 (sd=0.359), mean train_rmse=1.063
+[10:45:32] === gap-aware tuning lightgbm on intersection-16 (40 trials) ===
+[10:48:08] lightgbm chosen params: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.8, 'colsample_bytree': 0.4, 'reg_alpha': 0, 'reg_lambda': 10}
+[10:48:08] lightgbm chosen: val_rmse=1.4320 train_rmse=1.0392 gap=0.3928 | pure-best val_rmse would have been 1.4103 (29/40 trials within 2% tolerance band)
+[10:48:08] === lightgbm per-fold train/val diagnostics ===
+[10:48:09]   part 1: train_rmse=1.187 val_rmse=1.147 gap=-0.041 val_r2=0.621
+[10:48:10]   part 2: train_rmse=1.035 val_rmse=1.338 gap=+0.303 val_r2=0.554
+[10:48:12]   part 3: train_rmse=0.887 val_rmse=1.894 gap=+1.007 val_r2=0.472
+[10:48:13]   part 4: train_rmse=1.047 val_rmse=1.349 gap=+0.302 val_r2=0.702
+[10:48:13] lightgbm fold summary: mean val_rmse=1.432 (sd=0.322), mean gap=0.393 (sd=0.440), mean train_rmse=1.039
+[10:48:13] === gap-aware tuning nn on intersection-16 (15 trials) ===
+[10:48:39] nn chosen params: {'hidden_sizes': (8, 4, 4), 'dropout': 0.0, 'lr': 0.01, 'weight_decay': 0.0}
+[10:48:39] nn chosen: val_rmse=1.4728 train_rmse=1.4209 gap=0.0519 | pure-best val_rmse would have been 1.4728 (3/15 trials within 2% tolerance band)
+[10:48:39] === nn per-fold train/val diagnostics ===
+[10:48:39]   part 1: train_rmse=1.608 val_rmse=1.135 gap=-0.473 val_r2=0.558
+[10:48:39]   part 2: train_rmse=1.294 val_rmse=1.286 gap=-0.009 val_r2=0.595
+[10:48:39]   part 3: train_rmse=1.309 val_rmse=1.859 gap=+0.550 val_r2=0.507
+[10:48:39]   part 4: train_rmse=1.472 val_rmse=1.612 gap=+0.140 val_r2=0.566
+[10:48:39] nn fold summary: mean val_rmse=1.473 (sd=0.325), mean gap=0.052 (sd=0.422), mean train_rmse=1.421
+[10:48:39] FINAL TUNING DONE

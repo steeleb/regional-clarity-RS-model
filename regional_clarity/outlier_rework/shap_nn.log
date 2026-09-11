@@ -1,0 +1,15 @@
+=== nn: shap optical+site ===
+nn / optical+site
+  group contribution (% of total mean|SHAP|): {'optical': 68.6824179226217, 'site': 31.317582077378297}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.38248856340532145, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.2610565743022661, 'group': 'site'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.2586294631163094, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.19689524688404864, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.19649064593508336, 'group': 'optical'}]
+=== nn: shap optical+weather ===
+nn / optical+weather
+  group contribution (% of total mean|SHAP|): {'optical': 82.68434419312052, 'weather': 17.315655806879494}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.38974292534817323, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.28299508018617286, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.27517996272584516, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.2365724955314115, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.16633363517435232, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.7190263153465827, 'precip_mm_prev3': 0.030118296390424248, 'precip_mm_prev7': 0.2680078500195932, 'precip_mm_prev30': -0.45121807090900684, 'tmin_degC_prev1': -0.7970268274118782, 'tmax_degC_prev7': 0.38852577477926226, 'tmax_degC_prev30': -0.5420672978852134, 'tmean_degC_prev30': 0.7867826596204123, 'tmin_degC_prev7': 0.8477678936089372, 'tmin_degC_prev30': 0.6966374540866852, 'srad_Wm2_prev1': 0.6364684694711173, 'srad_Wm2_prev7': -0.66814976992072, 'srad_Wm2_prev30': 0.4425038208356454}
+=== nn: shap optical+site+weather ===
+nn / optical+site+weather
+  group contribution (% of total mean|SHAP|): {'optical': 61.3286643713978, 'site': 22.86032632542051, 'weather': 15.811009303181692}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.2790947553954112, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.2189893924234328, 'group': 'site'}, {'feature': 'NDVI', 'mean_abs_shap': 0.18747325256218406, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.1737884800946334, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.15832811580619063, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.22738573625402173, 'precip_mm_prev3': 0.007705264003078701, 'precip_mm_prev7': -0.1935847864451763, 'precip_mm_prev30': -0.5718447407380356, 'tmin_degC_prev1': -0.5998609881823099, 'tmax_degC_prev7': 0.6479153895950567, 'tmax_degC_prev30': -0.5187994280228985, 'tmean_degC_prev30': 0.06042157523645726, 'tmin_degC_prev7': 0.712796398064052, 'tmin_degC_prev30': 0.4935064306391597, 'srad_Wm2_prev1': 0.5994402548835077, 'srad_Wm2_prev7': -0.4012365227024848, 'srad_Wm2_prev30': 0.5221094247531216}
+NN SHAP DONE
