@@ -175,6 +175,7 @@ a { color: var(--accent-strong); }
     <li><a href="#feature-groups">Feature group comparison</a></li>
     <li><a href="#attribution">Site &amp; weather contribution (SHAP)</a></li>
     <li><a href="#backward-elimination">Backward feature elimination</a></li>
+    <li><a href="#final-model">Final tuning &amp; evaluation</a></li>
   </ol>
 </nav>
 
@@ -542,6 +543,49 @@ a { color: var(--accent-strong); }
   </div>
 
   <p>Site's share now sits in a tight ~23&ndash;25% band regardless of architecture - more stable than the 22&ndash;31% range seen with weather still in the mix. <code>catchment_area_sqkm</code> is the top site feature for both tree models; <code>pct_wetland_2006</code> leads for the neural net. Removing weather didn't just drop a weak group - it appears to have stabilized site's contribution into a consistent, secondary-but-real signal, reinforcing that this model is optical-primary with a genuine, architecture-independent site-characteristic correction on top.</p>
+</section>
+
+<section id="final-model">
+  <div class="section-label">Final tuning &amp; evaluation</div>
+  <h2>Gap-aware tuning, and a result that needs to be stated plainly</h2>
+  <p>Final hyperparameter search on the 16-feature intersection set was narrowed toward simpler, more regularized configurations (shallower trees, larger minimum leaf sizes, more subsampling, explicit L1/L2 terms), per the goal of favoring architectures with strong overfitting guardrails. A first pass - selecting purely by lowest mean CV RMSE - did not close the train-val gap: for XGBoost the gap actually grew relative to the pre-elimination baseline, and the neural net's tuner picked zero dropout and zero weight decay, the least-regularized options in its own search space, because nothing in that objective penalized the gap.</p>
+
+  <p>The selection rule was changed accordingly: among all trials within 2% of the best CV RMSE, pick the one with the smallest train-val gap, rather than the single lowest-RMSE trial regardless of gap.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Mean gap before</th><th>Mean gap after</th><th>CV RMSE cost</th><th>Partition 3 gap (hardest fold)</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>0.484</td><td>0.375 (&minus;22%)</td><td>+1.8%</td><td>0.976 &rarr; 0.855</td></tr>
+      <tr><td>LightGBM</td><td>0.513</td><td>0.393 (&minus;23%)</td><td>+1.5%</td><td>1.075 &rarr; 1.007</td></tr>
+      <tr><td>Neural net</td><td>0.052</td><td>0.052 (no change)</td><td>&mdash;</td><td>0.550 (unchanged)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Gap-aware selection meaningfully reduced the average train-val gap for both tree models, at a small and bounded CV RMSE cost - the mechanism worked as designed. It did nothing for the neural net, whose narrow, already-capped search space offered no lower-gap alternative within tolerance. And partition 3's gap remains by far the largest for every model even after this fix - the same partition that has shown the largest train-val gap at every earlier stage of this project, for every architecture, before any of these changes. Regularization has real pull on the average gap; it doesn't close a gap that's fundamentally about one spatial partition behaving differently from the rest.</p>
+
+  <h3>Final production configuration</h3>
+  <p>Feature set: the 16-feature intersection (Backward feature elimination, above). Hyperparameters: the gap-aware-tuned configuration per model. SDD-weighting (k=2.0): applied for XGBoost and LightGBM, matching the earlier established finding that it improves top-quartile accuracy and bias for the tree models; not applied for the neural net, which that same earlier analysis showed it doesn't help.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>CV RMSE</th><th>Test RMSE</th><th>Test R&sup2;</th><th>Test Bias</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>1.449</td><td>1.860</td><td>0.473</td><td>+0.409</td></tr>
+      <tr><td>LightGBM</td><td>1.465</td><td>1.830</td><td>0.475</td><td>+0.314</td></tr>
+      <tr><td>Neural net</td><td>1.496</td><td>1.839</td><td>0.451</td><td>&minus;0.143</td></tr>
+      <tr class="best"><td><i>Prior best (XGBoost, 33 features, optical+site+weather, unweighted)</i></td><td><i>&asymp;1.56</i></td><td><i>1.747</i></td><td><i>0.508</i></td><td><i>+0.191</i></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout flag">
+    <span class="label">The reduced, gap-aware model underperforms the earlier best result on test</span>
+    <p>Every model in this final round scores worse on the untouched test partition than the 33-feature XGBoost configuration from before backward elimination - despite every one of them having a <i>better</i> CV RMSE (1.45&ndash;1.50, vs. that config's roughly 1.56). Bias also got worse for both tree models (+0.409, +0.314 vs. +0.191 before): they now over-predict clarity on test more than the earlier, richer-featured model did. The CV improvement from feature selection and gap-aware tuning did not carry over to the held-out partition - if anything, it moved the wrong way. This is reported directly rather than reframed as a success: it is a real result of this phase of work, not an outcome the process was aiming to avoid confirming.</p>
+  </div>
+
+  <p>Test partition 5 has shown a larger-than-CV error jump throughout this entire project, independent of today's changes - visible as far back as the original baseline comparison. What's new here is that a smaller, more regularized, weather-free model widens that jump rather than narrowing it, which raises a real question this report cannot answer on its own: is that because the feature/hyperparameter choices genuinely cost something partition 5 specifically needed, or because CV built from partitions 1-4 doesn't represent partition 5 well enough for decisions made on it to transfer - a question about the train/val/test split itself, not about any model. That question is the subject of a separate, upcoming sensitivity analysis - holding today's features and hyperparameters fixed and instead varying which partition is held out as test, and the random seed used to assign HUC4 basins to partitions in the first place - to be run and reported on its own.</p>
 </section>
 
 <footer>

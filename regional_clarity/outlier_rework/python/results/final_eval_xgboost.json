@@ -1,0 +1,50 @@
+{
+  "weighted": true,
+  "params": {
+    "eta": "0.05",
+    "max_depth": "2",
+    "min_child_weight": "7",
+    "subsample": "0.6",
+    "colsample_bytree": "0.5",
+    "reg_alpha": "0",
+    "reg_lambda": "20"
+  },
+  "features": [
+    "BG",
+    "MNDWI",
+    "NDSSI",
+    "NDVI",
+    "NDWI",
+    "NR",
+    "atm_corr_LaSRC",
+    "catchment_area_sqkm",
+    "fai",
+    "nir_corr7",
+    "pct_cropland_2006",
+    "pct_forest_2006",
+    "pct_urban_2006",
+    "pct_wetland_2006",
+    "red_corr7",
+    "temp_corr7"
+  ],
+  "cv_metrics": {
+    "rmse": 1.4491933125587821,
+    "mae": 1.0658180632848677,
+    "mape": 0.8008175020706142,
+    "bias": 0.15238034709260356,
+    "p_bias": 4.659253066338346,
+    "smape": 0.4134013063346292,
+    "r2": 0.6312207286322038,
+    "n": 10128
+  },
+  "test_metrics": {
+    "rmse": 1.859822102795834,
+    "mae": 1.2938902882941368,
+    "mape": 0.8702468927875323,
+    "bias": 0.40947974080876876,
+    "p_bias": 12.292275154005111,
+    "smape": 0.413767003021572,
+    "r2": 0.4733057144914374,
+    "n": 2509
+  }
+}

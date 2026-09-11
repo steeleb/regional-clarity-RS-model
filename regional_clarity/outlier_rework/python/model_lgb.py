@@ -7,11 +7,16 @@ import numpy as np
 import lightgbm as lgb
 
 PARAM_SPACE = dict(
-    learning_rate=[0.01, 0.03, 0.05, 0.1],
-    num_leaves=[7, 15, 31, 63],
-    min_child_samples=[5, 10, 20, 30],
-    subsample=[0.7, 0.8, 0.9, 1.0],
-    colsample_bytree=[0.5, 0.7, 0.9, 1.0],
+    # narrowed and re-weighted toward simpler, more regularized trees for
+    # final tuning on the 16-feature intersection set - see model_xgb.py's
+    # PARAM_SPACE comment for the rationale, same shift applied here
+    learning_rate=[0.01, 0.03, 0.05],
+    num_leaves=[7, 15, 31],
+    min_child_samples=[20, 30, 50],
+    subsample=[0.6, 0.7, 0.8],
+    colsample_bytree=[0.4, 0.5, 0.7],
+    reg_alpha=[0, 0.1, 1, 5],
+    reg_lambda=[1, 5, 10, 20],
 )
 
 

@@ -12,11 +12,17 @@ from metrics import rmse
 from spatial_cv import Fold
 
 PARAM_SPACE = dict(
-    eta=[0.01, 0.03, 0.05, 0.1],
-    max_depth=[2, 3, 4, 5, 6],
-    min_child_weight=[1, 3, 5, 7],
-    subsample=[0.7, 0.8, 0.9, 1.0],
-    colsample_bytree=[0.5, 0.7, 0.9, 1.0],
+    # narrowed and re-weighted toward simpler, more regularized trees for
+    # final tuning on the 16-feature intersection set - shallower depth,
+    # larger min_child_weight, more row/column subsampling, and explicit
+    # L1/L2 terms that the earlier feature-group search didn't include
+    eta=[0.01, 0.03, 0.05],
+    max_depth=[2, 3, 4],
+    min_child_weight=[3, 5, 7, 10],
+    subsample=[0.6, 0.7, 0.8],
+    colsample_bytree=[0.4, 0.5, 0.7],
+    reg_alpha=[0, 0.1, 1, 5],
+    reg_lambda=[1, 5, 10, 20],
 )
 
 
