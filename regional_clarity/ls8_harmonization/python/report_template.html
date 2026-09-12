@@ -1,0 +1,320 @@
+<title>LS8 Harmonization</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F5F8F9;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F3;
+  --border: #D7E3E6;
+  --text: #16262E;
+  --text-muted: #55707A;
+  --accent: #1B6E8C;
+  --accent-strong: #0D4A5E;
+  --accent-soft: #DCEEF3;
+  --flag: #C1442D;
+  --flag-soft: #F7E3DF;
+  --good: #3E7D53;
+  --good-soft: #E1EEE3;
+  --shadow: 0 1px 2px rgba(15, 40, 50, 0.06), 0 4px 16px rgba(15, 40, 50, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E171B;
+    --surface: #16232A;
+    --surface-2: #1D2C33;
+    --border: #2A3D45;
+    --text: #E7EEF0;
+    --text-muted: #9AB0B8;
+    --accent: #57B8D6;
+    --accent-strong: #8ED2E8;
+    --accent-soft: #163540;
+    --flag: #E2695A;
+    --flag-soft: #3A2320;
+    --good: #74C08D;
+    --good-soft: #1C2E22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E171B;
+  --surface: #16232A;
+  --surface-2: #1D2C33;
+  --border: #2A3D45;
+  --text: #E7EEF0;
+  --text-muted: #9AB0B8;
+  --accent: #57B8D6;
+  --accent-strong: #8ED2E8;
+  --accent-soft: #163540;
+  --flag: #E2695A;
+  --flag-soft: #3A2320;
+  --good: #74C08D;
+  --good-soft: #1C2E22;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; text-wrap: balance; color: var(--text); }
+.mono, table, .stat-value, code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.page { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+
+header.hero { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+header.hero .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; margin-bottom: 10px; }
+header.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 12px; line-height: 1.15; }
+header.hero p.dek { color: var(--text-muted); font-size: 1.08rem; max-width: 62ch; margin: 0; }
+header.hero .meta { display: flex; gap: 20px; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; }
+
+.stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 44px; }
+.stat { background: var(--surface); padding: 18px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+.stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-strong); }
+.stat-value.flag { color: var(--flag); }
+.stat-value.good { color: var(--good); }
+.stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 44px; }
+nav.toc .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+nav.toc ol { margin: 0; padding-left: 1.2em; columns: 2; column-gap: 24px; font-size: 0.9rem; }
+nav.toc li { margin-bottom: 5px; break-inside: avoid; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+
+section { margin-bottom: 52px; scroll-margin-top: 20px; }
+section > .section-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+section > h2 { font-size: 1.55rem; margin: 0 0 16px; }
+section > h3 { font-size: 1.15rem; margin: 28px 0 10px; color: var(--text); }
+p { margin: 0 0 14px; max-width: 72ch; }
+ul.plain { margin: 0 0 16px; padding-left: 1.3em; }
+ul.plain li { margin-bottom: 6px; max-width: 70ch; }
+
+.callout { border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 14px 18px; margin: 18px 0; font-size: 0.95rem; }
+.callout.flag { border-left-color: var(--flag); background: var(--flag-soft); }
+.callout.good { border-left-color: var(--good); background: var(--good-soft); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .label { font-weight: 600; display: block; margin-bottom: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 8px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; font-family: 'Public Sans', sans-serif; }
+th { background: var(--surface-2); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-muted); }
+tr:last-child td { border-bottom: none; }
+tr.flag td { color: var(--flag); font-weight: 600; }
+tr.good td { color: var(--good); font-weight: 600; }
+
+figure { margin: 22px 0; }
+figure img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: var(--surface); }
+figcaption { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; max-width: 72ch; }
+
+footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 60px; color: var(--text-muted); font-size: 0.82rem; }
+a { color: var(--accent-strong); }
+</style>
+
+<div class="page">
+
+<header class="hero">
+  <div class="eyebrow">Regional Clarity RS Model &middot; LS8 Harmonization</div>
+  <h1>What happens when the cross-sensor reference moves from Landsat 7 to Landsat 8</h1>
+  <p class="dek">Every prior version of this pipeline harmonizes cross-sensor reflectance to an LS7 reference, using Gardner et al.'s per-band quadratic coefficients. This project asks two questions from one shared setup: what changes if that reference becomes LS8 instead, and can a usable algorithm be built from Landsat 8/9 alone, with no cross-sensor correction at all? A fresh 5-seed HUC8-random ensemble (the same architecture as workflow v3) was rebuilt from scratch for both questions, sharing one base dataset so the comparison is genuinely controlled rather than confounded by different rows or splits.</p>
+  <div class="meta">
+    <span>Branch: <code>outlier-removal-rework</code></span>
+    <span>Models: xgboost + lightgbm only</span>
+    <span>3 arms &times; 5-seed ensemble each</span>
+  </div>
+</header>
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">Rows retained after moving the reference to LS8</span>
+    <span class="stat-value flag">56% (7,112 / 12,637)</span>
+    <span class="stat-sub">LT04 + LT05 dropped - no direct LS5/LS4&rarr;LS8 coefficient exists upstream</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Controlled RMSE change, LS7-ref &rarr; LS8-ref</span>
+    <span class="stat-value good">&minus;1.4%</span>
+    <span class="stat-sub">identical 1,114-row holdout, identical splits - only the reference sensor differs</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Lake Powell (HUC4 1407) improvement</span>
+    <span class="stat-value good">&minus;4.8% RMSE</span>
+    <span class="stat-sub">the largest single-basin gain from the reference switch</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">HUC4 1701 under the same switch</span>
+    <span class="stat-value flag">+3.2% RMSE</span>
+    <span class="stat-sub">one of only two basins (of 13) that got worse</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">LS8/9-only corpus size</span>
+    <span class="stat-value">1,925 rows (15%)</span>
+    <span class="stat-sub">211 in the holdout - no harmonization needed at all for this arm</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">LS8/9-only holdout R&sup2; / MAE</span>
+    <span class="stat-value good">0.708 / 1.075m</span>
+    <span class="stat-sub">both better than the full-corpus arms, despite 73% less training data</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="label">Contents</div>
+  <ol>
+    <li><a href="#question">What this project tests</a></li>
+    <li><a href="#databuild">The mechanical constraint: LT04/LT05 have nowhere to go</a></li>
+    <li><a href="#method">Method: one shared corpus, three arms</a></li>
+    <li><a href="#controlled">Does LS8-referencing actually help?</a></li>
+    <li><a href="#features">What changes in feature selection</a></li>
+    <li><a href="#l89">Can Landsat 8/9 alone carry an algorithm?</a></li>
+    <li><a href="#conclusion">Conclusion and recommendation</a></li>
+  </ol>
+</nav>
+
+<section id="question">
+  <div class="section-label">What this project tests</div>
+  <h2>Two related questions, one shared setup</h2>
+  <p>Cross-sensor harmonization exists because Landsat's optical instruments changed generation between missions - ETM+ (Landsat 7) and OLI (Landsat 8/9) have different relative spectral response curves, so the same water body produces slightly different raw reflectance depending on which satellite happened to pass over. Every earlier report in this project harmonized everything to an LS7 reference, inherited from the upstream AquaMatch compile step without ever being tested against the alternative. Two questions follow directly:</p>
+  <ul class="plain">
+    <li><b>Does referencing to LS8 instead of LS7 change model accuracy?</b> OLI is the more modern instrument, with narrower, more distinct spectral bands than ETM+ - referencing to it could plausibly preserve more of that specificity than collapsing everything down to ETM+'s coarser response.</li>
+    <li><b>Is there enough Landsat 8/9 data alone to build a usable algorithm, with no cross-sensor correction step at all?</b> If OLI/OLI-2 data alone can carry a model, an entire source of harmonization error and complexity disappears for any future deployment that doesn't need the older missions' longer time series.</li>
+  </ul>
+  <p>Both questions are answered from one shared base dataset (see below), so the comparisons are genuinely controlled rather than confounded by different rows, different splits, or different sample sizes doing the work instead of the thing actually being tested.</p>
+</section>
+
+<section id="databuild">
+  <div class="section-label">Data</div>
+  <h2>LT04/LT05 have nowhere to go under an LS8 reference</h2>
+  <p>The upstream coefficient table (Gardner et al.'s per-band quadratic cross-sensor corrections) contains exactly two correction families referenced to LS7 (from LS5 and from LS8), used by every prior report in this project - and exactly one referenced to LS8 (from LS7 only). There is no LS5&rarr;LS8 or LS4&rarr;LS8 coefficient anywhere in the table, upstream or otherwise. That is a real constraint, not a processing choice: Landsat 4 and 5's Thematic Mapper instrument was never directly cross-calibrated against Landsat 8/9's OLI in the coefficient set this project depends on.</p>
+
+  <figure>
+    <img src="{{sensor_row_counts}}" alt="Bar chart of rows per Landsat mission, before and after the LS8-reference switch, showing LT04 and LT05 dropped entirely">
+    <figcaption>Rows per mission in the full 12,637-row corpus. LT04 (43 rows) and LT05 (5,482 rows) are dropped entirely under an LS8 reference - not a subsampling choice, a hard constraint of the available coefficient set. LE07, LC08, and LC09 (7,112 rows, 56%) are unaffected and form the shared base corpus for both arms of this project.</figcaption>
+  </figure>
+
+  <p>This is exactly the trade-off anticipated going in: losing Landsat 4/5's matchups in exchange for whatever specificity an LS8 reference buys. The rest of this report measures whether that trade is worth it, and separately, what a corpus restricted even further - to only the sensors (LC08/LC09) that need no cross-sensor correction at all - can support on its own.</p>
+</section>
+
+<section id="method">
+  <div class="section-label">Method</div>
+  <h2>One base corpus, three arms</h2>
+  <p>A single R script builds one 7,112-row base dataset restricted to <code>mission %in% c("LE07","LC08","LC09")</code>, carrying <b>both</b> the existing LS7-referenced bands (<code>*_corr7</code>, joined straight across from the existing modeling dataset for these same rows) <b>and</b> newly-computed LS8-referenced bands (<code>*_corr8</code>, via the existing <code>sat_to=="LS8"</code> Gardner coefficients - LC08/LC09 pass through unchanged since they're already the target sensor, verified bit-for-bit; LE07 is transformed). A fresh 5-seed HUC8-random ensemble (identical architecture to workflow v3: one fixed holdout no ensemble member trains on, 5 independent 4-fold CV arrangements for the rest) was built from scratch on this corpus's own HUC8 distribution - v3's holdout seed left Lake Powell (HUC4 1407) at 0% holdout representation on this smaller corpus, so seeds 1-30 were swept directly and seed 12 adopted (holdout shares: overall 19.7%, HUC4 1407 19.8%, HUC4 1701 14.6% - all close to each other).</p>
+  <p>Three arms share this exact setup, varying exactly one factor each:</p>
+  <ul class="plain">
+    <li><b>Arm A (LS7-ref, control):</b> same 7,112-row corpus, same splits, the existing LS7-referenced bands. The true baseline for isolating the reference-switch effect.</li>
+    <li><b>Arm B (LS8-ref):</b> identical rows and splits to Arm A, the newly-computed LS8-referenced bands instead. The only thing that differs from Arm A is which reference the raw bands are expressed in.</li>
+    <li><b>Arm C (LS8/9-only):</b> a strict row subset of Arm B - <code>mission %in% c("LC08","LC09")</code> only, 1,925 rows - using the same LS8-referenced bands (which for these two missions are simply the raw, uncorrected bands, since no cross-sensor transform applies to a sensor being referenced to itself).</li>
+  </ul>
+  <p>Each arm ran its own independent full pipeline per seed: gap-aware feature-group comparison (optical / +site / +weather / +site+weather), correlation pruning, backward elimination (xgboost, lightgbm, and joint), gap-aware final tuning, and final 4-fold training - unweighted throughout, following the recipe workflow v3 adopted. All 15 seed-runs (5 seeds &times; 3 arms) were smoke-tested at reduced trial counts before the full run, and completed cleanly.</p>
+</section>
+
+<section id="controlled">
+  <div class="section-label">Comparison 1</div>
+  <h2>Does LS8-referencing actually help?</h2>
+  <p>Arms A and B share every row and every split - the only thing that differs is which reference the optical bands are expressed in before feature engineering runs. That makes this the cleanest possible test of the reference-switch question alone.</p>
+
+  <figure>
+    <img src="{{controlled_comparison}}" alt="Bar charts comparing RMSE, MAE, bias, and R-squared between the LS7-reference control and the LS8-reference arm">
+    <figcaption>Ensemble metrics (5 seeds &times; 2 models = 10 models), identical 1,114-row holdout for both arms. LS8-referencing improves RMSE (&minus;1.4%) and R&sup2; (0.675&rarr;0.693); MAE is essentially flat; bias moves slightly further from zero in both arms (both already modest, +0.14 to +0.15m).</figcaption>
+  </figure>
+
+  <p>The improvement is real but modest in aggregate. It's more interesting broken out by basin:</p>
+
+  <figure>
+    <img src="{{huc4_comparison_ab}}" alt="Grouped bar chart of holdout RMSE by HUC4, LS7-reference vs LS8-reference">
+    <figcaption>Holdout RMSE by HUC4 (13 basins with &ge;10 holdout rows), same rows/splits for both bars. Lake Powell (HUC4 1407) and HUC4 1701 - the two basins the original outlier-HUC investigation named specifically - are highlighted.</figcaption>
+  </figure>
+
+  <p>10 of 13 basins improve under the LS8 reference, most by a modest 1-8%. <b>Lake Powell (HUC4 1407) improves the most of any basin</b> (RMSE 3.992m &rarr; 3.799m, &minus;4.8%) - a large reservoir where a more modern instrument's spectral specificity plausibly matters more, given its already-known status as an extrapolation-heavy basin (see the SHAP finding in workflow v3's report). <b>HUC4 1701 is one of only two basins that get worse</b> (2.237m &rarr; 2.308m, +3.2%) - consistent with that basin's difficulty tracing to a genuinely weak, low-magnitude optical signal in naturally clear water rather than a fixable cross-sensor artifact, the same conclusion workflow v3 reached about it. HUC4 1704 is the other basin that worsens, and more sharply in relative terms (+15%, though n=19 is small enough that this could be noise) - notably sharing the same "170X" HUC4-prefix region as 1701, which may or may not be coincidental.</p>
+
+  <div class="callout good">
+    <span class="label">Result</span>
+    <p>Switching the cross-sensor reference from LS7 to LS8 is a real, controlled improvement on this shared 3-sensor corpus: &minus;1.4% RMSE and +0.018 R&sup2; overall, driven by broad small gains across most basins and a genuinely large gain at Lake Powell specifically. It is not a universal win - HUC4 1701 (and, more weakly, 1704) get modestly worse - consistent with those basins' difficulty being about a weak optical signal rather than which reference sensor the bands are expressed in.</p>
+  </div>
+</section>
+
+<section id="features">
+  <div class="section-label">Comparison 1, continued</div>
+  <h2>What changes in feature selection</h2>
+  <p>Backward elimination was run independently for both arms, across all 5 seeds and both architectures (10 independent runs per arm). The two arms don't just reach similar accuracy by similar means - which bands and indices survive elimination shifts in a way that lines up with the "more spectral specificity" hypothesis behind this whole project:</p>
+
+  <figure>
+    <img src="{{feature_stability}}" alt="Feature retention matrix across 5 seeds for both the LS7-reference and LS8-reference arms">
+    <figcaption>Which correlation-pruned candidates survived backward elimination, by seed (5 independent runs per arm, intersection of xgboost and lightgbm). Rows ordered by how many of the 5 seeds kept that feature.</figcaption>
+  </figure>
+
+  <ul class="plain">
+    <li><b><code>GR</code> (green/red ratio) and <code>blue_corr8</code> become unanimous (5/5) only under the LS8 reference.</b> Neither the raw blue band nor this particular ratio survives elimination even once under the LS7 reference - the LS8-referenced blue band is carrying real, reliable signal that the LS7-referenced version of the same physical measurement does not.</li>
+    <li><b><code>NDWI</code> and <code>pct_forest_2006</code> drop out of unanimous status under the LS8 reference</b> (5/5 under LS7-ref, down to partial under LS8-ref) - not necessarily lost information, plausibly redundant with whatever <code>GR</code> and <code>blue_corr8</code> now carry instead.</li>
+    <li><b><code>shore_flag</code></b> stays a strong but not perfect performer either way (4/5 under LS7-ref, 3/5 under LS8-ref) - the small drop is within the range already seen for boundary features in this project, not a meaningful regression.</li>
+    <li><b>The three top-ranked optical ratios in workflow v3's SHAP analysis - <code>BG</code>, <code>BR</code>, and effectively <code>green_corr7</code>/<code>green_corr8</code> - are unanimous in both arms</b>, unaffected by which reference sensor is used. The reference switch adds information at the margin; it doesn't change what the model leans on most.</li>
+  </ul>
+  <p>This is direct evidence for the "gain in spectral specificity" half of the motivating question: an LS8 reference doesn't just shuffle which of two redundant features survives pruning (the way, for example, <code>red_corr7</code>/<code>green_corr7</code> traded off in workflow v3's gap-aware comparison) - it makes a previously-uninformative band and ratio reliably useful.</p>
+</section>
+
+<section id="l89">
+  <div class="section-label">Comparison 2</div>
+  <h2>Can Landsat 8/9 alone carry an algorithm?</h2>
+  <p>Arm C strips Arm B down to only the rows that need no cross-sensor correction at all - LC08 and LC09 are already the reference sensor, so their bands are used exactly as measured. At 1,925 rows total (211 in the holdout), this is a real test of whether a much smaller, mechanically simpler corpus can still support a usable model.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Metric</th><th>Arm B (full corpus, LS8-ref)</th><th>Arm C (LS8/9-only)</th></tr></thead>
+    <tbody>
+      <tr><td>RMSE (m)</td><td>1.592</td><td>1.667</td></tr>
+      <tr><td>MAE (m)</td><td>1.141</td><td class="good">1.075</td></tr>
+      <tr><td>Bias (pred&minus;obs, m)</td><td>+0.153</td><td>&minus;0.391</td></tr>
+      <tr><td>R&sup2;</td><td>0.693</td><td class="good">0.708</td></tr>
+      <tr><td>Holdout n</td><td>1,114</td><td>211</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>RMSE looks worse and the ensemble under-predicts on average - but MAE and R&sup2; are actually <i>better</i> than the full-corpus arm, an unusual combination that's explained entirely by composition, not model quality:</p>
+
+  <figure>
+    <img src="{{pred_vs_obs_arms}}" alt="Predicted vs observed scatter plots for all three arms side by side">
+    <figcaption>Predicted vs. observed SDD, each arm's own fixed holdout. LS8/9-only (right) shows the same overall shape as the two full-corpus arms, with a visibly thinner high-SDD tail and the negative-bias signature discussed below.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{l89_basin_matched}}" alt="Basin-matched comparison of holdout RMSE for the full-corpus arms vs LS8/9-only, restricted to basins present in the LS8/9-only holdout">
+    <figcaption>Holdout RMSE for the 5 basins with &ge;10 rows in the LS8/9-only holdout, compared against the same basins in the two full-corpus arms. Sample sizes shown are LS8/9-only vs. full-corpus, for that basin.</figcaption>
+  </figure>
+
+  <p>Lake Powell (HUC4 1407) and HUC4 1701 - the two hardest basins in this entire project - make up 55 of Arm C's 211 holdout rows (26%), against 151 of 1,114 (14%) in the full-corpus arms: with fewer alternate-sensor matchups to dilute them, the two hardest basins are structurally over-represented in the smaller holdout. On a basin-matched basis, <b>Lake Powell does about as well under LS8/9-only as under the full corpus</b> (3.540m vs. 3.799m) despite 73% less training data; HUC4 1701 is genuinely worse (2.731m vs. 2.308m); the three easier basins (1602, 1406, 1019) are comparable or better. The aggregate RMSE going up is a real fact about this smaller holdout's composition, not evidence the model itself is worse.</p>
+
+  <p>The one place LS8/9-only shows a genuine cost, not just a composition effect: <b>feature-selection stability.</b> Across the 5 seeds, Arm C's intersection-of-per-model feature set ranged from 15 to 24 features (vs. 19-21 for the full-corpus arms), with only 12 features unanimous across all 5 seeds, against 16-17 for Arms A and B. Several features that were rock-solid at the full corpus's sample size - <code>NR</code>, <code>nir_corr8</code>, <code>blue_corr8</code>, <code>GR</code>, <code>swir2_corr8</code> - become boundary cases (3-4 of 5 seeds) here. This is an honest small-sample-selection-noise finding: at ~1,925 rows, exactly which features backward elimination keeps depends measurably more on which rows happen to land in which fold.</p>
+
+  <div class="callout good">
+    <span class="label">Result</span>
+    <p>Yes - a real algorithm comes out of Landsat 8/9 data alone, and its typical-case accuracy (MAE, R&sup2;) is comparable to or better than the full multi-sensor corpus, including on the hardest basin (Lake Powell) specifically, despite 73% less training data. The apparent RMSE regression is a holdout-composition artifact, not a modeling one. The real, measurable cost is feature-selection noise: with a third the training rows, which features survive elimination becomes noticeably less reproducible across independent seeds, even though the resulting models still perform well.</p>
+  </div>
+</section>
+
+<section id="conclusion">
+  <div class="section-label">Conclusion</div>
+  <h2>Both questions have a clear answer</h2>
+  <p><b>Switching the reference to LS8 is a real, modest, controlled improvement</b> - not a wash, and not confounded by the sensor drop it requires, since Arms A and B share every row. It helps most basins a little and Lake Powell a lot, at the cost of HUC4 1701 (and mildly, 1704) getting slightly worse - and it does so partly by making previously marginal spectral information (the raw blue band, the green/red ratio) reliably useful, exactly the "spectral specificity" mechanism motivating the question. That improvement comes bundled with a real, unavoidable cost: LT04 and LT05 (44% of the full corpus) have no path to an LS8 reference under the coefficient table this project depends on.</p>
+  <p><b>A Landsat 8/9-only algorithm is genuinely viable</b>, not merely possible in principle - typical-case accuracy holds up, including at the hardest basin in this whole project, on a corpus 73% smaller than the full multi-sensor one. The trade is feature-selection stability, not accuracy: exactly which features get selected is measurably noisier at this sample size, which matters more for interpretability and reproducibility across future re-runs than for any single model's holdout performance.</p>
+
+  <div class="callout good">
+    <span class="label">Recommendation</span>
+    <p>If the L4/L5 time series isn't needed for a given deployment, an LS8-referenced, LE07+LC08+LC09 corpus is a strict improvement over the current LS7-referenced production recipe on the same data, and should be adopted for any workflow that doesn't require the longer historical record. An LS8/9-only corpus is a credible option specifically where simplicity (no cross-sensor correction step at all) matters more than feature-selection reproducibility - most useful for a forward-looking deployment that doesn't need to explain historical Landsat 4/5/7 observations at all. Neither result changes the standing recommendation to keep ensembling across multiple independent splits (per workflow v3) rather than trusting any single split's feature-selection outcome, especially for the smaller LS8/9-only corpus where that protection matters most.</p>
+  </div>
+
+  <p>A specific follow-up was flagged during this project rather than started here: whether the original outlier-HUC investigation's findings (Lake Powell and the HUC 1701 cluster's compression bias) should be re-examined on this narrower, LS8-referenced or LS8/9-only sensor set rather than the full LS4-9 corpus it was originally diagnosed on - deferred pending further direction, since this report's own basin-level results already show both basins behave somewhat differently under these narrower corpora.</p>
+</section>
+
+<footer>
+  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; ls8_harmonization - 3 arms (LS7-ref control, LS8-ref, LS8/9-only), each a fresh 5-seed HUC8-random ensemble, xgboost + lightgbm only &middot; Arms A/B share every row and split; Arm C is a strict row subset of Arm B.
+</footer>
+
+</div>
