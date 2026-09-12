@@ -1,0 +1,40 @@
+{
+  "model": "lightgbm",
+  "features": [
+    "BG",
+    "BR",
+    "GR",
+    "MNDWI",
+    "NDSSI",
+    "NDVI",
+    "NR",
+    "atm_corr_LaSRC",
+    "blue_corr8",
+    "catchment_area_sqkm",
+    "elevation_m",
+    "fai",
+    "green_corr8",
+    "nir_corr8",
+    "pct_cropland_2006",
+    "pct_impervious_2006",
+    "pct_urban_2006",
+    "pct_wetland_2006",
+    "shore_flag",
+    "swir2_corr8"
+  ],
+  "best_params": {
+    "learning_rate": 0.03,
+    "num_leaves": 7,
+    "min_child_samples": 20,
+    "subsample": 0.6,
+    "colsample_bytree": 0.5,
+    "reg_alpha": 0,
+    "reg_lambda": 10
+  },
+  "best_score": 1.359070179398097,
+  "best_gap": 0.3666064483411686,
+  "best_train_rmse": 0.9924637310569284,
+  "pure_best_val_rmse": 1.3338834858336401,
+  "band_size": 20,
+  "n_trials": 40
+}

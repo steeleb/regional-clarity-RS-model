@@ -1,0 +1,41 @@
+{
+  "model": "xgboost",
+  "features": [
+    "BG",
+    "BR",
+    "GR",
+    "MNDWI",
+    "NDSSI",
+    "NDVI",
+    "NR",
+    "atm_corr_LaSRC",
+    "blue_corr8",
+    "catchment_area_sqkm",
+    "fai",
+    "green_corr8",
+    "nir_corr8",
+    "pct_cropland_2006",
+    "pct_forest_2006",
+    "pct_impervious_2006",
+    "pct_urban_2006",
+    "pct_wetland_2006",
+    "precip_mm_prev30",
+    "shore_flag",
+    "tmax_degC_prev30"
+  ],
+  "best_params": {
+    "eta": 0.01,
+    "max_depth": 3,
+    "min_child_weight": 7,
+    "subsample": 0.6,
+    "colsample_bytree": 0.5,
+    "reg_alpha": 0,
+    "reg_lambda": 1
+  },
+  "best_score": 1.291486014137201,
+  "best_gap": 0.40227958338887715,
+  "best_train_rmse": 0.889206430748324,
+  "pure_best_val_rmse": 1.2846849610267363,
+  "band_size": 23,
+  "n_trials": 40
+}

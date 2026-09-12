@@ -61,7 +61,7 @@ def main():
     for huc4, sub in huc4_pred.groupby("HUC4"):
         if len(sub) < 10:
             continue
-        per_huc4[huc4] = dict(n=len(sub), **M.all_metrics(sub["y"], sub["pred"]))
+        per_huc4[huc4] = M.all_metrics(sub["y"], sub["pred"])
     log(f"{arm} per-HUC4 n>=10: {list(per_huc4.keys())}")
 
     summary = dict(arm=arm, n_seeds=n_seeds, n_holdout_rows=len(ensemble_pred),

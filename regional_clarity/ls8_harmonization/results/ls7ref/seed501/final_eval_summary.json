@@ -1,0 +1,108 @@
+{
+  "xgboost": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "elevation_m",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_urban_2006",
+      "pct_wetland_2006",
+      "precip_mm_prev30",
+      "shore_flag",
+      "swir2_corr7"
+    ],
+    "params": {
+      "eta": 0.01,
+      "max_depth": 3,
+      "min_child_weight": 10,
+      "subsample": 0.6,
+      "colsample_bytree": 0.7,
+      "reg_alpha": 0,
+      "reg_lambda": 20
+    },
+    "cv_metrics": {
+      "rmse": 1.325880334396464,
+      "mae": 0.9091037120575839,
+      "mape": 0.494675075978623,
+      "bias": -0.06000006603650078,
+      "p_bias": -1.826424663192509,
+      "smape": 0.33959945552977017,
+      "r2": 0.6826431510044622,
+      "n": 5708
+    },
+    "test_metrics": {
+      "rmse": 1.595474511569113,
+      "mae": 1.135971421131551,
+      "mape": 0.5012340084539217,
+      "bias": 0.18327284163304544,
+      "p_bias": 5.335520284422682,
+      "smape": 0.36259469568535596,
+      "r2": 0.6458407578844815,
+      "n": 1404
+    }
+  },
+  "lightgbm": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "elevation_m",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_urban_2006",
+      "pct_wetland_2006",
+      "precip_mm_prev30",
+      "shore_flag",
+      "swir2_corr7"
+    ],
+    "params": {
+      "learning_rate": 0.03,
+      "num_leaves": 7,
+      "min_child_samples": 20,
+      "subsample": 0.6,
+      "colsample_bytree": 0.5,
+      "reg_alpha": 0,
+      "reg_lambda": 10
+    },
+    "cv_metrics": {
+      "rmse": 1.316380879602071,
+      "mae": 0.9062446657386957,
+      "mape": 0.5038068601321043,
+      "bias": -0.056650280807265085,
+      "p_bias": -1.7244559361022405,
+      "smape": 0.34233760800559904,
+      "r2": 0.6872876346874751,
+      "n": 5708
+    },
+    "test_metrics": {
+      "rmse": 1.5712357064153846,
+      "mae": 1.1191360431520194,
+      "mape": 0.4909498932887325,
+      "bias": 0.16882552694312675,
+      "p_bias": 4.914923648845662,
+      "smape": 0.3554901317930058,
+      "r2": 0.6562579292401342,
+      "n": 1404
+    }
+  }
+}
