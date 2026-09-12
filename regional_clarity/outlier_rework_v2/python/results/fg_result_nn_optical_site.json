@@ -1,0 +1,65 @@
+{
+  "model": "nn",
+  "feature_group": "optical+site",
+  "n_optical_feats": 17,
+  "n_extra_feats": 8,
+  "features": [
+    "atm_corr_LaSRC",
+    "red_corr7",
+    "nir_corr7",
+    "swir1_corr7",
+    "temp_corr7",
+    "BR",
+    "BG",
+    "NR",
+    "fai",
+    "NDVI",
+    "NDSSI",
+    "NDWI",
+    "MNDWI",
+    "elevation_m",
+    "catchment_area_sqkm",
+    "pct_impervious_2006",
+    "pct_urban_2006",
+    "pct_forest_2006",
+    "pct_cropland_2006",
+    "pct_wetland_2006",
+    "shoreline_flag"
+  ],
+  "best_params": {
+    "hidden_sizes": [
+      8,
+      4,
+      4
+    ],
+    "dropout": 0.0,
+    "lr": 0.01,
+    "weight_decay": 0.0
+  },
+  "cv_metrics": {
+    "rmse": 1.6315937405272876,
+    "mae": 1.1233047379456802,
+    "mape": 0.6452746306657741,
+    "bias": 0.10763013001443084,
+    "p_bias": 3.29094940960712,
+    "smape": 0.3903561746736281,
+    "r2": 0.5313277439872962,
+    "n": 10128
+  },
+  "test_metrics": {
+    "rmse": 1.8649693301547274,
+    "mae": 1.2994975289651338,
+    "mape": 0.8260013740985267,
+    "bias": 0.3114782394328028,
+    "p_bias": 9.350343477386282,
+    "smape": 0.42159510023750446,
+    "r2": 0.45114706788588865,
+    "n": 2509
+  },
+  "gap_aware": {
+    "best_gap": 0.1815256927355593,
+    "best_train_rmse": 1.3917004829012516,
+    "pure_best_val_rmse": 1.5732261756368109,
+    "band_size": 1
+  }
+}

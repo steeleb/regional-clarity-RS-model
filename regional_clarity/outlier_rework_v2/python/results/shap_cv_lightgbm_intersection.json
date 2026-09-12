@@ -1,0 +1,91 @@
+{
+  "model": "lightgbm",
+  "feature_set": "intersection",
+  "n_oof_rows": 10128,
+  "per_feature": [
+    {
+      "feature": "BG",
+      "mean_abs_shap": 0.662877218222241,
+      "group": "optical"
+    },
+    {
+      "feature": "red_corr7",
+      "mean_abs_shap": 0.459626474228342,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_wetland_2006",
+      "mean_abs_shap": 0.18893401654918499,
+      "group": "site"
+    },
+    {
+      "feature": "fai",
+      "mean_abs_shap": 0.1806499446007379,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_urban_2006",
+      "mean_abs_shap": 0.17640421848661686,
+      "group": "site"
+    },
+    {
+      "feature": "NDVI",
+      "mean_abs_shap": 0.17549616585311995,
+      "group": "optical"
+    },
+    {
+      "feature": "NR",
+      "mean_abs_shap": 0.15896393502148176,
+      "group": "optical"
+    },
+    {
+      "feature": "MNDWI",
+      "mean_abs_shap": 0.13157244075594954,
+      "group": "optical"
+    },
+    {
+      "feature": "atm_corr_LaSRC",
+      "mean_abs_shap": 0.1314664998517675,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_forest_2006",
+      "mean_abs_shap": 0.1307045516195139,
+      "group": "site"
+    },
+    {
+      "feature": "nir_corr7",
+      "mean_abs_shap": 0.1063316680545152,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_cropland_2006",
+      "mean_abs_shap": 0.09791614955977172,
+      "group": "site"
+    },
+    {
+      "feature": "shoreline_flag",
+      "mean_abs_shap": 0.09143120230333006,
+      "group": "site"
+    },
+    {
+      "feature": "temp_corr7",
+      "mean_abs_shap": 0.08072126070275205,
+      "group": "optical"
+    },
+    {
+      "feature": "NDSSI",
+      "mean_abs_shap": 0.07666384715639171,
+      "group": "optical"
+    },
+    {
+      "feature": "NDWI",
+      "mean_abs_shap": 0.03734210354860082,
+      "group": "optical"
+    }
+  ],
+  "group_contribution_pct": {
+    "optical": 76.26027031379223,
+    "site": 23.739729686207774
+  }
+}

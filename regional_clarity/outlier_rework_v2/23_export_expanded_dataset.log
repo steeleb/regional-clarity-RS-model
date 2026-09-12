@@ -1,0 +1,6 @@
+[14:03:11]  base dataset: 12637 rows 
+[14:03:11]  anchor_date != date for 5346 / 12637 rows (image-before-field cases) 
+[14:03:11]  expanded dataset: 12637 rows, 123 cols 
+[14:03:11]  rows with elevation: 12637, LakeCat: 12637, shoreline_flag: 12637, weather: 12637 
+[14:03:11]  exported: 12637 rows, 46 cols -> modeling_dataset_expanded.parquet 
+[14:03:11]  done 

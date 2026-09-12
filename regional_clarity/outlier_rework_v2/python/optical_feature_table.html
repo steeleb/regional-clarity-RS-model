@@ -1,0 +1,18 @@
+<h3>Optical (17 candidates)</h3>
+<p>7 Gardner-corrected reflectance/temperature bands, 1 atmospheric-correction indicator, and the remaining band-ratio/normalized-difference indices, replicated from <code>04_make_models.Rmd</code> with the <code>G_BR</code>/<code>N_GS</code> fixes from above applied.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Name</th><th>Definition</th><th>Name</th><th>Definition</th></tr></thead>
+<tbody>
+      <tr><td>BG</td><td>blue / green</td><td>blue_corr7</td><td>corrected blue reflectance</td></tr>
+      <tr><td>BR</td><td>blue / red</td><td>fai</td><td>floating algae index (nir − (red + (swir1−red)·(830−660)/(1650−660)))</td></tr>
+      <tr><td>GR</td><td>green / red</td><td>green_corr7</td><td>corrected green reflectance</td></tr>
+      <tr><td>MNDWI</td><td>(green−swir1) / (green+swir1)</td><td>nir_corr7</td><td>corrected NIR reflectance</td></tr>
+      <tr><td>NDSSI</td><td>(blue−nir) / (blue+nir)</td><td>red_corr7</td><td>corrected red reflectance</td></tr>
+      <tr><td>NDVI</td><td>(nir−red) / (nir+red)</td><td>swir1_corr7</td><td>corrected SWIR1 reflectance</td></tr>
+      <tr><td>NDWI</td><td>(green−nir) / (green+nir)</td><td>swir2_corr7</td><td>corrected SWIR2 reflectance</td></tr>
+      <tr><td>NR</td><td>nir / red</td><td>temp_corr7</td><td>corrected surface temperature</td></tr>
+      <tr><td>atm_corr_LaSRC</td><td>1 = LaSRC (LC08/09), 0 = LEDAPS (LT04/05/LE07)</td><td></td><td></td></tr>
+</tbody>
+</table>
+</div>

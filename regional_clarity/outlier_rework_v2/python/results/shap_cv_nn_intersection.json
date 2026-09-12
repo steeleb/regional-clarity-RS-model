@@ -1,0 +1,91 @@
+{
+  "model": "nn",
+  "feature_set": "intersection",
+  "n_oof_rows": 1600,
+  "per_feature": [
+    {
+      "feature": "BG",
+      "mean_abs_shap": 0.3924867378453774,
+      "group": "optical"
+    },
+    {
+      "feature": "red_corr7",
+      "mean_abs_shap": 0.27570101473220787,
+      "group": "optical"
+    },
+    {
+      "feature": "NDVI",
+      "mean_abs_shap": 0.2602024938770905,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_wetland_2006",
+      "mean_abs_shap": 0.23598548132157252,
+      "group": "site"
+    },
+    {
+      "feature": "nir_corr7",
+      "mean_abs_shap": 0.2325623231011628,
+      "group": "optical"
+    },
+    {
+      "feature": "shoreline_flag",
+      "mean_abs_shap": 0.19768643331925484,
+      "group": "site"
+    },
+    {
+      "feature": "pct_urban_2006",
+      "mean_abs_shap": 0.18002902185611294,
+      "group": "site"
+    },
+    {
+      "feature": "fai",
+      "mean_abs_shap": 0.16200867392862622,
+      "group": "optical"
+    },
+    {
+      "feature": "atm_corr_LaSRC",
+      "mean_abs_shap": 0.16147688009829106,
+      "group": "optical"
+    },
+    {
+      "feature": "MNDWI",
+      "mean_abs_shap": 0.11325303674939527,
+      "group": "optical"
+    },
+    {
+      "feature": "NDSSI",
+      "mean_abs_shap": 0.09757396166949178,
+      "group": "optical"
+    },
+    {
+      "feature": "NDWI",
+      "mean_abs_shap": 0.0820099557554837,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_cropland_2006",
+      "mean_abs_shap": 0.06800891788675785,
+      "group": "site"
+    },
+    {
+      "feature": "temp_corr7",
+      "mean_abs_shap": 0.03192203708791919,
+      "group": "optical"
+    },
+    {
+      "feature": "NR",
+      "mean_abs_shap": 0.030449936940305698,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_forest_2006",
+      "mean_abs_shap": 0.02355842865749226,
+      "group": "site"
+    }
+  ],
+  "group_contribution_pct": {
+    "optical": 72.28716125091601,
+    "site": 27.71283874908399
+  }
+}

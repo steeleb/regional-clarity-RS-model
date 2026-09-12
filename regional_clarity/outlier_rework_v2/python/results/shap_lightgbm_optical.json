@@ -1,0 +1,76 @@
+{
+  "model": "lightgbm",
+  "feature_group": "optical",
+  "n_test": 2509,
+  "per_feature": [
+    {
+      "feature": "BG",
+      "mean_abs_shap": 0.6870465870880239,
+      "group": "optical"
+    },
+    {
+      "feature": "red_corr7",
+      "mean_abs_shap": 0.43126635213286885,
+      "group": "optical"
+    },
+    {
+      "feature": "BR",
+      "mean_abs_shap": 0.22067930081577541,
+      "group": "optical"
+    },
+    {
+      "feature": "fai",
+      "mean_abs_shap": 0.17940666467964045,
+      "group": "optical"
+    },
+    {
+      "feature": "MNDWI",
+      "mean_abs_shap": 0.15609344670139677,
+      "group": "optical"
+    },
+    {
+      "feature": "atm_corr_LaSRC",
+      "mean_abs_shap": 0.10440562466931962,
+      "group": "optical"
+    },
+    {
+      "feature": "NR",
+      "mean_abs_shap": 0.08415041125838275,
+      "group": "optical"
+    },
+    {
+      "feature": "NDVI",
+      "mean_abs_shap": 0.05902911976064332,
+      "group": "optical"
+    },
+    {
+      "feature": "NDWI",
+      "mean_abs_shap": 0.04523498993007203,
+      "group": "optical"
+    },
+    {
+      "feature": "temp_corr7",
+      "mean_abs_shap": 0.04051789842176544,
+      "group": "optical"
+    },
+    {
+      "feature": "nir_corr7",
+      "mean_abs_shap": 0.03269475616889328,
+      "group": "optical"
+    },
+    {
+      "feature": "swir1_corr7",
+      "mean_abs_shap": 0.02136082032191351,
+      "group": "optical"
+    },
+    {
+      "feature": "NDSSI",
+      "mean_abs_shap": 0.01934419717699444,
+      "group": "optical"
+    }
+  ],
+  "group_contribution_pct": {
+    "optical": 100.0
+  },
+  "weather_value_shap_correlation": {}
+}

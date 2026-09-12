@@ -1,0 +1,172 @@
+{
+  "model": "nn",
+  "features": [
+    "BG",
+    "MNDWI",
+    "NDSSI",
+    "NDVI",
+    "NDWI",
+    "NR",
+    "atm_corr_LaSRC",
+    "fai",
+    "nir_corr7",
+    "pct_cropland_2006",
+    "pct_forest_2006",
+    "pct_urban_2006",
+    "pct_wetland_2006",
+    "red_corr7",
+    "shoreline_flag",
+    "temp_corr7"
+  ],
+  "best_params": {
+    "hidden_sizes": [
+      8,
+      8,
+      8
+    ],
+    "dropout": 0.2,
+    "lr": 0.005,
+    "weight_decay": 0.001
+  },
+  "best_score": 1.484302849549744,
+  "best_gap": 0.008600862416444865,
+  "pure_best_val_rmse": 1.4655650198951116,
+  "band_size": 4,
+  "trials": [
+    {
+      "hidden_sizes": "(4, 4, 4)",
+      "dropout": "0.0",
+      "lr": "0.005",
+      "weight_decay": "0.001",
+      "mean_val_rmse": 1.4774028267798363,
+      "mean_train_rmse": 1.4289658630899975,
+      "mean_gap": 0.04843696368983874
+    },
+    {
+      "hidden_sizes": "(8, 8, 8)",
+      "dropout": "0.2",
+      "lr": "0.005",
+      "weight_decay": "0.001",
+      "mean_val_rmse": 1.484302849549744,
+      "mean_train_rmse": 1.475701987133299,
+      "mean_gap": 0.008600862416444865
+    },
+    {
+      "hidden_sizes": "(8, 4, 4)",
+      "dropout": "0.3",
+      "lr": "0.001",
+      "weight_decay": "0.0",
+      "mean_val_rmse": 1.7030950021759725,
+      "mean_train_rmse": 1.6831343657227107,
+      "mean_gap": 0.01996063645326185
+    },
+    {
+      "hidden_sizes": "(8, 4, 4)",
+      "dropout": "0.0",
+      "lr": "0.01",
+      "weight_decay": "0.0",
+      "mean_val_rmse": 1.4655650198951116,
+      "mean_train_rmse": 1.4109744925501155,
+      "mean_gap": 0.05459052734499603
+    },
+    {
+      "hidden_sizes": "(8, 8)",
+      "dropout": "0.3",
+      "lr": "0.001",
+      "weight_decay": "0.001",
+      "mean_val_rmse": 1.5177729168695444,
+      "mean_train_rmse": 1.4642248073879762,
+      "mean_gap": 0.053548109481568185
+    },
+    {
+      "hidden_sizes": "(4,)",
+      "dropout": "0.2",
+      "lr": "0.001",
+      "weight_decay": "0.0001",
+      "mean_val_rmse": 1.6072064591957487,
+      "mean_train_rmse": 1.5524672294829784,
+      "mean_gap": 0.05473922971277023
+    },
+    {
+      "hidden_sizes": "(8, 4)",
+      "dropout": "0.1",
+      "lr": "0.001",
+      "weight_decay": "0.001",
+      "mean_val_rmse": 1.51348192854143,
+      "mean_train_rmse": 1.4022298641731445,
+      "mean_gap": 0.1112520643682855
+    },
+    {
+      "hidden_sizes": "(4, 4, 4)",
+      "dropout": "0.3",
+      "lr": "0.01",
+      "weight_decay": "0.0",
+      "mean_val_rmse": 1.773417668074106,
+      "mean_train_rmse": 1.763767429243955,
+      "mean_gap": 0.009650238830151148
+    },
+    {
+      "hidden_sizes": "(4, 4, 4)",
+      "dropout": "0.2",
+      "lr": "0.001",
+      "weight_decay": "0.0001",
+      "mean_val_rmse": 1.6580562422335567,
+      "mean_train_rmse": 1.5913192515256886,
+      "mean_gap": 0.0667369907078681
+    },
+    {
+      "hidden_sizes": "(8, 4)",
+      "dropout": "0.1",
+      "lr": "0.001",
+      "weight_decay": "0.0",
+      "mean_val_rmse": 1.5212446255585679,
+      "mean_train_rmse": 1.42979429208408,
+      "mean_gap": 0.09145033347448783
+    },
+    {
+      "hidden_sizes": "(4, 4)",
+      "dropout": "0.2",
+      "lr": "0.01",
+      "weight_decay": "0.0001",
+      "mean_val_rmse": 1.5006228390988698,
+      "mean_train_rmse": 1.5041757541996,
+      "mean_gap": -0.0035529151007300808
+    },
+    {
+      "hidden_sizes": "(8, 4, 4)",
+      "dropout": "0.2",
+      "lr": "0.01",
+      "weight_decay": "0.001",
+      "mean_val_rmse": 1.5486819931908296,
+      "mean_train_rmse": 1.5123034144855425,
+      "mean_gap": 0.036378578705287046
+    },
+    {
+      "hidden_sizes": "(8, 4)",
+      "dropout": "0.2",
+      "lr": "0.01",
+      "weight_decay": "0.0001",
+      "mean_val_rmse": 1.5094828527219109,
+      "mean_train_rmse": 1.4701632870017698,
+      "mean_gap": 0.03931956572014106
+    },
+    {
+      "hidden_sizes": "(8,)",
+      "dropout": "0.3",
+      "lr": "0.001",
+      "weight_decay": "0.0001",
+      "mean_val_rmse": 1.5771662283012797,
+      "mean_train_rmse": 1.4994392338574776,
+      "mean_gap": 0.07772699444380216
+    },
+    {
+      "hidden_sizes": "(8, 8)",
+      "dropout": "0.1",
+      "lr": "0.001",
+      "weight_decay": "0.0001",
+      "mean_val_rmse": 1.4767319840720392,
+      "mean_train_rmse": 1.3938487865895834,
+      "mean_gap": 0.08288319748245576
+    }
+  ]
+}

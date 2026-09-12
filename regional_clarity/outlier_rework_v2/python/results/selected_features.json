@@ -1,0 +1,43 @@
+{
+  "intersection": [
+    "BG",
+    "MNDWI",
+    "NDSSI",
+    "NDVI",
+    "NDWI",
+    "NR",
+    "atm_corr_LaSRC",
+    "fai",
+    "nir_corr7",
+    "pct_cropland_2006",
+    "pct_forest_2006",
+    "pct_urban_2006",
+    "pct_wetland_2006",
+    "red_corr7",
+    "shoreline_flag",
+    "temp_corr7"
+  ],
+  "joint": [
+    "atm_corr_LaSRC",
+    "red_corr7",
+    "nir_corr7",
+    "swir1_corr7",
+    "temp_corr7",
+    "BR",
+    "BG",
+    "NR",
+    "fai",
+    "NDVI",
+    "NDSSI",
+    "NDWI",
+    "MNDWI",
+    "catchment_area_sqkm",
+    "pct_impervious_2006",
+    "pct_urban_2006",
+    "pct_forest_2006",
+    "pct_cropland_2006",
+    "pct_wetland_2006",
+    "shoreline_flag",
+    "tmax_degC_prev30"
+  ]
+}

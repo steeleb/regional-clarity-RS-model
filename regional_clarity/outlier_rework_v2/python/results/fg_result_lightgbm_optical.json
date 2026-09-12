@@ -1,0 +1,56 @@
+{
+  "model": "lightgbm",
+  "feature_group": "optical",
+  "n_optical_feats": 17,
+  "n_extra_feats": 0,
+  "features": [
+    "atm_corr_LaSRC",
+    "red_corr7",
+    "nir_corr7",
+    "swir1_corr7",
+    "temp_corr7",
+    "BR",
+    "BG",
+    "NR",
+    "fai",
+    "NDVI",
+    "NDSSI",
+    "NDWI",
+    "MNDWI"
+  ],
+  "best_params": {
+    "learning_rate": 0.01,
+    "num_leaves": 7,
+    "min_child_samples": 50,
+    "subsample": 0.7,
+    "colsample_bytree": 0.7,
+    "reg_alpha": 1,
+    "reg_lambda": 10
+  },
+  "cv_metrics": {
+    "rmse": 1.535041408013848,
+    "mae": 1.0918645125238235,
+    "mape": 0.6208658911161712,
+    "bias": 0.1809664162374548,
+    "p_bias": 5.533314143497902,
+    "smape": 0.3884709925128989,
+    "r2": 0.5850561181304686,
+    "n": 10128
+  },
+  "test_metrics": {
+    "rmse": 1.8483111916637462,
+    "mae": 1.1770102788835357,
+    "mape": 0.6945621852181928,
+    "bias": -0.029872695718615422,
+    "p_bias": -0.8967559533954549,
+    "smape": 0.39065442744952833,
+    "r2": 0.44236276960782317,
+    "n": 2509
+  },
+  "gap_aware": {
+    "best_gap": 0.177983924151625,
+    "best_train_rmse": 1.3155786596544365,
+    "pure_best_val_rmse": 1.4895376060371806,
+    "band_size": 23
+  }
+}

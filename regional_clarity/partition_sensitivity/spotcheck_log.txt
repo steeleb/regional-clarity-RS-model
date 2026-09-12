@@ -1,0 +1,56 @@
+[16:15:18] ##### scheme: part_huc8_greedy #####
+[16:15:18] fold sizes: [(np.int64(1), 7582, 2528), (np.int64(2), 7582, 2528), (np.int64(3), 7583, 2527), (np.int64(4), 7583, 2527)]
+[16:15:18] === [part_huc8_greedy] backward elimination: xgboost ===
+[16:15:54]   [xgboost] step 0: n=22 cv_rmse=1.4555 shadow_floor=0.0004
+[16:15:54]   [xgboost] drop 'precip_mm_prev30' (importance -0.0026 <= shadow floor 0.0004)
+[16:16:25]   [xgboost] step 1: n=21 cv_rmse=1.4523 shadow_floor=0.0004
+[16:16:25]   [xgboost] drop 'elevation_m' (importance -0.0021 <= shadow floor 0.0004)
+[16:16:57]   [xgboost] step 2: n=20 cv_rmse=1.4541 shadow_floor=0.0003
+[16:16:57]   [xgboost] drop 'pct_urban_2006' (importance -0.0055 <= shadow floor 0.0003)
+[16:17:28]   [xgboost] step 3: n=19 cv_rmse=1.4453 shadow_floor=0.0004
+[16:17:28]   [xgboost] drop 'pct_cropland_2006' (importance -0.0007 <= shadow floor 0.0004)
+[16:17:58]   [xgboost] step 4: n=18 cv_rmse=1.4467 shadow_floor=0.0004
+[16:17:58]   [xgboost] stop: worst real feature 'NDSSI' (0.0042) beats shadow floor (0.0004)
+[16:17:58] [part_huc8_greedy] xgboost final set (19): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'tmax_degC_prev30']
+[16:17:58] [part_huc8_greedy] xgboost vs production (17 feats): DIFFERENT - added=['pct_impervious_2006', 'swir1_corr7', 'tmax_degC_prev30'], dropped=['pct_urban_2006']
+[16:17:58] === [part_huc8_greedy] gap-aware tuning: xgboost (intersection-16, frozen) ===
+[16:22:19] [part_huc8_greedy] xgboost chosen params: {'eta': 0.01, 'max_depth': 3, 'min_child_weight': 7, 'subsample': 0.6, 'colsample_bytree': 0.5, 'reg_alpha': 0, 'reg_lambda': 1}
+[16:22:19] [part_huc8_greedy] xgboost val_rmse=1.5092 gap=0.3741 (production: val_rmse=1.4382 gap=0.3754)
+[16:22:19] === [part_huc8_greedy] backward elimination: lightgbm ===
+[16:22:34]   [lightgbm] step 0: n=22 cv_rmse=1.4762 shadow_floor=0.0003
+[16:22:34]   [lightgbm] drop 'elevation_m' (importance -0.0032 <= shadow floor 0.0003)
+[16:22:56]   [lightgbm] step 1: n=21 cv_rmse=1.4843 shadow_floor=0.0008
+[16:22:56]   [lightgbm] stop: cv_rmse degraded >0.5% from best (1.4762)
+[16:22:56] [part_huc8_greedy] lightgbm final set (22): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[16:22:56] [part_huc8_greedy] lightgbm vs production (18 feats): DIFFERENT - added=['elevation_m', 'precip_mm_prev30', 'swir1_corr7', 'tmax_degC_prev30'], dropped=[]
+[16:22:56] === [part_huc8_greedy] gap-aware tuning: lightgbm (intersection-16, frozen) ===
+[16:32:36] [part_huc8_greedy] lightgbm chosen params: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 30, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 0, 'reg_lambda': 10}
+[16:32:36] [part_huc8_greedy] lightgbm val_rmse=1.5086 gap=0.3807 (production: val_rmse=1.4320 gap=0.3928)
+[16:32:36] ##### scheme: part_huc8_rand_seed3 #####
+[16:32:36] fold sizes: [(np.int64(1), 7169, 2426), (np.int64(2), 7185, 2410), (np.int64(3), 7220, 2375), (np.int64(4), 7211, 2384)]
+[16:32:36] === [part_huc8_rand_seed3] backward elimination: xgboost ===
+[16:33:08]   [xgboost] step 0: n=22 cv_rmse=1.4681 shadow_floor=0.0004
+[16:33:08]   [xgboost] drop 'elevation_m' (importance -0.0063 <= shadow floor 0.0004)
+[16:33:43]   [xgboost] step 1: n=21 cv_rmse=1.4570 shadow_floor=0.0004
+[16:33:43]   [xgboost] drop 'precip_mm_prev30' (importance -0.0030 <= shadow floor 0.0004)
+[16:34:17]   [xgboost] step 2: n=20 cv_rmse=1.4606 shadow_floor=0.0006
+[16:34:17]   [xgboost] stop: worst real feature 'pct_cropland_2006' (0.0016) beats shadow floor (0.0006)
+[16:34:17] [part_huc8_rand_seed3] xgboost final set (21): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[16:34:17] [part_huc8_rand_seed3] xgboost vs production (17 feats): DIFFERENT - added=['pct_impervious_2006', 'precip_mm_prev30', 'swir1_corr7', 'tmax_degC_prev30'], dropped=[]
+[16:34:17] === [part_huc8_rand_seed3] gap-aware tuning: xgboost (intersection-16, frozen) ===
+[16:39:35] [part_huc8_rand_seed3] xgboost chosen params: {'eta': 0.03, 'max_depth': 2, 'min_child_weight': 5, 'subsample': 0.6, 'colsample_bytree': 0.4, 'reg_alpha': 1, 'reg_lambda': 20}
+[16:39:35] [part_huc8_rand_seed3] xgboost val_rmse=1.4748 gap=0.3073 (production: val_rmse=1.4382 gap=0.3754)
+[16:39:35] === [part_huc8_rand_seed3] backward elimination: lightgbm ===
+[16:39:56]   [lightgbm] step 0: n=22 cv_rmse=1.4621 shadow_floor=0.0006
+[16:39:56]   [lightgbm] drop 'elevation_m' (importance -0.0020 <= shadow floor 0.0006)
+[16:40:13]   [lightgbm] step 1: n=21 cv_rmse=1.4566 shadow_floor=0.0005
+[16:40:13]   [lightgbm] drop 'precip_mm_prev30' (importance -0.0004 <= shadow floor 0.0005)
+[16:40:27]   [lightgbm] step 2: n=20 cv_rmse=1.4486 shadow_floor=0.0001
+[16:40:27]   [lightgbm] stop: worst real feature 'NDSSI' (0.0005) beats shadow floor (0.0001)
+[16:40:27] [part_huc8_rand_seed3] lightgbm final set (20): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'tmax_degC_prev30']
+[16:40:27] [part_huc8_rand_seed3] lightgbm vs production (18 feats): DIFFERENT - added=['swir1_corr7', 'tmax_degC_prev30'], dropped=[]
+[16:40:27] === [part_huc8_rand_seed3] gap-aware tuning: lightgbm (intersection-16, frozen) ===
+[16:51:36] [part_huc8_rand_seed3] lightgbm chosen params: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.8, 'colsample_bytree': 0.4, 'reg_alpha': 0, 'reg_lambda': 10}
+[16:51:36] [part_huc8_rand_seed3] lightgbm val_rmse=1.4660 gap=0.3538 (production: val_rmse=1.4320 gap=0.3928)
+[16:51:36] wrote /Users/steeleb/Documents/GitHub/regional-clarity-RS-model/regional_clarity/partition_sensitivity/data/upstream_decision_spotcheck.json
+[16:51:36] DONE

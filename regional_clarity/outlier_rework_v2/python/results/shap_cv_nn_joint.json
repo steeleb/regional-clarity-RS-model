@@ -1,0 +1,117 @@
+{
+  "model": "nn",
+  "feature_set": "joint",
+  "n_oof_rows": 1600,
+  "per_feature": [
+    {
+      "feature": "BG",
+      "mean_abs_shap": 0.3260560272868985,
+      "group": "optical"
+    },
+    {
+      "feature": "red_corr7",
+      "mean_abs_shap": 0.2588743298736996,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_wetland_2006",
+      "mean_abs_shap": 0.20802924023249428,
+      "group": "site"
+    },
+    {
+      "feature": "nir_corr7",
+      "mean_abs_shap": 0.2036492884419668,
+      "group": "optical"
+    },
+    {
+      "feature": "NDVI",
+      "mean_abs_shap": 0.17211382687616353,
+      "group": "optical"
+    },
+    {
+      "feature": "MNDWI",
+      "mean_abs_shap": 0.16130932724455493,
+      "group": "optical"
+    },
+    {
+      "feature": "fai",
+      "mean_abs_shap": 0.13601189833987562,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_urban_2006",
+      "mean_abs_shap": 0.10948039853486595,
+      "group": "site"
+    },
+    {
+      "feature": "shoreline_flag",
+      "mean_abs_shap": 0.10699111505104508,
+      "group": "site"
+    },
+    {
+      "feature": "NDWI",
+      "mean_abs_shap": 0.09967471073962456,
+      "group": "optical"
+    },
+    {
+      "feature": "atm_corr_LaSRC",
+      "mean_abs_shap": 0.09525786525470044,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_cropland_2006",
+      "mean_abs_shap": 0.06776329341212645,
+      "group": "site"
+    },
+    {
+      "feature": "tmax_degC_prev30",
+      "mean_abs_shap": 0.0643156270113416,
+      "group": "weather"
+    },
+    {
+      "feature": "NDSSI",
+      "mean_abs_shap": 0.05898987649839134,
+      "group": "optical"
+    },
+    {
+      "feature": "swir1_corr7",
+      "mean_abs_shap": 0.047407937815031574,
+      "group": "optical"
+    },
+    {
+      "feature": "BR",
+      "mean_abs_shap": 0.047242413104221406,
+      "group": "optical"
+    },
+    {
+      "feature": "pct_impervious_2006",
+      "mean_abs_shap": 0.03922634399652673,
+      "group": "site"
+    },
+    {
+      "feature": "NR",
+      "mean_abs_shap": 0.03437963155895994,
+      "group": "optical"
+    },
+    {
+      "feature": "temp_corr7",
+      "mean_abs_shap": 0.0182701698124096,
+      "group": "optical"
+    },
+    {
+      "feature": "catchment_area_sqkm",
+      "mean_abs_shap": 0.015038269924932424,
+      "group": "site"
+    },
+    {
+      "feature": "pct_forest_2006",
+      "mean_abs_shap": 0.009853265473185203,
+      "group": "site"
+    }
+  ],
+  "group_contribution_pct": {
+    "optical": 72.77564523953136,
+    "site": 24.40341332749482,
+    "weather": 2.8209414329738203
+  }
+}

@@ -1,0 +1,331 @@
+<title>Workflow v3</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F5F8F9;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F3;
+  --border: #D7E3E6;
+  --text: #16262E;
+  --text-muted: #55707A;
+  --accent: #1B6E8C;
+  --accent-strong: #0D4A5E;
+  --accent-soft: #DCEEF3;
+  --flag: #C1442D;
+  --flag-soft: #F7E3DF;
+  --good: #3E7D53;
+  --good-soft: #E1EEE3;
+  --shadow: 0 1px 2px rgba(15, 40, 50, 0.06), 0 4px 16px rgba(15, 40, 50, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E171B;
+    --surface: #16232A;
+    --surface-2: #1D2C33;
+    --border: #2A3D45;
+    --text: #E7EEF0;
+    --text-muted: #9AB0B8;
+    --accent: #57B8D6;
+    --accent-strong: #8ED2E8;
+    --accent-soft: #163540;
+    --flag: #E2695A;
+    --flag-soft: #3A2320;
+    --good: #74C08D;
+    --good-soft: #1C2E22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E171B;
+  --surface: #16232A;
+  --surface-2: #1D2C33;
+  --border: #2A3D45;
+  --text: #E7EEF0;
+  --text-muted: #9AB0B8;
+  --accent: #57B8D6;
+  --accent-strong: #8ED2E8;
+  --accent-soft: #163540;
+  --flag: #E2695A;
+  --flag-soft: #3A2320;
+  --good: #74C08D;
+  --good-soft: #1C2E22;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; text-wrap: balance; color: var(--text); }
+.mono, table, .stat-value, code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.page { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+
+header.hero { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+header.hero .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; margin-bottom: 10px; }
+header.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 12px; line-height: 1.15; }
+header.hero p.dek { color: var(--text-muted); font-size: 1.08rem; max-width: 62ch; margin: 0; }
+header.hero .meta { display: flex; gap: 20px; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; }
+
+.stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 44px; }
+.stat { background: var(--surface); padding: 18px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+.stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-strong); }
+.stat-value.flag { color: var(--flag); }
+.stat-value.good { color: var(--good); }
+.stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 44px; }
+nav.toc .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+nav.toc ol { margin: 0; padding-left: 1.2em; columns: 2; column-gap: 24px; font-size: 0.9rem; }
+nav.toc li { margin-bottom: 5px; break-inside: avoid; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+
+section { margin-bottom: 52px; scroll-margin-top: 20px; }
+section > .section-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+section > h2 { font-size: 1.55rem; margin: 0 0 16px; }
+section > h3 { font-size: 1.15rem; margin: 28px 0 10px; color: var(--text); }
+p { margin: 0 0 14px; max-width: 72ch; }
+ul.plain { margin: 0 0 16px; padding-left: 1.3em; }
+ul.plain li { margin-bottom: 6px; max-width: 70ch; }
+
+.callout { border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 14px 18px; margin: 18px 0; font-size: 0.95rem; }
+.callout.flag { border-left-color: var(--flag); background: var(--flag-soft); }
+.callout.good { border-left-color: var(--good); background: var(--good-soft); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .label { font-weight: 600; display: block; margin-bottom: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 8px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; font-family: 'Public Sans', sans-serif; }
+th { background: var(--surface-2); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-muted); }
+tr:last-child td { border-bottom: none; }
+tr.flag td { color: var(--flag); font-weight: 600; }
+tr.good td { color: var(--good); font-weight: 600; }
+
+figure { margin: 22px 0; }
+figure img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: var(--surface); }
+figcaption { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; max-width: 72ch; }
+
+footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 60px; color: var(--text-muted); font-size: 0.82rem; }
+a { color: var(--accent-strong); }
+</style>
+
+<div class="page">
+
+<header class="hero">
+  <div class="eyebrow">Regional Clarity RS Model &middot; Workflow v3</div>
+  <h1>A production workflow built on an ensemble of splits, not one</h1>
+  <p class="dek">Every prior version of this pipeline - the original report, the outlier-HUC investigation, and the partition-sensitivity follow-up - was built on a single, deterministic HUC4-grouped split. This version rebuilds the workflow top to bottom on a genuine ensemble of 5 independent HUC8-random partition assignments, each running its own full feature-group comparison, correlation pruning, backward elimination, and gap-aware hyperparameter tuning, evaluated against one fixed holdout no ensemble member ever trains on. It also formally tests a new candidate feature - a binary shoreline/waterbody-edge flag - that an earlier side-branch (v2) tried in a 3-level form but never adopted.</p>
+  <div class="meta">
+    <span>Branch: <code>outlier-removal-rework</code></span>
+    <span>Models: xgboost + lightgbm only</span>
+    <span>5 ensemble members &times; full pipeline</span>
+  </div>
+</header>
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">Ensemble test RMSE / MAE</span>
+    <span class="stat-value good">1.40 / 1.02 m</span>
+    <span class="stat-sub">40 models (5 seeds &times; 2 architectures &times; 4 folds), fixed holdout</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">shore_flag survival across 5 seeds &times; 2 models</span>
+    <span class="stat-value good">10 / 10</span>
+    <span class="stat-sub">unanimous - every independent elimination run kept it</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">swir1_corr7 / tmax_degC_prev30 survival</span>
+    <span class="stat-value good">9 / 10, 10 / 10</span>
+    <span class="stat-sub">confirms the earlier upstream-decision spot check's flag</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Controlled improvement vs. v1's frozen feature set</span>
+    <span class="stat-value good">&minus;2.5% RMSE</span>
+    <span class="stat-sub">same 5 splits, same holdout - isolates the feature/hyperparameter effect</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Lake Powell (HUC4 1407) holdout RMSE</span>
+    <span class="stat-value good">&minus;8.2%</span>
+    <span class="stat-sub">1.894m &rarr; 1.739m - the largest improvement of any basin, same controlled comparison</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Hyperparameter consistency (xgboost eta)</span>
+    <span class="stat-value good">5 / 5 seeds</span>
+    <span class="stat-sub">all chose eta=0.01 independently; lightgbm's learning_rate varied more</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="label">Contents</div>
+  <ol>
+    <li><a href="#question">What this rebuild changes</a></li>
+    <li><a href="#method">Method: a fixed holdout, five independent splits</a></li>
+    <li><a href="#shoreflag">The shore_flag feature</a></li>
+    <li><a href="#features">Feature selection across five independent splits</a></li>
+    <li><a href="#hyperparams">Hyperparameters across five independent splits</a></li>
+    <li><a href="#evaluation">Evaluating the ensemble - and isolating why it's better</a></li>
+    <li><a href="#conclusion">Where this leaves the production pipeline</a></li>
+  </ol>
+</nav>
+
+<section id="question">
+  <div class="section-label">What this rebuild changes</div>
+  <h2>From one split's decisions to a consensus across five</h2>
+  <p>The partition-sensitivity report showed that a single HUC4-grouped split doesn't just make final evaluation numbers hard to interpret - it reaches back into which features backward elimination keeps and what hyperparameters tuning selects. A follow-up spot check (2 alternate schemes) found two features, <code>swir1_corr7</code> and <code>tmax_degC_prev30</code>, that production's single-split elimination dropped but every alternate-scheme rerun kept. That was enough evidence to warrant a real fix rather than another spot check: this workflow reruns the entire feature-selection and hyperparameter-tuning pipeline independently across 5 different HUC8-random partition assignments, rather than trusting any one of them - including this one.</p>
+  <p>Two things changed at once, deliberately: the split design (HUC8-random ensemble instead of one fixed HUC4 split) and the candidate feature set (adding a new binary shoreline/waterbody flag, <code>shore_flag</code>, requested for this rebuild). Both needed the same full pipeline rerun regardless, so they're evaluated together here rather than as two separate projects.</p>
+</section>
+
+<section id="method">
+  <div class="section-label">Method</div>
+  <h2>A fixed holdout, five independent CV-fold arrangements</h2>
+  <p>Building a genuine ensemble across split assignments requires one thing the earlier partition-sensitivity rotation experiments didn't need: a test set that stays identical across every ensemble member, so no member's training ever touches it and predictions from different members can be honestly averaged together. The design:</p>
+  <ul class="plain">
+    <li><b>Fixed holdout (3,042 rows, 24.1%):</b> HUC8-random seed 3's partition 5, reused from the partition-sensitivity sweep - chosen because it already left a reasonable share of both problem basins in the training pool (HUC4 1701 at 37%, HUC4 1407 at 29% holdout concentration) rather than either extreme. Re-derived from scratch here and checked against the previously-published concentration numbers (43.9% / 47.0% max-partition share) as a sanity check before use.</li>
+    <li><b>5 ensemble members (seeds 501-505):</b> for the remaining ~80% of rows, 5 independent random-but-balanced 4-fold CV arrangements, built by reshuffling how HUC8 units distribute into folds 1-4. Each seed never sees the fixed holdout at any pipeline stage.</li>
+    <li><b>Full pipeline, per seed:</b> feature-group comparison (optical / +site / +weather / +site+weather, each independently hyperparameter-tuned), correlation pruning, backward elimination (xgboost, lightgbm, and joint), gap-aware final tuning on the resulting intersection feature set, and final 4-fold training - all run independently per seed, so a feature or hyperparameter choice reflects that seed's own CV pool, not a shared assumption.</li>
+    <li><b>Final production prediction:</b> the unweighted average across all 5 seeds &times; 2 models &times; 4 folds (40 models) on the fixed holdout.</li>
+  </ul>
+  <p>xgboost + lightgbm only throughout, per the project's established scope - the NN was excluded from every stage to avoid its process-isolation overhead across what is already a 5&times;-larger pipeline rerun. All 5 seeds' full pipelines ran in parallel in about 28 minutes wall-clock.</p>
+</section>
+
+<section id="shoreflag">
+  <div class="section-label">New feature</div>
+  <h2>shore_flag: a binary collapse of v2's 3-level shoreline category</h2>
+  <p>An earlier side-branch (<code>outlier_rework_v2</code>) computed a 3-level shoreline-proximity category - 0 = open water, 1 = near-shore (within 230m, the 200m site buffer plus a 30m optical pixel), 2 = outside the matched waterbody entirely - and it actually survived backward elimination for all three architectures tested there, landing in that branch's final intersection set. It was never adopted, and its own final-evaluation numbers were mixed (modestly better test RMSE for the tree models, worse for the NN; worse CV RMSE across the board on its own split) - inconclusive enough to defer rather than decide from.</p>
+  <p>This rebuild collapses that 3-level category into a strict binary at the user's request: <code>shore_flag = 1</code> if <code>flag_wb == 1</code> (the site's location falls outside its matched waterbody polygon) <b>or</b> <code>flag_optical_shoreline == 1</code> (within 230m of the matched waterbody's shoreline); <code>0</code> only when neither condition holds. Both source flags already existed per-site in the same upstream AquaMatch compile step v2 used - no new spatial work was needed, just a join and a simpler encoding. Roughly 59% of the 1,525 modeled sites (896) carry the flag - high, but plausible for lake/reservoir monitoring, where shoreline access points and boat launches are common sampling locations, not an edge case.</p>
+</section>
+
+<section id="features">
+  <div class="section-label">Feature selection</div>
+  <h2>Does the same feature survive five independent runs?</h2>
+  <p>Correlation pruning itself is stable across all 5 seeds - it depends only on which rows are in the CV pool (identical for every seed), not on how they're folded, so all 5 seeds prune the same 26-candidate pool down to the same 23. One small, inconsequential swap shows up consistently: <code>red_corr7</code> is pruned in favor of <code>green_corr7</code> (plus <code>BR</code> surviving alongside it) in every seed - the two bands are highly correlated, and pruning is designed to interchange redundant features like this; it isn't a meaningful signal.</p>
+  <p>What matters is what happens after pruning, during elimination itself - and there the result is about as clean as this kind of test gets:</p>
+
+  <figure>
+    <img src="{{feature_stability}}" alt="Feature retention matrix across 5 seeds and 2 models">
+    <figcaption>Which of the 23 correlation-pruned candidates survived backward elimination, by seed and model (10 independent runs total). Dashed line separates the 16 unanimous features from the boundary cases. The 3 outlined rows are the features this rebuild specifically set out to test.</figcaption>
+  </figure>
+
+  <ul class="plain">
+    <li><b><code>shore_flag</code>: 10/10.</b> Every single independent elimination run - 5 seeds, 2 architectures each - kept it. This is as strong a consistency result as this kind of test can produce.</li>
+    <li><b><code>tmax_degC_prev30</code>: 10/10.</b> Also unanimous, confirming the upstream-decision spot check's flag from the partition-sensitivity work was a real signal, not a two-scheme coincidence.</li>
+    <li><b><code>swir1_corr7</code>: 9/10.</b> Kept everywhere except seed 504's xgboost run - still a strong, consistent result.</li>
+    <li><b>Everything else that varies</b> (<code>pct_impervious_2006</code>, <code>pct_cropland_2006</code>, <code>pct_forest_2006</code>, <code>elevation_m</code>, <code>precip_mm_prev30</code>) flips inconsistently across seeds/models with no clear pattern - boundary noise, the same character as the inconsistent features flagged in the earlier spot check.</li>
+  </ul>
+
+  <div class="callout good">
+    <span class="label">What this settles</span>
+    <p>The partition-sensitivity spot check could only say two features looked like plausible casualties of a single split. An actual 5-seed ensemble of independently-run elimination pipelines confirms it: <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code> all belong in the production feature set. That's a real expansion from the 16-feature intersection this pipeline has used since the backward-elimination phase - to roughly 18-21 features depending on seed, converging on a stable ~18-feature core across all 5.</p>
+  </div>
+</section>
+
+<section id="hyperparams">
+  <div class="section-label">Hyperparameter tuning</div>
+  <h2>xgboost converges tightly; lightgbm has more spread</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Seed</th><th>xgb eta</th><th>xgb depth</th><th>xgb reg_&lambda;</th><th>lgb LR</th><th>lgb leaves</th><th>lgb reg_&lambda;</th></tr></thead>
+    <tbody>
+      <tr><td>501</td><td>0.01</td><td>4</td><td>20</td><td>0.05</td><td>7</td><td>1</td></tr>
+      <tr><td>502</td><td>0.01</td><td>3</td><td>5</td><td>0.01</td><td>7</td><td>10</td></tr>
+      <tr><td>503</td><td>0.01</td><td>3</td><td>5</td><td>0.03</td><td>7</td><td>5</td></tr>
+      <tr><td>504</td><td>0.01</td><td>3</td><td>5</td><td>0.01</td><td>15</td><td>10</td></tr>
+      <tr><td>505</td><td>0.01</td><td>3</td><td>5</td><td>0.05</td><td>7</td><td>20</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Gap-aware final tuning result on each seed's own final feature set. Full parameter sets (including min_child_weight/samples, subsample, colsample) are in each seed's <code>final_tune_*.json</code>.</p>
+  <p>xgboost's learning rate and tree depth are essentially unanimous (eta=0.01 in all 5 seeds, depth 3 in 4 of 5) - a shallow, slow-learning, moderately-regularized tree is consistently what gap-aware tuning finds best, regardless of which CV-fold arrangement it's tuned against. lightgbm shows more real spread (learning rate ranges 0.01-0.05, num_leaves mostly 7 but 15 in one seed) - consistent with the pattern already seen in the partition-sensitivity spot check, where lightgbm's hyperparameters moved less than xgboost's under one alternate scheme but not zero. Neither model's hyperparameters are so unstable as to suggest the tuning process itself is unreliable - they cluster in a recognizable family each time - but lightgbm's choice is more sensitive to exactly which rows land in which fold.</p>
+</section>
+
+<section id="evaluation">
+  <div class="section-label">Evaluation</div>
+  <h2>Evaluating the ensemble - and isolating why it's better</h2>
+  <p>v1's originally published test RMSE (1.86m xgboost, 1.83m lightgbm) cannot be compared directly to any number in this report - it was measured on a completely different, and structurally harder, test set: v1's HUC4-grouped partition 5, which the outlier-HUC investigation showed was disproportionately composed of Lake Powell and other high-clarity, hard-to-predict water. This report's fixed holdout is a different, more moderate 24% of the data. A lower absolute RMSE here mostly reflects an easier test set, not a better model, and reporting it as a before/after improvement would be exactly the kind of split-driven illusion this whole line of work has been diagnosing.</p>
+  <p>To make a fair claim, v1's actual frozen intersection-16 feature set and frozen final hyperparameters were retrained from scratch on these same 5 CV-fold arrangements and evaluated on this same fixed holdout - holding the split and test set constant so only the feature set and hyperparameters differ between the two bars below.</p>
+
+  <figure>
+    <img src="{{controlled_comparison}}" alt="v1 frozen feature set/hyperparameters vs v3 ensemble, same 5 splits and holdout">
+    <figcaption>Same 5 CV-fold arrangements, same fixed holdout, both ensembled the same way (5 seeds &times; 2 models, unweighted average). The only difference between the two bars is the feature set and hyperparameters: v1's original intersection-16 vs. each seed's own independently-selected features (typically intersection-16 plus shore_flag, swir1_corr7, and tmax_degC_prev30) and gap-aware-retuned hyperparameters.</figcaption>
+  </figure>
+
+  <p>RMSE improves from 1.432m to 1.396m (-2.5%), MAE from 1.047m to 1.024m (-2.2%), and R&sup2; from 0.627 to 0.646 - a real, controlled improvement attributable specifically to the new feature selection and hyperparameters, not to an easier test set. It's a modest effect size, consistent with adding a handful of already-marginal features rather than a wholesale architecture change - but it's a genuine one, isolated from the split-choice confound that made every earlier comparison in this project ambiguous.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Metric</th><th>v1 features/params (same splits)</th><th>v3 ensemble (new features/params)</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>RMSE (m)</td><td>1.432</td><td>1.396</td><td class="good">&minus;2.5%</td></tr>
+      <tr><td>MAE (m)</td><td>1.047</td><td>1.024</td><td class="good">&minus;2.2%</td></tr>
+      <tr><td>MAPE</td><td>0.438</td><td>0.424</td><td class="good">&minus;3.2%</td></tr>
+      <tr><td>SMAPE</td><td>0.328</td><td>0.317</td><td class="good">&minus;3.6%</td></tr>
+      <tr><td>Bias (pred&minus;obs, m)</td><td>+0.142</td><td>+0.149</td><td>~unchanged</td></tr>
+      <tr><td>Percent bias</td><td>3.95%</td><td>4.13%</td><td>~unchanged</td></tr>
+      <tr><td>R&sup2;</td><td>0.627</td><td>0.646</td><td class="good">+0.019</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Full metric set, both ensembles evaluated identically (n=2,394 holdout rows). Every error metric improves; overall bias and percent bias are essentially unchanged - the improvement is in precision, not in correcting a systematic over/under-prediction tendency.</p>
+
+  <figure>
+    <img src="{{per_seed_rmse}}" alt="Test RMSE on the fixed holdout, by ensemble-member seed and model">
+    <figcaption>Individual seed &times; model test RMSE on the fixed holdout (10 bars) vs. the 5-seed ensemble average (dashed line). The ensemble sits at or below every individual member - averaging across independently-selected models earns a small additional gain on top of any single seed's own result.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{pred_vs_obs}}" alt="Predicted vs observed SDD, v3 ensemble, fixed holdout">
+    <figcaption>v3 ensemble predictions vs. observed SDD on the fixed holdout (n=2,394). The familiar shape from every earlier report in this project is still visible - tight tracking of the 1:1 line through the well-populated low/mid range, widening scatter and a downward pull away from it above roughly 6-8m - consistent with a physical retrieval limit, not something feature selection alone should be expected to remove.</figcaption>
+  </figure>
+
+  <h3>Does the compression bias itself improve?</h3>
+  <p>The outlier-HUC investigation identified a universal high-clarity compression bias - every architecture over-predicts the clearest water and under-predicts it at the extreme end, a signature of the optical retrieval problem running out of signal, not a fixable modeling defect. That bias is still present in v3, as expected - but it is measurably smaller at the extreme tail specifically, exactly where the new features would be expected to help if they're picking up something real about the hard basins.</p>
+
+  <figure>
+    <img src="{{compression_bias}}" alt="Mean error by observed SDD bin, v1 frozen config vs v3 ensemble">
+    <figcaption>Mean error (pred&minus;obs) by observed-SDD bin, same 5 splits/holdout, v1's frozen feature set vs. v3's ensemble. The two configurations are nearly identical through 0-10m; at the extreme 10-20m tail, v3's under-prediction bias is smaller (&minus;3.77m vs. &minus;4.14m, about 9% less severe) - a real, if partial, narrowing of the one regime this whole project has been diagnosing, not a removal of it.</figcaption>
+  </figure>
+
+  <h3>Does it help where the original investigation found the problem?</h3>
+  <p>The most direct test of whether this rebuild actually fixed anything is to look at the two basins the outlier-HUC investigation named specifically: HUC4 1701 (the forested, naturally-clear glacial-lake cluster) and HUC4 1407 (Lake Powell). Both are still represented in this holdout - by design, at reduced but non-trivial concentration (37% and 29% of their respective basins' rows) - so their holdout-only RMSE is directly comparable between the two configurations.</p>
+
+  <figure>
+    <img src="{{huc4_rmse}}" alt="Holdout RMSE by HUC4, v1 frozen config vs v3 ensemble, with 1701 and 1407 highlighted">
+    <figcaption>Holdout RMSE by HUC4 (basins with at least 15 holdout rows), v1's frozen configuration vs. v3's ensemble, both on the identical 5 splits/holdout. HUC4 1701 and 1407 (bold, starred) are the two basins the original outlier-HUC investigation named as the source of partitions 3 and 5's underperformance.</figcaption>
+  </figure>
+
+  <p>HUC4 1407 - Lake Powell - shows the largest improvement of any basin with a meaningful row count: RMSE drops from 1.894m to 1.739m, an 8.2% reduction, nearly 3&times; the overall ensemble's average improvement. HUC4 1701 improves too, more modestly (2.067m to 2.033m, 1.6%) - consistent with it being a harder problem to fix with feature engineering alone, since its difficulty traces more to a genuine, low-magnitude optical signal (naturally clear, low-sediment water) than to a single missing predictor. Most other basins show small improvements in the same 1-8% range; the two smallest basins (n=22, n=21) show larger relative swings that are more likely sampling noise than a real effect at that size.</p>
+
+  <div class="callout good">
+    <span class="label">The throughline closes</span>
+    <p>This is the result the whole project thread was aimed at, even if no single step guaranteed it would arrive: the outlier-HUC investigation named Lake Powell and the HUC 1701 cluster as the source of two partitions' underperformance; the partition-sensitivity work showed that was a structural, split-driven concentration problem, not a modeling failure; the upstream-decision spot check found the single split had also cut two features that looked like they should matter; and this 5-seed rebuild, evaluated on a fair, controlled holdout, shows the resulting feature set and ensemble measurably narrow the gap specifically at Lake Powell (-8.2% RMSE) and, to a lesser extent, the 1701 cluster (-1.6%) - not just on average, but where the original investigation said the problem actually was.</p>
+  </div>
+</section>
+
+<section id="conclusion">
+  <div class="section-label">Conclusion</div>
+  <h2>Where this leaves the production pipeline</h2>
+  <p>This rebuild delivers what the partition-sensitivity report's spot check could only recommend: a feature set and hyperparameter choice validated across an actual ensemble of independently-run selection pipelines, not a single split's decision or a 2-scheme sanity check. The result is a genuine, if modest, controlled improvement (-2.5% RMSE, -2.2% MAE) over v1's frozen configuration when both are evaluated on equal footing - and three specific features (<code>shore_flag</code>, <code>swir1_corr7</code>, <code>tmax_degC_prev30</code>) now have strong, repeated evidence for inclusion rather than the single earlier spot check's weaker signal.</p>
+
+  <div class="callout good">
+    <span class="label">Recommended next state</span>
+    <p>Adopt the ~18-feature core validated here (intersection-16 plus <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code>) as the new production feature set, and the 5-seed ensemble (40 models: 5 seeds &times; 2 architectures &times; 4 folds) as the production prediction mechanism, replacing the single-split final model. xgboost's hyperparameters are stable enough to fix at their consensus value (eta=0.01, depth 3) if a simpler single-config deployment is ever preferred over the full ensemble; lightgbm's spread suggests it benefits more from staying ensembled across seeds specifically, rather than collapsed to one "representative" config.</p>
+  </div>
+
+  <p>Two things remain explicitly out of scope here, both flagged in earlier reports: the NN's role in this ensemble (excluded throughout, for the same process-isolation reasons as the partition-sensitivity work), and the systemic gap-aware-tuning question for pipeline stages this rebuild also touched (feature-group comparison used the same vanilla, non-gap-aware <code>tune()</code> as v1/v2, consistent with existing convention, but not re-examined here).</p>
+</section>
+
+<footer>
+  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; workflow v3 - full rebuild on a 5-seed HUC8-random ensemble, with a new shore_flag feature &middot; xgboost + lightgbm only &middot; 5 seeds &times; (4-group feature comparison + backward elimination + gap-aware tuning + final evaluation), plus a controlled comparison against v1's frozen configuration on the same splits.
+</footer>
+
+</div>

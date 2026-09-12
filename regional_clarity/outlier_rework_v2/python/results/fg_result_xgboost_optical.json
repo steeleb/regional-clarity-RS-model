@@ -1,0 +1,56 @@
+{
+  "model": "xgboost",
+  "feature_group": "optical",
+  "n_optical_feats": 17,
+  "n_extra_feats": 0,
+  "features": [
+    "atm_corr_LaSRC",
+    "red_corr7",
+    "nir_corr7",
+    "swir1_corr7",
+    "temp_corr7",
+    "BR",
+    "BG",
+    "NR",
+    "fai",
+    "NDVI",
+    "NDSSI",
+    "NDWI",
+    "MNDWI"
+  ],
+  "best_params": {
+    "eta": 0.01,
+    "max_depth": 2,
+    "min_child_weight": 7,
+    "subsample": 0.7,
+    "colsample_bytree": 0.7,
+    "reg_alpha": 0,
+    "reg_lambda": 10
+  },
+  "cv_metrics": {
+    "rmse": 1.5523943394218354,
+    "mae": 1.1048761844189432,
+    "mape": 0.6314990456471326,
+    "bias": 0.20222226395468137,
+    "p_bias": 6.183242927253219,
+    "smape": 0.3972478470369496,
+    "r2": 0.581833334971989,
+    "n": 10128
+  },
+  "test_metrics": {
+    "rmse": 1.8537499711916026,
+    "mae": 1.1829631119295985,
+    "mape": 0.6842082842137818,
+    "bias": -0.02927813884668161,
+    "p_bias": -0.878907801371914,
+    "smape": 0.3953140284917416,
+    "r2": 0.4409632309292602,
+    "n": 2509
+  },
+  "gap_aware": {
+    "best_gap": 0.17938405619162623,
+    "best_train_rmse": 1.3277298076506288,
+    "pure_best_val_rmse": 1.498460673520079,
+    "band_size": 13
+  }
+}

@@ -1,0 +1,563 @@
+[14:10:01] === STAGE 1: single-model optical-only baseline (gap-aware) ===
+[14:10:01] run_single_model.py xgboost
+[14:10:02] loading data for xgboost
+[14:10:02] 13 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI']
+[14:10:02] === gap-aware tuning xgboost (25 trials) ===
+[14:10:30] tuning done in 27.2s: val_rmse=1.5071 train_rmse=1.3277 gap=0.1794 (pure-best val_rmse would have been 1.4985, 13/25 trials within tolerance band)
+[14:10:30] best params: {'eta': 0.01, 'max_depth': 2, 'min_child_weight': 7, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 0, 'reg_lambda': 10}
+[14:10:31] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.5250339481959403, 'mae': 1.0692993346850308, 'mape': 0.587348937322299, 'bias': 0.0552764668915703, 'p_bias': 1.690159215245679, 'smape': 0.386158244399186, 'r2': 0.5854889202493627, 'n': 10128}
+[14:10:31] TEST (part 5, held out) metrics: {'rmse': 1.8624331445235474, 'mae': 1.1610953007291018, 'mape': 0.6322207921231298, 'bias': -0.1765098297782465, 'p_bias': -5.298692899276026, 'smape': 0.38639940435321035, 'r2': 0.438681434639686, 'n': 2509}
+[14:10:31] xgboost done
+[14:10:31] run_single_model.py lightgbm
+[14:10:33] loading data for lightgbm
+[14:10:33] 13 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI']
+[14:10:33] === gap-aware tuning lightgbm (25 trials) ===
+[14:11:04] tuning done in 31.5s: val_rmse=1.4936 train_rmse=1.3156 gap=0.1780 (pure-best val_rmse would have been 1.4895, 23/25 trials within tolerance band)
+[14:11:04] best params: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 1, 'reg_lambda': 10}
+[14:11:05] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.510308964542583, 'mae': 1.05915512777601, 'mape': 0.5913135971881491, 'bias': 0.03517471108329903, 'p_bias': 1.0755184877799866, 'smape': 0.3821176154409065, 'r2': 0.5919678402762807, 'n': 10128}
+[14:11:05] TEST (part 5, held out) metrics: {'rmse': 1.8673764790878302, 'mae': 1.1640197474770282, 'mape': 0.642974800016189, 'bias': -0.18775402736367872, 'p_bias': -5.636235289854713, 'smape': 0.38482849375023104, 'r2': 0.4361270864940669, 'n': 2509}
+[14:11:05] lightgbm done
+[14:11:06] run_single_model.py nn
+[14:11:06] loading data for nn
+[14:11:07] 13 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI']
+[14:11:07] === gap-aware tuning nn (15 trials) ===
+[14:11:34] tuning done in 27.9s: val_rmse=1.6114 train_rmse=1.5135 gap=0.0979 (pure-best val_rmse would have been 1.6114, 1/15 trials within tolerance band)
+[14:11:34] best params: {'hidden_sizes': (8, 8, 8), 'dropout': 0.2, 'lr': 0.005, 'weight_decay': 0.001}
+[14:11:36] CV (parts 1-4, out-of-fold) metrics: {'rmse': 1.64839528816862, 'mae': 1.0993127053624128, 'mape': 0.6563224126402077, 'bias': -0.02149752339539463, 'p_bias': -0.6573183728069786, 'smape': 0.39901507483250315, 'r2': 0.5184745455306752, 'n': 10128}
+[14:11:36] TEST (part 5, held out) metrics: {'rmse': 1.839555327679179, 'mae': 1.1559581396094163, 'mape': 0.6465908545562179, 'bias': -0.31608884418471583, 'p_bias': -9.488750379092675, 'smape': 0.38760979063247, 'r2': 0.4763560913546992, 'n': 2509}
+[14:11:36] nn done
+              rmse       mae      mape  ...     smape        r2       n
+xgboost   1.862433  1.161095  0.632221  ...  0.386399  0.438681  2509.0
+lightgbm  1.867376  1.164020  0.642975  ...  0.384828  0.436127  2509.0
+nn        1.839555  1.155958  0.646591  ...  0.387610  0.476356  2509.0
+
+[3 rows x 8 columns]
+              rmse       mae      mape  ...     smape        r2        n
+xgboost   1.525034  1.069299  0.587349  ...  0.386158  0.585489  10128.0
+lightgbm  1.510309  1.059155  0.591314  ...  0.382118  0.591968  10128.0
+nn        1.648395  1.099313  0.656322  ...  0.399015  0.518475  10128.0
+
+[3 rows x 8 columns]
+[14:11:36] === STAGE 2: weighted-training variant ===
+[14:11:36] run_weighted_variant.py xgboost
+[14:11:38] reusing tuned params for xgboost: {'eta': 0.01, 'max_depth': 2, 'min_child_weight': 7, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 0, 'reg_lambda': 10}
+[14:11:38] top-quartile SDD cutoff (from train_val): 4.500 m
+[14:11:38] training unweighted xgboost fold ensemble (for this comparison's baseline)
+[14:11:39] training SDD-weighted xgboost fold ensemble (k=2.0)
+[14:11:41] xgboost weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.053611       2.922762        -1.833212      -1.606282
+        rest 1839         1.155505       1.255418         0.427074       0.545269
+     overall 2509         1.862433       1.853750        -0.176510      -0.029278
+[14:11:41] xgboost weighted comparison done
+[14:11:41] run_weighted_variant.py lightgbm
+[14:11:42] reusing tuned params for lightgbm: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 1, 'reg_lambda': 10}
+[14:11:42] top-quartile SDD cutoff (from train_val): 4.500 m
+[14:11:42] training unweighted lightgbm fold ensemble (for this comparison's baseline)
+[14:11:43] training SDD-weighted lightgbm fold ensemble (k=2.0)
+[14:11:45] lightgbm weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.078888       2.943927        -1.885130      -1.661971
+        rest 1839         1.141873       1.226118         0.430648       0.564747
+     overall 2509         1.867376       1.848311        -0.187754      -0.029873
+[14:11:45] lightgbm weighted comparison done
+[14:11:45] run_weighted_variant.py nn
+[14:11:46] reusing tuned params for nn: {'hidden_sizes': (8, 8, 8), 'dropout': 0.2, 'lr': 0.005, 'weight_decay': 0.001}
+[14:11:46] top-quartile SDD cutoff (from train_val): 4.500 m
+[14:11:46] training unweighted nn fold ensemble (for this comparison's baseline)
+[14:11:47] training SDD-weighted nn fold ensemble (k=2.0)
+[14:11:48] nn weighted-vs-unweighted comparison:
+       group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+top quartile  670         3.115749       3.150506        -2.159089      -2.202016
+        rest 1839         1.039220       1.041737         0.355368       0.381185
+     overall 2509         1.839555       1.856331        -0.316089      -0.308630
+[14:11:48] nn weighted comparison done
+[14:11:49] === STAGE 3: per-fold overfitting diagnostics (optical-only baseline) ===
+[14:11:49] run_fold_diagnostics.py xgboost
+[14:11:51] part 1: n_train=7523 n_val=2605 train_rmse=1.396 val_rmse=1.178 gap=-0.218 val_r2=0.614
+[14:11:51] part 2: n_train=7621 n_val=2507 train_rmse=1.322 val_rmse=1.404 gap=+0.082 val_r2=0.529
+[14:11:52] part 3: n_train=7620 n_val=2508 train_rmse=1.217 val_rmse=1.867 gap=+0.650 val_r2=0.469
+[14:11:52] part 4: n_train=7620 n_val=2508 train_rmse=1.377 val_rmse=1.580 gap=+0.203 val_r2=0.591
+[14:11:52] xgboost fold summary: mean val_rmse=1.507 (sd=0.291), mean gap=0.179 (sd=0.360)
+[14:11:52] xgboost fold diagnostics done
+[14:11:52] run_fold_diagnostics.py lightgbm
+[14:11:54] part 1: n_train=7523 n_val=2605 train_rmse=1.353 val_rmse=1.175 gap=-0.178 val_r2=0.619
+[14:11:54] part 2: n_train=7621 n_val=2507 train_rmse=1.349 val_rmse=1.409 gap=+0.060 val_r2=0.530
+[14:11:55] part 3: n_train=7620 n_val=2508 train_rmse=1.189 val_rmse=1.847 gap=+0.658 val_r2=0.482
+[14:11:55] part 4: n_train=7620 n_val=2508 train_rmse=1.371 val_rmse=1.543 gap=+0.172 val_r2=0.607
+[14:11:55] lightgbm fold summary: mean val_rmse=1.494 (sd=0.280), mean gap=0.178 (sd=0.352)
+[14:11:55] lightgbm fold diagnostics done
+[14:11:55] run_fold_diagnostics.py nn
+[14:11:57] part 1: n_train=7523 n_val=2605 train_rmse=1.606 val_rmse=1.084 gap=-0.521 val_r2=0.629
+[14:11:57] part 2: n_train=7621 n_val=2507 train_rmse=1.475 val_rmse=1.449 gap=-0.026 val_r2=0.534
+[14:11:57] part 3: n_train=7620 n_val=2508 train_rmse=1.507 val_rmse=1.958 gap=+0.451 val_r2=0.412
+[14:11:57] part 4: n_train=7620 n_val=2508 train_rmse=1.467 val_rmse=1.955 gap=+0.488 val_r2=0.436
+[14:11:57] nn fold summary: mean val_rmse=1.611 (sd=0.425), mean gap=0.098 (sd=0.475)
+[14:11:57] nn fold diagnostics done
+[14:11:58] === STAGE 4: feature-group ablation (gap-aware), 3 models x 4 groups ===
+[14:11:58] run_feature_group_model.py xgboost optical
+[14:11:59] loading expanded data for xgboost / optical
+[14:11:59] candidate features: 17 optical + 0 extra = 17
+[14:11:59] 13 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI']
+[14:11:59] === gap-aware tuning xgboost / optical (25 trials) ===
+[14:12:26] tuning done in 26.9s: val_rmse=1.5071 train_rmse=1.3277 gap=0.1794 (pure-best val_rmse would have been 1.4985, 13/25 trials within tolerance band)
+[14:12:27] CV metrics: {'rmse': 1.5523943394218354, 'mae': 1.1048761844189432, 'mape': 0.6314990456471326, 'bias': 0.20222226395468137, 'p_bias': 6.183242927253219, 'smape': 0.3972478470369496, 'r2': 0.581833334971989, 'n': 10128}
+[14:12:27] TEST metrics: {'rmse': 1.8537499711916026, 'mae': 1.1829631119295985, 'mape': 0.6842082842137818, 'bias': -0.02927813884668161, 'p_bias': -0.878907801371914, 'smape': 0.3953140284917416, 'r2': 0.4409632309292602, 'n': 2509}
+[14:12:27] xgboost / optical done
+[14:12:27] run_feature_group_model.py xgboost optical+site
+[14:12:29] loading expanded data for xgboost / optical+site
+[14:12:29] candidate features: 17 optical + 8 extra = 25
+[14:12:29] 21 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+[14:12:29] === gap-aware tuning xgboost / optical+site (25 trials) ===
+[14:13:34] tuning done in 65.4s: val_rmse=1.4899 train_rmse=1.0430 gap=0.4469 (pure-best val_rmse would have been 1.4710, 9/25 trials within tolerance band)
+[14:13:38] CV metrics: {'rmse': 1.506741741648781, 'mae': 1.0539980004899099, 'mape': 0.6506640981645525, 'bias': 0.01662758764338578, 'p_bias': 0.5084129298260093, 'smape': 0.38932917269551187, 'r2': 0.6002657148513895, 'n': 10128}
+[14:13:39] TEST metrics: {'rmse': 1.8360972886840061, 'mae': 1.2532311053081735, 'mape': 0.8445445256813271, 'bias': 0.3181264381650531, 'p_bias': 9.549917424399924, 'smape': 0.4029191496909278, 'r2': 0.47213598876156826, 'n': 2509}
+[14:13:39] xgboost / optical+site done
+[14:13:39] run_feature_group_model.py xgboost optical+weather
+[14:13:40] loading expanded data for xgboost / optical+weather
+[14:13:40] candidate features: 17 optical + 20 extra = 37
+[14:13:40] 26 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:13:40] === gap-aware tuning xgboost / optical+weather (25 trials) ===
+[14:14:21] tuning done in 41.1s: val_rmse=1.5289 train_rmse=1.3126 gap=0.2164 (pure-best val_rmse would have been 1.5285, 12/25 trials within tolerance band)
+[14:14:23] CV metrics: {'rmse': 1.5733832198643434, 'mae': 1.1171574180709631, 'mape': 0.6457217706543035, 'bias': 0.16515856240975885, 'p_bias': 5.049965779852551, 'smape': 0.4012909538779319, 'r2': 0.5650757571834004, 'n': 10128}
+[14:14:24] TEST metrics: {'rmse': 1.8408865747543042, 'mae': 1.1818206602054653, 'mape': 0.6827111307110956, 'bias': -0.04118150744104631, 'p_bias': -1.2362380119764154, 'smape': 0.3918408950822276, 'r2': 0.4476485653302892, 'n': 2509}
+[14:14:24] xgboost / optical+weather done
+[14:14:24] run_feature_group_model.py xgboost optical+site+weather
+[14:14:25] loading expanded data for xgboost / optical+site+weather
+[14:14:25] candidate features: 17 optical + 28 extra = 45
+[14:14:25] 34 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:14:25] === gap-aware tuning xgboost / optical+site+weather (25 trials) ===
+[14:15:35] tuning done in 70.4s: val_rmse=1.5220 train_rmse=1.0457 gap=0.4763 (pure-best val_rmse would have been 1.5065, 12/25 trials within tolerance band)
+[14:15:40] CV metrics: {'rmse': 1.5357868003204198, 'mae': 1.0833635049791326, 'mape': 0.7098778238576188, 'bias': 0.0444833670375136, 'p_bias': 1.3601443245475424, 'smape': 0.40221516390388773, 'r2': 0.5850698824135948, 'n': 10128}
+[14:15:40] TEST metrics: {'rmse': 1.8053306565555638, 'mae': 1.23385214586142, 'mape': 0.8293721959265965, 'bias': 0.282877072246011, 'p_bias': 8.491757858250768, 'smape': 0.39829066664431007, 'r2': 0.4844503689058206, 'n': 2509}
+[14:15:40] xgboost / optical+site+weather done
+[14:15:40] run_feature_group_model.py lightgbm optical
+[14:15:41] loading expanded data for lightgbm / optical
+[14:15:41] candidate features: 17 optical + 0 extra = 17
+[14:15:41] 13 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI']
+[14:15:41] === gap-aware tuning lightgbm / optical (25 trials) ===
+[14:16:12] tuning done in 31.3s: val_rmse=1.4936 train_rmse=1.3156 gap=0.1780 (pure-best val_rmse would have been 1.4895, 23/25 trials within tolerance band)
+[14:16:14] CV metrics: {'rmse': 1.535041408013848, 'mae': 1.0918645125238235, 'mape': 0.6208658911161712, 'bias': 0.1809664162374548, 'p_bias': 5.533314143497902, 'smape': 0.3884709925128989, 'r2': 0.5850561181304686, 'n': 10128}
+[14:16:14] TEST metrics: {'rmse': 1.8483111916637462, 'mae': 1.1770102788835357, 'mape': 0.6945621852181928, 'bias': -0.029872695718615422, 'p_bias': -0.8967559533954549, 'smape': 0.39065442744952833, 'r2': 0.44236276960782317, 'n': 2509}
+[14:16:14] lightgbm / optical done
+[14:16:14] run_feature_group_model.py lightgbm optical+site
+[14:16:15] loading expanded data for lightgbm / optical+site
+[14:16:15] candidate features: 17 optical + 8 extra = 25
+[14:16:15] 21 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+[14:16:15] === gap-aware tuning lightgbm / optical+site (25 trials) ===
+[14:17:44] tuning done in 89.0s: val_rmse=1.4496 train_rmse=1.0018 gap=0.4478 (pure-best val_rmse would have been 1.4482, 21/25 trials within tolerance band)
+[14:17:47] CV metrics: {'rmse': 1.4717744726663258, 'mae': 1.0386580235582294, 'mape': 0.647756787722864, 'bias': 0.06088042465258692, 'p_bias': 1.8615084599470293, 'smape': 0.3852986041030166, 'r2': 0.6192765644510443, 'n': 10128}
+[14:17:48] TEST metrics: {'rmse': 1.834914983384281, 'mae': 1.242428159586092, 'mape': 0.8188266163339236, 'bias': 0.28558375338614145, 'p_bias': 8.573010399006325, 'smape': 0.39922212092962023, 'r2': 0.469997353467374, 'n': 2509}
+[14:17:48] lightgbm / optical+site done
+[14:17:48] run_feature_group_model.py lightgbm optical+weather
+[14:17:49] loading expanded data for lightgbm / optical+weather
+[14:17:49] candidate features: 17 optical + 20 extra = 37
+[14:17:49] 26 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:17:49] === gap-aware tuning lightgbm / optical+weather (25 trials) ===
+[14:18:43] tuning done in 53.8s: val_rmse=1.5160 train_rmse=1.2894 gap=0.2266 (pure-best val_rmse would have been 1.5160, 19/25 trials within tolerance band)
+[14:18:45] CV metrics: {'rmse': 1.5624780036239745, 'mae': 1.112250150715529, 'mape': 0.6572292452211355, 'bias': 0.15679167889619955, 'p_bias': 4.794136019584607, 'smape': 0.39884240604144156, 'r2': 0.5678717933072606, 'n': 10128}
+[14:18:45] TEST metrics: {'rmse': 1.8383989827393286, 'mae': 1.178859348130861, 'mape': 0.6958705142381135, 'bias': -0.038554445012853045, 'p_bias': -1.1573755653256508, 'smape': 0.39045274738114927, 'r2': 0.448224864622479, 'n': 2509}
+[14:18:45] lightgbm / optical+weather done
+[14:18:45] run_feature_group_model.py lightgbm optical+site+weather
+[14:18:46] loading expanded data for lightgbm / optical+site+weather
+[14:18:46] candidate features: 17 optical + 28 extra = 45
+[14:18:47] 34 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:18:47] === gap-aware tuning lightgbm / optical+site+weather (25 trials) ===
+[14:20:37] tuning done in 111.0s: val_rmse=1.4786 train_rmse=1.0019 gap=0.4766 (pure-best val_rmse would have been 1.4786, 21/25 trials within tolerance band)
+[14:20:39] CV metrics: {'rmse': 1.5050133650518773, 'mae': 1.0573754668402735, 'mape': 0.6537834892207125, 'bias': 0.057848718590285494, 'p_bias': 1.7688095913821071, 'smape': 0.389622472990316, 'r2': 0.6006436012688169, 'n': 10128}
+[14:20:39] TEST metrics: {'rmse': 1.7964201179921977, 'mae': 1.2308598613197514, 'mape': 0.8131535677215597, 'bias': 0.2723870372746447, 'p_bias': 8.176854864543467, 'smape': 0.3968043300054624, 'r2': 0.4891827033690193, 'n': 2509}
+[14:20:39] lightgbm / optical+site+weather done
+[14:20:39] run_feature_group_model.py nn optical
+[14:20:40] loading expanded data for nn / optical
+[14:20:40] candidate features: 17 optical + 0 extra = 17
+[14:20:40] 13 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI']
+[14:20:40] === gap-aware tuning nn / optical (15 trials) ===
+[14:21:07] tuning done in 27.3s: val_rmse=1.6114 train_rmse=1.5135 gap=0.0979 (pure-best val_rmse would have been 1.6114, 1/15 trials within tolerance band)
+[14:21:08] CV metrics: {'rmse': 1.662047559025369, 'mae': 1.1385969960310542, 'mape': 0.8195463891215291, 'bias': -0.029995436394148704, 'p_bias': -0.9171545521592913, 'smape': 0.4244455572961023, 'r2': 0.5063055332437808, 'n': 10128}
+[14:21:08] TEST metrics: {'rmse': 1.856331034385733, 'mae': 1.1744001541949212, 'mape': 0.6647661582064143, 'bias': -0.3086297780149436, 'p_bias': -9.264834798874531, 'smape': 0.3946379944469019, 'r2': 0.468131101978702, 'n': 2509}
+[14:21:08] nn / optical done
+[14:21:08] run_feature_group_model.py nn optical+site
+[14:21:09] loading expanded data for nn / optical+site
+[14:21:09] candidate features: 17 optical + 8 extra = 25
+[14:21:09] 21 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+[14:21:09] === gap-aware tuning nn / optical+site (15 trials) ===
+[14:21:30] tuning done in 20.2s: val_rmse=1.5732 train_rmse=1.3917 gap=0.1815 (pure-best val_rmse would have been 1.5732, 1/15 trials within tolerance band)
+[14:21:30] CV metrics: {'rmse': 1.6315937405272876, 'mae': 1.1233047379456802, 'mape': 0.6452746306657741, 'bias': 0.10763013001443084, 'p_bias': 3.29094940960712, 'smape': 0.3903561746736281, 'r2': 0.5313277439872962, 'n': 10128}
+[14:21:30] TEST metrics: {'rmse': 1.8649693301547274, 'mae': 1.2994975289651338, 'mape': 0.8260013740985267, 'bias': 0.3114782394328028, 'p_bias': 9.350343477386282, 'smape': 0.42159510023750446, 'r2': 0.45114706788588865, 'n': 2509}
+[14:21:30] nn / optical+site done
+[14:21:30] run_feature_group_model.py nn optical+weather
+[14:21:31] loading expanded data for nn / optical+weather
+[14:21:31] candidate features: 17 optical + 20 extra = 37
+[14:21:31] 26 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:21:31] === gap-aware tuning nn / optical+weather (15 trials) ===
+[14:21:57] tuning done in 25.5s: val_rmse=1.6629 train_rmse=1.5889 gap=0.0740 (pure-best val_rmse would have been 1.6629, 2/15 trials within tolerance band)
+[14:21:58] CV metrics: {'rmse': 1.7171222570553246, 'mae': 1.186823270971082, 'mape': 0.8327419002138962, 'bias': -0.1773442187095517, 'p_bias': -5.422560130524632, 'smape': 0.44536710612964003, 'r2': 0.4804571911162568, 'n': 10128}
+[14:21:58] TEST metrics: {'rmse': 1.944141345586458, 'mae': 1.2668831745340037, 'mape': 0.8097269024398177, 'bias': -0.39197002148808785, 'p_bias': -11.766646493270644, 'smape': 0.43170966547813866, 'r2': 0.44484573526929133, 'n': 2509}
+[14:21:58] nn / optical+weather done
+[14:21:58] run_feature_group_model.py nn optical+site+weather
+[14:21:59] loading expanded data for nn / optical+site+weather
+[14:21:59] candidate features: 17 optical + 28 extra = 45
+[14:21:59] 34 features after correlation pruning: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:21:59] === gap-aware tuning nn / optical+site+weather (15 trials) ===
+[14:22:25] tuning done in 26.1s: val_rmse=1.6292 train_rmse=1.4078 gap=0.2214 (pure-best val_rmse would have been 1.6292, 1/15 trials within tolerance band)
+[14:22:26] CV metrics: {'rmse': 1.661954525298009, 'mae': 1.1266380043918676, 'mape': 0.6237103077729086, 'bias': -0.1685515923131887, 'p_bias': -5.153712655899013, 'smape': 0.40763824795872716, 'r2': 0.5107367284159898, 'n': 10128}
+[14:22:26] TEST metrics: {'rmse': 1.8333855624657018, 'mae': 1.2126110727343251, 'mape': 0.7393593984367491, 'bias': -0.03168789730645973, 'p_bias': -0.9512469456328209, 'smape': 0.400685209556747, 'r2': 0.451789064807131, 'n': 2509}
+[14:22:26] nn / optical+site+weather done
+   model        feature_group  n_features_selected  n_extra_offered     rmse      mae     mape      bias     p_bias    smape       r2    n
+ xgboost              optical                   13                0 1.853750 1.182963 0.684208 -0.029278  -0.878908 0.395314 0.440963 2509
+ xgboost         optical+site                   21                8 1.836097 1.253231 0.844545  0.318126   9.549917 0.402919 0.472136 2509
+ xgboost      optical+weather                   26               20 1.840887 1.181821 0.682711 -0.041182  -1.236238 0.391841 0.447649 2509
+ xgboost optical+site+weather                   34               28 1.805331 1.233852 0.829372  0.282877   8.491758 0.398291 0.484450 2509
+lightgbm              optical                   13                0 1.848311 1.177010 0.694562 -0.029873  -0.896756 0.390654 0.442363 2509
+lightgbm         optical+site                   21                8 1.834915 1.242428 0.818827  0.285584   8.573010 0.399222 0.469997 2509
+lightgbm      optical+weather                   26               20 1.838399 1.178859 0.695871 -0.038554  -1.157376 0.390453 0.448225 2509
+lightgbm optical+site+weather                   34               28 1.796420 1.230860 0.813154  0.272387   8.176855 0.396804 0.489183 2509
+      nn              optical                   13                0 1.856331 1.174400 0.664766 -0.308630  -9.264835 0.394638 0.468131 2509
+      nn         optical+site                   21                8 1.864969 1.299498 0.826001  0.311478   9.350343 0.421595 0.451147 2509
+      nn      optical+weather                   26               20 1.944141 1.266883 0.809727 -0.391970 -11.766646 0.431710 0.444846 2509
+      nn optical+site+weather                   34               28 1.833386 1.212611 0.739359 -0.031688  -0.951247 0.400685 0.451789 2509
+
+=== original baseline (for reference) ===
+   model     rmse       r2      bias
+ xgboost 1.853750 0.440963 -0.029278
+lightgbm 1.848311 0.442363 -0.029873
+      nn 1.856331 0.468131 -0.308630
+
+=== extra (site/weather) features that survived pruning ===
+xgboost / optical+site: ['elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+xgboost / optical+weather: ['precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+xgboost / optical+site+weather: ['elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+lightgbm / optical+site: ['elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+lightgbm / optical+weather: ['precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+lightgbm / optical+site+weather: ['elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+nn / optical+site: ['elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+nn / optical+weather: ['precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+nn / optical+site+weather: ['elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev1', 'precip_mm_prev3', 'precip_mm_prev7', 'precip_mm_prev30', 'tmin_degC_prev1', 'tmax_degC_prev7', 'tmax_degC_prev30', 'tmean_degC_prev30', 'tmin_degC_prev7', 'tmin_degC_prev30', 'srad_Wm2_prev1', 'srad_Wm2_prev7', 'srad_Wm2_prev30']
+[14:22:27] === STAGE 5: backward feature elimination (writes selected_features.json) ===
+[14:22:28] loading data
+[14:22:28] candidate pool: 17 optical + 8 site + 2 weather = 27
+[14:22:28] flat single-pass correlation pruning: 27 -> 23 features
+[14:22:28] pruned starting set: ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev30', 'tmax_degC_prev30']
+[14:22:28] xgboost fixed hyperparameters (reused from gap-aware optical+site+weather tuning): {'eta': 0.01, 'max_depth': 3, 'min_child_weight': 3, 'subsample': 0.7, 'colsample_bytree': 0.4, 'reg_alpha': 0.1, 'reg_lambda': 5}
+[14:22:28] lightgbm fixed hyperparameters (reused from gap-aware optical+site+weather tuning): {'learning_rate': 0.05, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.7, 'colsample_bytree': 0.4, 'reg_alpha': 5, 'reg_lambda': 1}
+[14:22:28] nn fixed hyperparameters (reused from gap-aware optical+site+weather tuning): {'hidden_sizes': (8, 4), 'dropout': 0.2, 'lr': 0.01, 'weight_decay': 0.0001}
+[14:22:28] === backward elimination: xgboost ===
+[14:22:58]   [xgboost] step 0: n=23 cv_rmse=1.5039 shadow_floor=0.0003
+[14:22:58]   [xgboost] drop 'elevation_m' (importance -0.0086 <= shadow floor 0.0003)
+[14:23:25]   [xgboost] step 1: n=22 cv_rmse=1.4695 shadow_floor=0.0002
+[14:23:25]   [xgboost] drop 'pct_impervious_2006' (importance -0.0075 <= shadow floor 0.0002)
+[14:23:53]   [xgboost] step 2: n=21 cv_rmse=1.4521 shadow_floor=0.0003
+[14:23:53]   [xgboost] drop 'swir1_corr7' (importance -0.0027 <= shadow floor 0.0003)
+[14:24:25]   [xgboost] step 3: n=20 cv_rmse=1.4499 shadow_floor=0.0004
+[14:24:25]   [xgboost] drop 'precip_mm_prev30' (importance -0.0037 <= shadow floor 0.0004)
+[14:24:52]   [xgboost] step 4: n=19 cv_rmse=1.4461 shadow_floor=0.0002
+[14:24:52]   [xgboost] drop 'tmax_degC_prev30' (importance -0.0019 <= shadow floor 0.0002)
+[14:25:24]   [xgboost] step 5: n=18 cv_rmse=1.4342 shadow_floor=0.0003
+[14:25:24]   [xgboost] stop: worst real feature 'temp_corr7' (0.0032) beats shadow floor (0.0003)
+[14:25:24] xgboost final set (18): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag']
+[14:25:24] === backward elimination: lightgbm ===
+[14:25:52]   [lightgbm] step 0: n=23 cv_rmse=1.4665 shadow_floor=0.0004
+[14:25:52]   [lightgbm] drop 'elevation_m' (importance -0.0050 <= shadow floor 0.0004)
+[14:26:15]   [lightgbm] step 1: n=22 cv_rmse=1.4384 shadow_floor=0.0007
+[14:26:15]   [lightgbm] drop 'swir1_corr7' (importance -0.0034 <= shadow floor 0.0007)
+[14:26:37]   [lightgbm] step 2: n=21 cv_rmse=1.4397 shadow_floor=0.0004
+[14:26:37]   [lightgbm] drop 'precip_mm_prev30' (importance -0.0030 <= shadow floor 0.0004)
+[14:26:59]   [lightgbm] step 3: n=20 cv_rmse=1.4670 shadow_floor=0.0005
+[14:26:59]   [lightgbm] stop: cv_rmse degraded >0.5% from best (1.4384)
+[14:26:59] lightgbm final set (22): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev30', 'tmax_degC_prev30']
+[14:26:59] === backward elimination: nn ===
+[14:27:02]   [nn] step 0: n=23 cv_rmse=1.6082 shadow_floor=0.0009
+[14:27:02]   [nn] drop 'BR' (importance -0.0200 <= shadow floor 0.0009)
+[14:27:05]   [nn] step 1: n=22 cv_rmse=1.6016 shadow_floor=0.0018
+[14:27:05]   [nn] drop 'elevation_m' (importance -0.0182 <= shadow floor 0.0018)
+[14:27:07]   [nn] step 2: n=21 cv_rmse=1.5689 shadow_floor=0.0005
+[14:27:07]   [nn] drop 'tmax_degC_prev30' (importance -0.0038 <= shadow floor 0.0005)
+[14:27:10]   [nn] step 3: n=20 cv_rmse=1.5556 shadow_floor=0.0004
+[14:27:10]   [nn] drop 'catchment_area_sqkm' (importance -0.0008 <= shadow floor 0.0004)
+[14:27:12]   [nn] step 4: n=19 cv_rmse=1.5197 shadow_floor=0.0010
+[14:27:12]   [nn] drop 'pct_forest_2006' (importance 0.0003 <= shadow floor 0.0010)
+[14:27:15]   [nn] step 5: n=18 cv_rmse=1.5281 shadow_floor=0.0011
+[14:27:15]   [nn] stop: cv_rmse degraded >0.5% from best (1.5197)
+[14:27:15] nn final set (19): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'precip_mm_prev30']
+[14:27:15] === joint backward elimination (all 3 models at once) ===
+[14:28:15]   [joint] step 0: n=23 xgboost_rmse=1.5039 lightgbm_rmse=1.4665 nn_rmse=1.6082
+[14:28:15]   [joint] drop 'elevation_m' (norm importance -18.750 <= 1.0)
+[14:29:08]   [joint] step 1: n=22 xgboost_rmse=1.4695 lightgbm_rmse=1.4384 nn_rmse=1.6024
+[14:29:08]   [joint] drop 'precip_mm_prev30' (norm importance -8.346 <= 1.0)
+[14:29:56]   [joint] step 2: n=21 xgboost_rmse=1.4772 lightgbm_rmse=1.4429 nn_rmse=1.5865
+[14:29:56]   [joint] stop: ['xgboost'] degraded >0.5% from their own best on prior steps
+[14:29:56] joint final set (21): ['atm_corr_LaSRC', 'red_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shoreline_flag', 'tmax_degC_prev30']
+[14:29:56] intersection of 3 per-model sets (16): ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'shoreline_flag', 'temp_corr7']
+[14:29:56] union of 3 per-model sets (22): ['BG', 'BR', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'catchment_area_sqkm', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_impervious_2006', 'pct_urban_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'red_corr7', 'shoreline_flag', 'swir1_corr7', 'temp_corr7', 'tmax_degC_prev30']
+[14:29:56] wrote selected_features.json: intersection (n=16), joint (n=21)
+[14:29:56] BACKWARD ELIMINATION DONE
+[14:29:57] === STAGE 6: final tuning on the selected feature set (gap-aware) ===
+[14:29:59] selected feature set (n=16): ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'shoreline_flag', 'temp_corr7']
+[14:29:59] === gap-aware tuning xgboost on the selected feature set (40 trials) ===
+[14:31:34] xgboost chosen params: {'eta': 0.01, 'max_depth': 2, 'min_child_weight': 7, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 0, 'reg_lambda': 10}
+[14:31:34] xgboost chosen: val_rmse=1.4650 train_rmse=1.1233 gap=0.3417 | pure-best val_rmse would have been 1.4576 (37/40 trials within 2% tolerance band)
+[14:31:34] === xgboost per-fold train/val diagnostics ===
+[14:31:35]   part 1: train_rmse=1.234 val_rmse=1.074 gap=-0.160 val_r2=0.649
+[14:31:37]   part 2: train_rmse=1.089 val_rmse=1.373 gap=+0.284 val_r2=0.530
+[14:31:38]   part 3: train_rmse=1.051 val_rmse=1.900 gap=+0.848 val_r2=0.490
+[14:31:39]   part 4: train_rmse=1.118 val_rmse=1.514 gap=+0.395 val_r2=0.614
+[14:31:39] xgboost fold summary: mean val_rmse=1.465 (sd=0.343), mean gap=0.342 (sd=0.414), mean train_rmse=1.123
+[14:31:39] === gap-aware tuning lightgbm on the selected feature set (40 trials) ===
+[14:33:53] lightgbm chosen params: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.8, 'colsample_bytree': 0.4, 'reg_alpha': 0, 'reg_lambda': 10}
+[14:33:53] lightgbm chosen: val_rmse=1.4702 train_rmse=1.0717 gap=0.3985 | pure-best val_rmse would have been 1.4530 (30/40 trials within 2% tolerance band)
+[14:33:53] === lightgbm per-fold train/val diagnostics ===
+[14:33:54]   part 1: train_rmse=1.185 val_rmse=1.118 gap=-0.067 val_r2=0.643
+[14:33:55]   part 2: train_rmse=1.029 val_rmse=1.400 gap=+0.371 val_r2=0.512
+[14:33:55]   part 3: train_rmse=1.013 val_rmse=1.884 gap=+0.871 val_r2=0.485
+[14:33:57]   part 4: train_rmse=1.059 val_rmse=1.478 gap=+0.419 val_r2=0.641
+[14:33:57] lightgbm fold summary: mean val_rmse=1.470 (sd=0.316), mean gap=0.398 (sd=0.383), mean train_rmse=1.072
+[14:33:57] === gap-aware tuning nn on the selected feature set (15 trials) ===
+[14:34:21] nn chosen params: {'hidden_sizes': (8, 8, 8), 'dropout': 0.2, 'lr': 0.005, 'weight_decay': 0.001}
+[14:34:21] nn chosen: val_rmse=1.4843 train_rmse=1.4757 gap=0.0086 | pure-best val_rmse would have been 1.4656 (4/15 trials within 2% tolerance band)
+[14:34:21] === nn per-fold train/val diagnostics ===
+[14:34:21]   part 1: train_rmse=1.593 val_rmse=1.035 gap=-0.558 val_r2=0.627
+[14:34:22]   part 2: train_rmse=1.473 val_rmse=1.399 gap=-0.074 val_r2=0.541
+[14:34:22]   part 3: train_rmse=1.358 val_rmse=1.983 gap=+0.625 val_r2=0.525
+[14:34:22]   part 4: train_rmse=1.479 val_rmse=1.520 gap=+0.041 val_r2=0.612
+[14:34:22] nn fold summary: mean val_rmse=1.484 (sd=0.391), mean gap=0.009 (sd=0.486), mean train_rmse=1.476
+[14:34:22] FINAL TUNING DONE
+[14:34:22] === STAGE 7: final evaluation (test partition, one look) ===
+[14:34:24] === xgboost: final production config (weighted=True) ===
+[14:34:24] xgboost params: {'eta': 0.01, 'max_depth': 2, 'min_child_weight': 7, 'subsample': 0.7, 'colsample_bytree': 0.7, 'reg_alpha': 0, 'reg_lambda': 10}
+[14:34:24] xgboost features (n=16): ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'shoreline_flag', 'temp_corr7']
+[14:34:27] xgboost CV (out-of-fold) metrics: {'rmse': 1.499472579997312, 'mae': 1.054785163032356, 'mape': 0.5973557058071026, 'bias': 0.0783504393379253, 'p_bias': 2.395679834699002, 'smape': 0.3872577130571062, 'r2': 0.5991794168213859, 'n': 10128}
+[14:34:27] xgboost TEST metrics (final): {'rmse': 1.8392115562628426, 'mae': 1.2542900060718873, 'mape': 0.8553347052409238, 'bias': 0.31264432075680276, 'p_bias': 9.385348365438237, 'smape': 0.40999645653144, 'r2': 0.46561411076182985, 'n': 2509}
+[14:34:27] === lightgbm: final production config (weighted=True) ===
+[14:34:27] lightgbm params: {'learning_rate': 0.01, 'num_leaves': 7, 'min_child_samples': 50, 'subsample': 0.8, 'colsample_bytree': 0.4, 'reg_alpha': 0, 'reg_lambda': 10}
+[14:34:27] lightgbm features (n=16): ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'shoreline_flag', 'temp_corr7']
+[14:34:29] lightgbm CV (out-of-fold) metrics: {'rmse': 1.4957330541189977, 'mae': 1.0659259272557389, 'mape': 0.6765944844412037, 'bias': 0.08631332751850615, 'p_bias': 2.6391568439076365, 'smape': 0.40139596312830367, 'r2': 0.6048118675214299, 'n': 10128}
+[14:34:29] lightgbm TEST metrics (final): {'rmse': 1.81526881306982, 'mae': 1.2183862563717462, 'mape': 0.8113016384182187, 'bias': 0.24123209364678252, 'p_bias': 7.24160678920572, 'smape': 0.39581763198790776, 'r2': 0.4736210365733522, 'n': 2509}
+[14:34:29] === nn: final production config (weighted=False) ===
+[14:34:29] nn params: {'hidden_sizes': (8, 8, 8), 'dropout': 0.2, 'lr': 0.005, 'weight_decay': 0.001}
+[14:34:29] nn features (n=16): ['BG', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'fai', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_urban_2006', 'pct_wetland_2006', 'red_corr7', 'shoreline_flag', 'temp_corr7']
+[14:34:31] nn CV (out-of-fold) metrics: {'rmse': 1.518568650585801, 'mae': 1.0272384132708512, 'mape': 0.566828822211288, 'bias': -0.28381313592595697, 'p_bias': -8.678003752193208, 'smape': 0.3797340884246625, 'r2': 0.6136683782644289, 'n': 10128}
+[14:34:31] nn TEST metrics (final): {'rmse': 1.8883064516261643, 'mae': 1.2157315860910214, 'mape': 0.6593068194812199, 'bias': -0.2969709734443461, 'p_bias': -8.91484621710612, 'smape': 0.39909440505921845, 'r2': 0.433983716377259, 'n': 2509}
+[14:34:31] FINAL EVALUATION DONE
+[14:34:31] === STAGE 8: SHAP, per feature-group config (test set) ===
+[14:34:31] run_shap_analysis.py xgboost optical
+xgboost / optical
+  group contribution (% of total mean|SHAP|): {'optical': 100.0}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.7419363260269165, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.47057703137397766, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.18875671923160553, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.16233335435390472, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.16154615581035614, 'group': 'optical'}]
+[14:34:36] run_shap_analysis.py xgboost optical+site
+xgboost / optical+site
+  group contribution (% of total mean|SHAP|): {'optical': 67.51407623291016, 'site': 32.48592758178711}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.6797665953636169, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.42621761560440063, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.29479220509529114, 'group': 'site'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.2005838006734848, 'group': 'site'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.19368547201156616, 'group': 'optical'}]
+[14:34:49] run_shap_analysis.py xgboost optical+weather
+xgboost / optical+weather
+  group contribution (% of total mean|SHAP|): {'optical': 91.8556900024414, 'weather': 8.144309043884277}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.7327674627304077, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.4577106833457947, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.19110529124736786, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.15708276629447937, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.1532653272151947, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.8043601229903458, 'precip_mm_prev3': -0.09945402532403881, 'precip_mm_prev7': -0.06424755716969827, 'precip_mm_prev30': -0.8153736078814268, 'tmin_degC_prev1': -0.31136106732536944, 'tmax_degC_prev7': -0.673620618302208, 'tmax_degC_prev30': -0.6219777101322003, 'tmean_degC_prev30': 0.671379491405135, 'tmin_degC_prev7': 0.5182905476302386, 'tmin_degC_prev30': 0.05262370012213154, 'srad_Wm2_prev1': 0.7528815065080896, 'srad_Wm2_prev7': -0.7861667586801192, 'srad_Wm2_prev30': -0.12541082619929958}
+[14:34:55] run_shap_analysis.py xgboost optical+site+weather
+xgboost / optical+site+weather
+  group contribution (% of total mean|SHAP|): {'optical': 62.933876037597656, 'site': 30.306032180786133, 'weather': 6.760089874267578}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.5934852361679077, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.321568101644516, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.253274142742157, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.24626167118549347, 'group': 'site'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.188990980386734, 'group': 'site'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.23053924329241274, 'precip_mm_prev3': -0.13863747071435714, 'precip_mm_prev7': -0.4565045074207514, 'precip_mm_prev30': -0.7843908714746989, 'tmin_degC_prev1': 0.17019557078143252, 'tmax_degC_prev7': 0.44048191395249287, 'tmax_degC_prev30': -0.6911170630076277, 'tmean_degC_prev30': -0.4082958997409285, 'tmin_degC_prev7': 0.26907602165145045, 'tmin_degC_prev30': 0.05896065901925473, 'srad_Wm2_prev1': 0.7581585943350725, 'srad_Wm2_prev7': -0.628797174208706, 'srad_Wm2_prev30': 0.10324892830897267}
+[14:35:07] run_shap_analysis.py lightgbm optical
+lightgbm / optical
+  group contribution (% of total mean|SHAP|): {'optical': 100.0}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.6870465870880239, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.43126635213286885, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.22067930081577541, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.17940666467964045, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.15609344670139677, 'group': 'optical'}]
+[14:35:13] run_shap_analysis.py lightgbm optical+site
+lightgbm / optical+site
+  group contribution (% of total mean|SHAP|): {'optical': 67.73034769327097, 'site': 32.26965230672902}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.5239324594358278, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.3497919676752458, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.2714266301056241, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.2530517558225581, 'group': 'site'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.19322952391983425, 'group': 'site'}]
+[14:35:24] run_shap_analysis.py lightgbm optical+weather
+lightgbm / optical+weather
+  group contribution (% of total mean|SHAP|): {'optical': 91.45506027144535, 'weather': 8.544939728554649}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.6955831529153993, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.4220228077659177, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.21303859633960945, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.16243663132062777, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.1556223836902028, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.7364946730156859, 'precip_mm_prev3': -0.1985287054416672, 'precip_mm_prev7': -0.04872732560871563, 'precip_mm_prev30': -0.8177939542726533, 'tmin_degC_prev1': -0.38305252665006445, 'tmax_degC_prev7': -0.5140380890510096, 'tmax_degC_prev30': -0.5158703634435391, 'tmean_degC_prev30': 0.45393209669916, 'tmin_degC_prev7': 0.5540098424317492, 'tmin_degC_prev30': 0.07606479957313857, 'srad_Wm2_prev1': 0.6633626974360882, 'srad_Wm2_prev7': -0.5462117336850951, 'srad_Wm2_prev30': -0.23345299050120397}
+[14:35:30] run_shap_analysis.py lightgbm optical+site+weather
+lightgbm / optical+site+weather
+  group contribution (% of total mean|SHAP|): {'optical': 61.58021333652282, 'site': 30.588489761174987, 'weather': 7.831296902302191}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.5295209305541926, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.34644829874773325, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.2699442265018395, 'group': 'site'}, {'feature': 'BR', 'mean_abs_shap': 0.24983422146442233, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.23493248233574704, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.09457163054336103, 'precip_mm_prev3': -0.21905307096444449, 'precip_mm_prev7': -0.5969784732329562, 'precip_mm_prev30': -0.6720705417810484, 'tmin_degC_prev1': 0.040685326517197785, 'tmax_degC_prev7': 0.445227014097537, 'tmax_degC_prev30': -0.7214473279437572, 'tmean_degC_prev30': -0.3540119987813928, 'tmin_degC_prev7': 0.267768175311565, 'tmin_degC_prev30': 0.14474466299289285, 'srad_Wm2_prev1': 0.7451833513671666, 'srad_Wm2_prev7': -0.7743207799883766, 'srad_Wm2_prev30': -0.25511168645003335}
+[14:35:35] run_shap_analysis.py nn optical
+nn / optical
+  group contribution (% of total mean|SHAP|): {'optical': 100.0}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.3853165320908608, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.23931489304113338, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.2349962934796105, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.22383319456377015, 'group': 'optical'}, {'feature': 'NDVI', 'mean_abs_shap': 0.2023549749102157, 'group': 'optical'}]
+[14:35:43] run_shap_analysis.py nn optical+site
+nn / optical+site
+  group contribution (% of total mean|SHAP|): {'optical': 63.920499974167, 'site': 36.079500025833006}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.31437400619387285, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.2943661855013743, 'group': 'site'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.2657084660980357, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.21804422552211364, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.19511929816421336, 'group': 'optical'}]
+[14:35:51] run_shap_analysis.py nn optical+weather
+nn / optical+weather
+  group contribution (% of total mean|SHAP|): {'optical': 83.55014365508356, 'weather': 16.449856344916444}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.28760813921268946, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.197092847911486, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.15828649892324598, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.1528971960768963, 'group': 'optical'}, {'feature': 'NDVI', 'mean_abs_shap': 0.12969567586175804, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': -0.8232863646852172, 'precip_mm_prev3': 0.4799797212617524, 'precip_mm_prev7': 0.08748611026209963, 'precip_mm_prev30': -0.743931584316122, 'tmin_degC_prev1': -0.716486562839465, 'tmax_degC_prev7': -0.6263772768895508, 'tmax_degC_prev30': -0.4440187187873275, 'tmean_degC_prev30': 0.8054318141245932, 'tmin_degC_prev7': 0.7868133659288061, 'tmin_degC_prev30': 0.7249897454212437, 'srad_Wm2_prev1': 0.8529270417571307, 'srad_Wm2_prev7': -0.785301373645794, 'srad_Wm2_prev30': -0.6564406496753278}
+[14:36:00] run_shap_analysis.py nn optical+site+weather
+nn / optical+site+weather
+  group contribution (% of total mean|SHAP|): {'optical': 60.58117421233703, 'site': 25.589169642014497, 'weather': 13.829656145648467}
+  top 5 features: [{'feature': 'BG', 'mean_abs_shap': 0.2509006322785973, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.1892887336975339, 'group': 'site'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.16179313743078208, 'group': 'optical'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.15565126294923176, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.1505677241580847, 'group': 'optical'}]
+  weather value-SHAP correlation (negative = higher value -> lower clarity): {'precip_mm_prev1': 0.24932056230377317, 'precip_mm_prev3': 0.049658399314212204, 'precip_mm_prev7': -0.06103623671106719, 'precip_mm_prev30': -0.2731950947659152, 'tmin_degC_prev1': 0.22843800530311625, 'tmax_degC_prev7': 0.7654745422240862, 'tmax_degC_prev30': -0.7890888657499094, 'tmean_degC_prev30': -0.620434844230382, 'tmin_degC_prev7': -0.05621445665476755, 'tmin_degC_prev30': 0.44823972677511686, 'srad_Wm2_prev1': 0.5959656964904464, 'srad_Wm2_prev7': -0.7727035245728197, 'srad_Wm2_prev30': 0.6259902344546883}
+   model        feature_group  optical_pct  site_pct  weather_pct
+ xgboost              optical   100.000000  0.000000     0.000000
+ xgboost         optical+site    67.514076 32.485928     0.000000
+ xgboost      optical+weather    91.855690  0.000000     8.144309
+ xgboost optical+site+weather    62.933876 30.306032     6.760090
+lightgbm              optical   100.000000  0.000000     0.000000
+lightgbm         optical+site    67.730348 32.269652     0.000000
+lightgbm      optical+weather    91.455060  0.000000     8.544940
+lightgbm optical+site+weather    61.580213 30.588490     7.831297
+      nn              optical   100.000000  0.000000     0.000000
+      nn         optical+site    63.920500 36.079500     0.000000
+      nn      optical+weather    83.550144  0.000000    16.449856
+      nn optical+site+weather    60.581174 25.589170    13.829656
+
+=== top features by mean|SHAP| ===
+xgboost / optical:
+    BG                   (optical ) mean|SHAP|=0.7419
+    red_corr7            (optical ) mean|SHAP|=0.4706
+    BR                   (optical ) mean|SHAP|=0.1888
+    MNDWI                (optical ) mean|SHAP|=0.1623
+    fai                  (optical ) mean|SHAP|=0.1615
+    NR                   (optical ) mean|SHAP|=0.1307
+    atm_corr_LaSRC       (optical ) mean|SHAP|=0.0992
+    NDVI                 (optical ) mean|SHAP|=0.0461
+xgboost / optical+site:
+    BG                   (optical ) mean|SHAP|=0.6798
+    red_corr7            (optical ) mean|SHAP|=0.4262
+    catchment_area_sqkm  (site    ) mean|SHAP|=0.2948
+    pct_wetland_2006     (site    ) mean|SHAP|=0.2006
+    MNDWI                (optical ) mean|SHAP|=0.1937
+    BR                   (optical ) mean|SHAP|=0.1766
+    NR                   (optical ) mean|SHAP|=0.1599
+    pct_urban_2006       (site    ) mean|SHAP|=0.1478
+xgboost / optical+weather:
+    BG                   (optical ) mean|SHAP|=0.7328
+    red_corr7            (optical ) mean|SHAP|=0.4577
+    BR                   (optical ) mean|SHAP|=0.1911
+    fai                  (optical ) mean|SHAP|=0.1571
+    MNDWI                (optical ) mean|SHAP|=0.1533
+    NR                   (optical ) mean|SHAP|=0.1261
+    atm_corr_LaSRC       (optical ) mean|SHAP|=0.0912
+    NDVI                 (optical ) mean|SHAP|=0.0585
+xgboost / optical+site+weather:
+    BG                   (optical ) mean|SHAP|=0.5935
+    red_corr7            (optical ) mean|SHAP|=0.3216
+    BR                   (optical ) mean|SHAP|=0.2533
+    catchment_area_sqkm  (site    ) mean|SHAP|=0.2463
+    pct_wetland_2006     (site    ) mean|SHAP|=0.1890
+    fai                  (optical ) mean|SHAP|=0.1606
+    MNDWI                (optical ) mean|SHAP|=0.1574
+    pct_urban_2006       (site    ) mean|SHAP|=0.1401
+lightgbm / optical:
+    BG                   (optical ) mean|SHAP|=0.6870
+    red_corr7            (optical ) mean|SHAP|=0.4313
+    BR                   (optical ) mean|SHAP|=0.2207
+    fai                  (optical ) mean|SHAP|=0.1794
+    MNDWI                (optical ) mean|SHAP|=0.1561
+    atm_corr_LaSRC       (optical ) mean|SHAP|=0.1044
+    NR                   (optical ) mean|SHAP|=0.0842
+    NDVI                 (optical ) mean|SHAP|=0.0590
+lightgbm / optical+site:
+    BG                   (optical ) mean|SHAP|=0.5239
+    red_corr7            (optical ) mean|SHAP|=0.3498
+    BR                   (optical ) mean|SHAP|=0.2714
+    catchment_area_sqkm  (site    ) mean|SHAP|=0.2531
+    pct_wetland_2006     (site    ) mean|SHAP|=0.1932
+    fai                  (optical ) mean|SHAP|=0.1883
+    MNDWI                (optical ) mean|SHAP|=0.1873
+    pct_urban_2006       (site    ) mean|SHAP|=0.1392
+lightgbm / optical+weather:
+    BG                   (optical ) mean|SHAP|=0.6956
+    red_corr7            (optical ) mean|SHAP|=0.4220
+    BR                   (optical ) mean|SHAP|=0.2130
+    fai                  (optical ) mean|SHAP|=0.1624
+    MNDWI                (optical ) mean|SHAP|=0.1556
+    atm_corr_LaSRC       (optical ) mean|SHAP|=0.0977
+    NR                   (optical ) mean|SHAP|=0.0866
+    NDVI                 (optical ) mean|SHAP|=0.0598
+lightgbm / optical+site+weather:
+    BG                   (optical ) mean|SHAP|=0.5295
+    red_corr7            (optical ) mean|SHAP|=0.3464
+    catchment_area_sqkm  (site    ) mean|SHAP|=0.2699
+    BR                   (optical ) mean|SHAP|=0.2498
+    fai                  (optical ) mean|SHAP|=0.2349
+    pct_wetland_2006     (site    ) mean|SHAP|=0.1792
+    MNDWI                (optical ) mean|SHAP|=0.1736
+    pct_urban_2006       (site    ) mean|SHAP|=0.1267
+nn / optical:
+    BG                   (optical ) mean|SHAP|=0.3853
+    MNDWI                (optical ) mean|SHAP|=0.2393
+    nir_corr7            (optical ) mean|SHAP|=0.2350
+    red_corr7            (optical ) mean|SHAP|=0.2238
+    NDVI                 (optical ) mean|SHAP|=0.2024
+    NDSSI                (optical ) mean|SHAP|=0.1349
+    fai                  (optical ) mean|SHAP|=0.1333
+    NDWI                 (optical ) mean|SHAP|=0.1081
+nn / optical+site:
+    BG                   (optical ) mean|SHAP|=0.3144
+    pct_wetland_2006     (site    ) mean|SHAP|=0.2944
+    red_corr7            (optical ) mean|SHAP|=0.2657
+    MNDWI                (optical ) mean|SHAP|=0.2180
+    nir_corr7            (optical ) mean|SHAP|=0.1951
+    NDWI                 (optical ) mean|SHAP|=0.1652
+    shoreline_flag       (site    ) mean|SHAP|=0.1304
+    pct_urban_2006       (site    ) mean|SHAP|=0.1221
+nn / optical+weather:
+    BG                   (optical ) mean|SHAP|=0.2876
+    red_corr7            (optical ) mean|SHAP|=0.1971
+    MNDWI                (optical ) mean|SHAP|=0.1583
+    nir_corr7            (optical ) mean|SHAP|=0.1529
+    NDVI                 (optical ) mean|SHAP|=0.1297
+    fai                  (optical ) mean|SHAP|=0.1209
+    NDSSI                (optical ) mean|SHAP|=0.0978
+    NDWI                 (optical ) mean|SHAP|=0.0906
+nn / optical+site+weather:
+    BG                   (optical ) mean|SHAP|=0.2509
+    pct_wetland_2006     (site    ) mean|SHAP|=0.1893
+    red_corr7            (optical ) mean|SHAP|=0.1618
+    nir_corr7            (optical ) mean|SHAP|=0.1557
+    fai                  (optical ) mean|SHAP|=0.1506
+    MNDWI                (optical ) mean|SHAP|=0.1414
+    shoreline_flag       (site    ) mean|SHAP|=0.1009
+    pct_urban_2006       (site    ) mean|SHAP|=0.0973
+
+=== weather value-SHAP correlation (negative = higher value -> lower predicted clarity) ===
+xgboost / optical+weather: {'precip_mm_prev1': -0.8043601229903458, 'precip_mm_prev3': -0.09945402532403881, 'precip_mm_prev7': -0.06424755716969827, 'precip_mm_prev30': -0.8153736078814268, 'tmin_degC_prev1': -0.31136106732536944, 'tmax_degC_prev7': -0.673620618302208, 'tmax_degC_prev30': -0.6219777101322003, 'tmean_degC_prev30': 0.671379491405135, 'tmin_degC_prev7': 0.5182905476302386, 'tmin_degC_prev30': 0.05262370012213154, 'srad_Wm2_prev1': 0.7528815065080896, 'srad_Wm2_prev7': -0.7861667586801192, 'srad_Wm2_prev30': -0.12541082619929958}
+xgboost / optical+site+weather: {'precip_mm_prev1': -0.23053924329241274, 'precip_mm_prev3': -0.13863747071435714, 'precip_mm_prev7': -0.4565045074207514, 'precip_mm_prev30': -0.7843908714746989, 'tmin_degC_prev1': 0.17019557078143252, 'tmax_degC_prev7': 0.44048191395249287, 'tmax_degC_prev30': -0.6911170630076277, 'tmean_degC_prev30': -0.4082958997409285, 'tmin_degC_prev7': 0.26907602165145045, 'tmin_degC_prev30': 0.05896065901925473, 'srad_Wm2_prev1': 0.7581585943350725, 'srad_Wm2_prev7': -0.628797174208706, 'srad_Wm2_prev30': 0.10324892830897267}
+lightgbm / optical+weather: {'precip_mm_prev1': -0.7364946730156859, 'precip_mm_prev3': -0.1985287054416672, 'precip_mm_prev7': -0.04872732560871563, 'precip_mm_prev30': -0.8177939542726533, 'tmin_degC_prev1': -0.38305252665006445, 'tmax_degC_prev7': -0.5140380890510096, 'tmax_degC_prev30': -0.5158703634435391, 'tmean_degC_prev30': 0.45393209669916, 'tmin_degC_prev7': 0.5540098424317492, 'tmin_degC_prev30': 0.07606479957313857, 'srad_Wm2_prev1': 0.6633626974360882, 'srad_Wm2_prev7': -0.5462117336850951, 'srad_Wm2_prev30': -0.23345299050120397}
+lightgbm / optical+site+weather: {'precip_mm_prev1': -0.09457163054336103, 'precip_mm_prev3': -0.21905307096444449, 'precip_mm_prev7': -0.5969784732329562, 'precip_mm_prev30': -0.6720705417810484, 'tmin_degC_prev1': 0.040685326517197785, 'tmax_degC_prev7': 0.445227014097537, 'tmax_degC_prev30': -0.7214473279437572, 'tmean_degC_prev30': -0.3540119987813928, 'tmin_degC_prev7': 0.267768175311565, 'tmin_degC_prev30': 0.14474466299289285, 'srad_Wm2_prev1': 0.7451833513671666, 'srad_Wm2_prev7': -0.7743207799883766, 'srad_Wm2_prev30': -0.25511168645003335}
+nn / optical+weather: {'precip_mm_prev1': -0.8232863646852172, 'precip_mm_prev3': 0.4799797212617524, 'precip_mm_prev7': 0.08748611026209963, 'precip_mm_prev30': -0.743931584316122, 'tmin_degC_prev1': -0.716486562839465, 'tmax_degC_prev7': -0.6263772768895508, 'tmax_degC_prev30': -0.4440187187873275, 'tmean_degC_prev30': 0.8054318141245932, 'tmin_degC_prev7': 0.7868133659288061, 'tmin_degC_prev30': 0.7249897454212437, 'srad_Wm2_prev1': 0.8529270417571307, 'srad_Wm2_prev7': -0.785301373645794, 'srad_Wm2_prev30': -0.6564406496753278}
+nn / optical+site+weather: {'precip_mm_prev1': 0.24932056230377317, 'precip_mm_prev3': 0.049658399314212204, 'precip_mm_prev7': -0.06103623671106719, 'precip_mm_prev30': -0.2731950947659152, 'tmin_degC_prev1': 0.22843800530311625, 'tmax_degC_prev7': 0.7654745422240862, 'tmax_degC_prev30': -0.7890888657499094, 'tmean_degC_prev30': -0.620434844230382, 'tmin_degC_prev7': -0.05621445665476755, 'tmin_degC_prev30': 0.44823972677511686, 'srad_Wm2_prev1': 0.5959656964904464, 'srad_Wm2_prev7': -0.7727035245728197, 'srad_Wm2_prev30': 0.6259902344546883}
+[14:36:11] === STAGE 9: SHAP, out-of-fold CV on backward-elim candidate sets ===
+xgboost / intersection (n_oof_rows=10128)
+  group contribution (% of total mean|SHAP|): {'optical': 77.1614990234375, 'site': 22.838502883911133}
+  top 8: [{'feature': 'BG', 'mean_abs_shap': 0.6551931500434875, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.43720129132270813, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.24780483543872833, 'group': 'optical'}, {'feature': 'pct_urban_2006', 'mean_abs_shap': 0.18494030833244324, 'group': 'site'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.18270081281661987, 'group': 'site'}, {'feature': 'NDVI', 'mean_abs_shap': 0.18114031851291656, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.1595110148191452, 'group': 'optical'}, {'feature': 'NR', 'mean_abs_shap': 0.15774103999137878, 'group': 'optical'}]
+xgboost / joint (n_oof_rows=10128)
+  group contribution (% of total mean|SHAP|): {'optical': 72.12409210205078, 'site': 26.45623779296875, 'weather': 1.4196699857711792}
+  top 8: [{'feature': 'BG', 'mean_abs_shap': 0.5678423047065735, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.37722548842430115, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.26360300183296204, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.20725947618484497, 'group': 'site'}, {'feature': 'fai', 'mean_abs_shap': 0.184622660279274, 'group': 'optical'}, {'feature': 'NR', 'mean_abs_shap': 0.16261425614356995, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.16150596737861633, 'group': 'site'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.16052819788455963, 'group': 'optical'}]
+lightgbm / intersection (n_oof_rows=10128)
+  group contribution (% of total mean|SHAP|): {'optical': 76.26027031379223, 'site': 23.739729686207774}
+  top 8: [{'feature': 'BG', 'mean_abs_shap': 0.662877218222241, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.459626474228342, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.18893401654918499, 'group': 'site'}, {'feature': 'fai', 'mean_abs_shap': 0.1806499446007379, 'group': 'optical'}, {'feature': 'pct_urban_2006', 'mean_abs_shap': 0.17640421848661686, 'group': 'site'}, {'feature': 'NDVI', 'mean_abs_shap': 0.17549616585311995, 'group': 'optical'}, {'feature': 'NR', 'mean_abs_shap': 0.15896393502148176, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.13157244075594954, 'group': 'optical'}]
+lightgbm / joint (n_oof_rows=10128)
+  group contribution (% of total mean|SHAP|): {'optical': 71.71452342489857, 'site': 26.674156943966036, 'weather': 1.6113196311353721}
+  top 8: [{'feature': 'BG', 'mean_abs_shap': 0.5497404629238486, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.3958353958642948, 'group': 'optical'}, {'feature': 'BR', 'mean_abs_shap': 0.2722950944171822, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.22417939920112298, 'group': 'optical'}, {'feature': 'catchment_area_sqkm', 'mean_abs_shap': 0.20738727981167596, 'group': 'site'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.17623537832245603, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.15009756729792234, 'group': 'site'}, {'feature': 'atm_corr_LaSRC', 'mean_abs_shap': 0.1220760054849458, 'group': 'optical'}]
+nn / intersection (n_oof_rows=1600)
+  group contribution (% of total mean|SHAP|): {'optical': 72.28716125091601, 'site': 27.71283874908399}
+  top 8: [{'feature': 'BG', 'mean_abs_shap': 0.3924867378453774, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.27570101473220787, 'group': 'optical'}, {'feature': 'NDVI', 'mean_abs_shap': 0.2602024938770905, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.23598548132157252, 'group': 'site'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.2325623231011628, 'group': 'optical'}, {'feature': 'shoreline_flag', 'mean_abs_shap': 0.19768643331925484, 'group': 'site'}, {'feature': 'pct_urban_2006', 'mean_abs_shap': 0.18002902185611294, 'group': 'site'}, {'feature': 'fai', 'mean_abs_shap': 0.16200867392862622, 'group': 'optical'}]
+nn / joint (n_oof_rows=1600)
+  group contribution (% of total mean|SHAP|): {'optical': 72.77564523953136, 'site': 24.40341332749482, 'weather': 2.8209414329738203}
+  top 8: [{'feature': 'BG', 'mean_abs_shap': 0.3260560272868985, 'group': 'optical'}, {'feature': 'red_corr7', 'mean_abs_shap': 0.2588743298736996, 'group': 'optical'}, {'feature': 'pct_wetland_2006', 'mean_abs_shap': 0.20802924023249428, 'group': 'site'}, {'feature': 'nir_corr7', 'mean_abs_shap': 0.2036492884419668, 'group': 'optical'}, {'feature': 'NDVI', 'mean_abs_shap': 0.17211382687616353, 'group': 'optical'}, {'feature': 'MNDWI', 'mean_abs_shap': 0.16130932724455493, 'group': 'optical'}, {'feature': 'fai', 'mean_abs_shap': 0.13601189833987562, 'group': 'optical'}, {'feature': 'pct_urban_2006', 'mean_abs_shap': 0.10948039853486595, 'group': 'site'}]
+SHAP-CV DONE
+[14:36:47] === STAGE 10: figures ===
+figures written to results/figures
+   model        group    n  rmse_unweighted  rmse_weighted  bias_unweighted  bias_weighted
+ xgboost top quartile  670         3.053611       2.922762        -1.833212      -1.606282
+ xgboost         rest 1839         1.155505       1.255418         0.427074       0.545269
+ xgboost      overall 2509         1.862433       1.853750        -0.176510      -0.029278
+lightgbm top quartile  670         3.078888       2.943927        -1.885130      -1.661971
+lightgbm         rest 1839         1.141873       1.226118         0.430648       0.564747
+lightgbm      overall 2509         1.867376       1.848311        -0.187754      -0.029873
+      nn top quartile  670         3.115749       3.150506        -2.159089      -2.202016
+      nn         rest 1839         1.039220       1.041737         0.355368       0.381185
+      nn      overall 2509         1.839555       1.856331        -0.316089      -0.308630
+weighted comparison figures written to results/figures
+wrote results/figures/fold_diagnostics.png
+wrote feature_group_comparison.png
+wrote SHAP figures
+DEFINITIONS out of sync: missing=['MNDWI'] extra=['SR', 'RG', 'NG', 'SG', 'BN', 'GN', 'RN', 'SN', 'BS', 'GS', 'RS', 'NS', 'R_GN', 'R_GB', 'R_GS', 'R_BN', 'R_BS', 'R_NS', 'G_BN', 'G_BS', 'G_RN', 'G_RB', 'G_NS', 'B_RG', 'B_RS', 'B_GN', 'B_GS', 'B_NS', 'N_RG', 'N_RB', 'N_RS', 'N_GB', 'N_GS', 'N_BS', 'GR_2', 'GN_2', 'BR_G', 'NS_NR', 'NmS', 'NmR', 'GN_GN']

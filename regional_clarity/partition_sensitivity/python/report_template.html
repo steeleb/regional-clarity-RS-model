@@ -1,0 +1,339 @@
+<title>Partition Sensitivity</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F5F8F9;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F3;
+  --border: #D7E3E6;
+  --text: #16262E;
+  --text-muted: #55707A;
+  --accent: #1B6E8C;
+  --accent-strong: #0D4A5E;
+  --accent-soft: #DCEEF3;
+  --flag: #C1442D;
+  --flag-soft: #F7E3DF;
+  --good: #3E7D53;
+  --good-soft: #E1EEE3;
+  --shadow: 0 1px 2px rgba(15, 40, 50, 0.06), 0 4px 16px rgba(15, 40, 50, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E171B;
+    --surface: #16232A;
+    --surface-2: #1D2C33;
+    --border: #2A3D45;
+    --text: #E7EEF0;
+    --text-muted: #9AB0B8;
+    --accent: #57B8D6;
+    --accent-strong: #8ED2E8;
+    --accent-soft: #163540;
+    --flag: #E2695A;
+    --flag-soft: #3A2320;
+    --good: #74C08D;
+    --good-soft: #1C2E22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E171B;
+  --surface: #16232A;
+  --surface-2: #1D2C33;
+  --border: #2A3D45;
+  --text: #E7EEF0;
+  --text-muted: #9AB0B8;
+  --accent: #57B8D6;
+  --accent-strong: #8ED2E8;
+  --accent-soft: #163540;
+  --flag: #E2695A;
+  --flag-soft: #3A2320;
+  --good: #74C08D;
+  --good-soft: #1C2E22;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; text-wrap: balance; color: var(--text); }
+.mono, table, .stat-value, code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.page { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+
+header.hero { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+header.hero .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; margin-bottom: 10px; }
+header.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 12px; line-height: 1.15; }
+header.hero p.dek { color: var(--text-muted); font-size: 1.08rem; max-width: 62ch; margin: 0; }
+header.hero .meta { display: flex; gap: 20px; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; }
+
+.stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 44px; }
+.stat { background: var(--surface); padding: 18px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+.stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-strong); }
+.stat-value.flag { color: var(--flag); }
+.stat-value.good { color: var(--good); }
+.stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 44px; }
+nav.toc .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+nav.toc ol { margin: 0; padding-left: 1.2em; columns: 2; column-gap: 24px; font-size: 0.9rem; }
+nav.toc li { margin-bottom: 5px; break-inside: avoid; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+
+section { margin-bottom: 52px; scroll-margin-top: 20px; }
+section > .section-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+section > h2 { font-size: 1.55rem; margin: 0 0 16px; }
+section > h3 { font-size: 1.15rem; margin: 28px 0 10px; color: var(--text); }
+p { margin: 0 0 14px; max-width: 72ch; }
+
+.callout { border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 14px 18px; margin: 18px 0; font-size: 0.95rem; }
+.callout.flag { border-left-color: var(--flag); background: var(--flag-soft); }
+.callout.good { border-left-color: var(--good); background: var(--good-soft); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .label { font-weight: 600; display: block; margin-bottom: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 8px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; font-family: 'Public Sans', sans-serif; }
+th { background: var(--surface-2); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-muted); }
+tr:last-child td { border-bottom: none; }
+tr.flag td { color: var(--flag); font-weight: 600; }
+tr.good td { color: var(--good); font-weight: 600; }
+
+figure { margin: 22px 0; }
+figure img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: var(--surface); }
+figcaption { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; max-width: 72ch; }
+
+footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 60px; color: var(--text-muted); font-size: 0.82rem; }
+a { color: var(--accent-strong); }
+</style>
+
+<div class="page">
+
+<header class="hero">
+  <div class="eyebrow">Regional Clarity RS Model &middot; Partition Sensitivity</div>
+  <h1>Is the HUC4 split unlucky, or is this problem structural?</h1>
+  <p class="dek">The outlier-HUC investigation found that partitions 3 and 5 concentrate the region's hardest-to-predict basins - a forested glacial-lake cluster (HUC4 1701) and a large, dynamic reservoir (Lake Powell, HUC4 1407) - almost entirely within one fold each. This follow-up asks whether that's a one-off consequence of a single HUC4-grouped 5-way split, or something that shows up under any similar partitioning choice: rotating which partition is held out, and reassigning partitions at the finer HUC8 level (both deterministically and under 10 random-but-balanced reassignments).</p>
+  <div class="meta">
+    <span>Branch: <code>outlier-removal-rework</code></span>
+    <span>Models: xgboost + lightgbm, final tuned hyperparameters (fixed, not retuned)</span>
+    <span>Feature set: intersection-16, SDD-weighted (k=2.0)</span>
+  </div>
+</header>
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">HUC4 1701 &amp; 1407 concentration today</span>
+    <span class="stat-value flag">100%</span>
+    <span class="stat-sub">of each basin's rows fall in a single partition, by construction</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">HUC8 greedy: 1701 concentration</span>
+    <span class="stat-value flag">73%</span>
+    <span class="stat-sub">finer units alone don't fix it - it just relocates</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">HUC8 greedy: worst rotation</span>
+    <span class="stat-value flag">1.89 m</span>
+    <span class="stat-sub">marginally worse than today's worst (1.86 m), different partition</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">10-seed random HUC8: avg. rotation spread</span>
+    <span class="stat-value good">&minus;10 to &minus;18%</span>
+    <span class="stat-sub">sd of test RMSE across the 5 rotations, vs. today's HUC4 split</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Same 10 seeds: worst individual seed</span>
+    <span class="stat-value flag">+13%</span>
+    <span class="stat-sub">one seed's spread exceeded today's HUC4 split, not all seeds help</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Lake Powell's concentration floor</span>
+    <span class="stat-value">&asymp;47%</span>
+    <span class="stat-sub">set by its single largest HUC8 sub-basin, not the algorithm</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Features dropped in production, kept in all 4 spot-check reruns</span>
+    <span class="stat-value flag">2 of 22</span>
+    <span class="stat-sub"><code>swir1_corr7</code>, <code>tmax_degC_prev30</code></span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Hyperparameters under alternate schemes</span>
+    <span class="stat-value flag">mixed</span>
+    <span class="stat-sub">lightgbm nearly unchanged; xgboost's eta/depth/reg_lambda all move</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="label">Contents</div>
+  <ol>
+    <li><a href="#question">The question</a></li>
+    <li><a href="#method">Method: fixed models, rotated partitions</a></li>
+    <li><a href="#rotation">Rotating the current HUC4 split</a></li>
+    <li><a href="#huc8greedy">Finer units alone don't fix it</a></li>
+    <li><a href="#huc8random">Randomizing assignment helps, on average, unevenly</a></li>
+    <li><a href="#upstream">Before implementing: do upstream decisions change too?</a></li>
+    <li><a href="#conclusion">What this means</a></li>
+  </ol>
+</nav>
+
+<section id="question">
+  <div class="section-label">The question</div>
+  <h2>One split told us where the hard basins are. Was it also just unlucky?</h2>
+  <p>The outlier-HUC investigation traced partitions 3 and 5's underperformance to a universal high-clarity compression bias, concentrated by chance into two folds: partition 3 inherited essentially all of HUC4 1701 (a cluster of deep, forested, naturally clear glacial lakes), and partition 5 inherited essentially all of HUC4 1407 (dominated by Lake Powell, a large and hydrologically dynamic reservoir). That report's recommendation was to stop relying on a single fixed split and build a larger ensemble across multiple partition assignments instead. This follow-up tests that recommendation directly: does rotating which partition serves as the test set reproduce the same pattern everywhere it could occur, and does moving to a finer spatial grouping (HUC8 instead of HUC4) - either with the same algorithm or a randomized variant - actually reduce how much a single fold's score depends on which basins happened to land in it?</p>
+  <p>A third question from the original ask - whether reseeding the HUC4-to-partition assignment process itself changes anything - turned out to be moot: the assignment in <code>03_split_data.Rmd</code> is a fully deterministic greedy bin-packing (HUC4s sorted by row count, each one dropped into whichever of 5 running partitions is currently smallest), with no random component to reseed. That's why the sensitivity questions here are about partition rotation and spatial resolution instead.</p>
+</section>
+
+<section id="method">
+  <div class="section-label">Method</div>
+  <h2>Fixed models, rotated partitions - isolating the split from the modeling choices</h2>
+  <p>Every experiment below reuses the exact final tuned hyperparameters for xgboost and lightgbm from <code>outlier_rework</code>, the same intersection-16 feature set, and the same SDD-weighted training scheme (k=2.0) - nothing is retuned. This is a deliberate choice: it isolates the effect of how rows get assigned to partitions from the effect of model selection, so a change in results can be attributed to the split, not to a different hyperparameter search finding a different optimum. (The NN was excluded from this round to keep iteration fast and avoid its process-isolation overhead; it was not a source of the pattern being tested here.)</p>
+  <p>For a given partition scheme and a given held-out test partition, the other 4 partitions become leave-one-out CV folds - identical in structure to the production pipeline's spatial CV. One model is trained per fold, the 4 fold models' predictions on the held-out test partition are averaged, and test-set RMSE/MAE are recorded. Every partition takes a turn as the test set, for three kinds of partition scheme:</p>
+  <ul>
+    <li><b>HUC4 baseline</b> - today's actual grouping (5 rotations)</li>
+    <li><b>HUC8 greedy</b> - the identical greedy bin-packing algorithm, run on HUC8 sub-basins instead of HUC4 basins (5 rotations). HUC8 was already assigned per site upstream in the AquaMatch pipeline (spatially joined against NHD/WBD HUC8 polygons), so no new geospatial work was needed - just confirming coverage and joining it in. 197 HUC8 units subdivide the 33 HUC4 basins in this dataset.</li>
+    <li><b>HUC8 random-balanced</b> - same bin-packing objective (still greedy-assign to the currently-smallest partition, so sizes stay balanced) but with HUC8 processing order randomly shuffled instead of strictly size-sorted, repeated across 10 seeds (5 rotations each, 50 total)</li>
+  </ul>
+  <p>120 test-partition &times; model combinations in total (60 rotations &times; 2 models), each rotation training 4 fold models - 480 model fits, run directly rather than retuned or approximated.</p>
+</section>
+
+<section id="rotation">
+  <div class="section-label">Task 1</div>
+  <h2>Rotating the current HUC4 split: not a fluke of which partition is "test"</h2>
+  <p>Circulating the test-set role across all 5 of today's HUC4-grouped partitions confirms the pattern is structural to this particular split, not an artifact of partition 5 specifically having been chosen as the test set. Partitions 3 and 5 are worse under every rotation that holds them out (RMSE 1.76&ndash;1.86&nbsp;m), while partitions 1, 2, and 4 stay in a tighter, lower band (RMSE 1.17&ndash;1.44&nbsp;m) regardless of which one plays test.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Held-out partition</th><th>xgboost RMSE</th><th>lightgbm RMSE</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>1.21</td><td>1.17</td></tr>
+      <tr><td>2</td><td>1.30</td><td>1.28</td></tr>
+      <tr class="flag"><td>3</td><td>1.76</td><td>1.83</td></tr>
+      <tr><td>4</td><td>1.44</td><td>1.38</td></tr>
+      <tr class="flag"><td>5</td><td>1.86</td><td>1.83</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Test RMSE (m) by held-out partition, fixed hyperparameters, today's HUC4 grouping. Spread across the 5 rotations: sd 0.29 (xgboost), 0.31 (lightgbm).</p>
+
+  <p>This matters because it rules out an easy alternative explanation - that partition 5 just happened to be an unlucky choice for the test role, and a different choice would have looked fine. It wouldn't have: partition 3 is exactly as bad when it plays test instead of CV-fold, because the basins that make it hard (HUC4 1701) don't move - they're locked into partition 3 by the original assignment regardless of which partition is designated "test" that day. The disparity is a property of the HUC4-to-partition assignment itself, not of which partition a downstream script happens to label as held-out.</p>
+</section>
+
+<section id="huc8greedy">
+  <div class="section-label">Task 3a</div>
+  <h2>Finer spatial units alone don't fix it - they relocate it</h2>
+  <p>HUC4 1701's 1,363 rows are actually spread across 20 separate HUC8 sub-basins, and HUC4 1407's 642 rows across 4. In principle, grouping at the HUC8 level instead of HUC4 gives the size-balancing algorithm 197 units to distribute instead of 33, which should make it much less likely that an entire hard cluster lands in one partition by chance. In practice, running the identical greedy bin-packing algorithm on HUC8 units doesn't reliably deliver that: HUC4 1701 still lands 73% concentrated in a single partition (partition 4), because greedy bin-packing processes units in strict size-descending order, and several of 1701's largest HUC8 sub-basins - including its single biggest, 592 rows - happen to be size-adjacent enough to get assigned to the same "currently smallest" partition back-to-back, before enough other regions' units arrive to break up the run.</p>
+
+  <figure>
+    <img src="{{rotation_by_partition}}" alt="Test RMSE by held-out partition, HUC4 baseline vs HUC8 greedy">
+    <figcaption>Test RMSE by held-out partition, xgboost and lightgbm, HUC4 baseline (dark) vs. HUC8 greedy (light). The worst-performing partition moves from partition 3/5 under HUC4 grouping to partition 4 under HUC8 greedy - it doesn't go away.</figcaption>
+  </figure>
+
+  <p>The practical result: partition 3, the worst-performing fold under HUC4 grouping, becomes the <i>best</i>-performing fold under HUC8 greedy (RMSE drops to 1.15&ndash;1.18&nbsp;m) - because that's where 1701's hardest rows used to sit, and they've moved elsewhere. But partition 4 becomes the new worst (RMSE 1.89&nbsp;m for both models), marginally worse than HUC4 grouping's own worst case (1.86&nbsp;m). Lake Powell's HUC4 1407 fares better under the same scheme - its concentration drops from 100% to 47% - but that 47% isn't really an achievement of the algorithm: with only 4 HUC8 sub-basins and one of them alone accounting for 302 of 642 rows, no assignment of the remaining pieces can bring the largest single partition's share below roughly 47%. That floor is set by the size of Lake Powell's biggest sub-basin, not by how cleverly the units are distributed.</p>
+
+  <figure>
+    <img src="{{cluster_concentration}}" alt="Percent of each basin's rows in its largest single partition, by scheme">
+    <figcaption>Share of each basin's rows landing in whichever single partition holds the most of them. HUC4 grouping guarantees 100% by construction. HUC8 greedy meaningfully reduces Lake Powell's concentration (capped by its largest sub-basin) but only partially reduces HUC4 1701's.</figcaption>
+  </figure>
+
+  <div class="callout flag">
+    <span class="label">The lesson from this experiment</span>
+    <p>Switching to a finer spatial unit is not, by itself, a fix - it's the same greedy algorithm with different inputs, and a purely size-based greedy algorithm has no notion of "these units are all part of the same hard regime, spread them out." It can just as easily concentrate them into one bin as the coarser HUC4 version did, particularly when several large, similar-sized units from the same region get processed consecutively.</p>
+  </div>
+</section>
+
+<section id="huc8random">
+  <div class="section-label">Task 3b</div>
+  <h2>Randomizing the assignment order helps, on average - unevenly</h2>
+  <p>Breaking the strict size-sorted processing order - shuffling which order HUC8 units get considered, while still greedily assigning each to the currently-smallest partition so sizes stay balanced - removes the correlation that let same-region units land together by sequence alone. Across 10 independent random seeds, HUC4 1701's concentration in its largest partition ranged from 43.9% to 66.0% (mean 54%), compared to a fixed 73.3% under size-sorted greedy and 100% under HUC4 grouping. Lake Powell's concentration stayed pinned near its ~47% floor regardless of seed, exactly as expected given that floor is set by sub-basin size, not assignment order.</p>
+
+  <p>That translates into a real, but partial and seed-dependent, reduction in how much test RMSE swings depending on which partition is held out. Averaged across the 10 seeds, the standard deviation of test RMSE across the 5 rotations was 10&ndash;18% lower than under today's HUC4 grouping (xgboost: 0.256 vs. 0.285; lightgbm: 0.261 vs. 0.313). But that average hides real spread: the best seed (a lower-concentration draw) cut the rotation-to-rotation spread roughly in half (sd &asymp; 0.16&ndash;0.19), while the worst seed actually exceeded today's HUC4-grouping spread (sd &asymp; 0.32&ndash;0.33). There's a real but weak relationship between how concentrated HUC4 1701 ends up in one partition and how much that scheme's rotation results vary (r&asymp;0.35 across the 11 HUC8 schemes tested) - directionally consistent with the mechanism, but far from the only thing driving it, since other basins' arrangement in the same random draw matters too.</p>
+
+  <figure>
+    <img src="{{scheme_spread}}" alt="Distribution of test RMSE across the 5 rotations, by scheme">
+    <figcaption>Test RMSE across the 5 held-out-partition rotations, for HUC4 baseline (5 points), HUC8 greedy (5 points), and all 10 HUC8-random seeds pooled (50 points). Diamonds mark the mean; grey dots are individual rotations. Medians land in a similar place across schemes, but HUC8-random's interquartile spread is visibly tighter than HUC4 baseline's - at the cost of the occasional high outlier the pooled view still shows.</figcaption>
+  </figure>
+
+  <div class="callout">
+    <span class="label">No single "better" split, but a real average benefit</span>
+    <p>There is no one alternative partitioning choice tested here that reliably beats today's HUC4 split for every rotation. What the 10-seed spread shows instead is a distribution: most random reassignments modestly reduce how much a fold's score depends on which basins it happened to inherit, a few reduce it substantially, and at least one did not help at all. That's exactly the argument for ensembling across several split assignments rather than searching for a single "correct" one - any individual split, including a well-intentioned redesign, carries its own luck of the draw.</p>
+  </div>
+</section>
+
+<section id="upstream">
+  <div class="section-label">Before implementing</div>
+  <h2>Do the problem HUCs' assignment change upstream decisions too?</h2>
+  <p>The next step this report points toward is building a production ensemble across multiple partition assignments. Before doing that, it's worth asking a different question: were the decisions that came <i>before</i> the final models - which features backward elimination kept, and what hyperparameters tuning chose - made on a CV pool that itself under-represented Lake Powell and unevenly distributed HUC4 1701, in the same way the final-evaluation numbers were? If so, the feature set and hyperparameters the new ensemble workflow would inherit might themselves be worth revisiting, not just the split design.</p>
+  <p>This is a spot check, not a re-run of the full pipeline: the correlation-pruned 22-candidate starting pool and each model's fixed "optical+site+weather" hyperparameters (used to hold hyperparameters constant during elimination, exactly as production did) are frozen at their actual production values. The only thing that changes is which rows land in which of the 4 CV folds vs. the held-out test partition - backward elimination and gap-aware hyperparameter tuning are then re-run exactly as production ran them, under two alternate partition schemes: <b>HUC8 greedy</b> (deterministic, from above) and <b>HUC8 random seed 3</b> (the seed with the lowest HUC4 1701 concentration found in the earlier sweep, as a contrasting draw). xgboost + lightgbm only, matching this project's scope throughout.</p>
+
+  <h3>Feature selection: the core 16 hold up, but two dropped features look like they shouldn't have been</h3>
+  <p>16 of the 22 correlation-pruned candidates are kept in all six runs tested - today's production xgboost and lightgbm elimination, and both models rerun under both alternate schemes. Those 16 are exactly today's intersection-16 feature set: the core feature set is not in question here. But two candidates - <code>swir1_corr7</code> and <code>tmax_degC_prev30</code> - were dropped by production for <i>both</i> models, and kept by <i>every one</i> of the four alternate-scheme reruns. That's a 4-for-4 result, not a coin flip.</p>
+
+  <figure>
+    <img src="{{feature_stability}}" alt="Feature retention matrix: production vs HUC8 greedy vs HUC8 seed 3, xgboost and lightgbm">
+    <figcaption>Which of the 22 correlation-pruned candidates survived backward elimination, by model and partition scheme. Dashed line separates the 16 features kept everywhere (today's intersection-16) from the boundary cases. Only <code>swir1_corr7</code> and <code>tmax_degC_prev30</code> (outlined) show a clean, consistent pattern - dropped in production, kept under every alternate scheme tested; the rest of the boundary cases (<code>pct_impervious_2006</code>, <code>pct_urban_2006</code>, <code>precip_mm_prev30</code>, <code>elevation_m</code>) look like one-off noise around the elimination tolerance rather than a repeatable signal.</figcaption>
+  </figure>
+
+  <p>Elimination also stopped noticeably earlier under both alternate schemes - production dropped 4-5 of the 22 candidates before hitting its stop condition; the alternate reruns dropped only 1-3. That's consistent with the mechanism this whole report has been describing: once the hard, high-variance basins are spread more evenly across the 4 CV folds instead of concentrated in one, each fold's validation set is a little less uniform, and it takes more real signal to make a feature look clearly redundant with the shadow-permutation noise floor everywhere at once.</p>
+
+  <div class="callout flag">
+    <span class="label">What this means</span>
+    <p><code>swir1_corr7</code> (shortwave-infrared reflectance) and <code>tmax_degC_prev30</code> (antecedent 30-day max temperature) look like consistent casualties of running elimination against a CV pool that walled off nearly all of Lake Powell and never spread HUC4 1701 across more than one fold at a time. Both have a physically plausible story for mattering specifically to these basins - SWIR reflectance tracks turbidity/moisture in ways a large, sediment-influenced reservoir could exercise more than the rest of the region, and antecedent temperature could matter for a reservoir whose optical regime tracks seasonal inflow and lake-level change. Neither is proof they belong in the final feature set - but the current intersection-16 was chosen without ever giving them a fair test against CV folds that actually contained much of the basin they'd plausibly help with.</p>
+  </div>
+
+  <h3>Hyperparameters: lightgbm barely moves, xgboost moves more</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model / scheme</th><th>eta or LR</th><th>depth / leaves</th><th>reg_lambda</th><th>val RMSE</th><th>gap</th></tr></thead>
+    <tbody>
+      <tr><td>xgboost - production</td><td>0.05</td><td>depth 2</td><td>20</td><td>1.44</td><td>0.375</td></tr>
+      <tr class="flag"><td>xgboost - HUC8 greedy</td><td>0.01</td><td>depth 3</td><td>1</td><td>1.51</td><td>0.374</td></tr>
+      <tr class="flag"><td>xgboost - HUC8 seed 3</td><td>0.03</td><td>depth 2</td><td>20</td><td>1.47</td><td>0.307</td></tr>
+      <tr><td>lightgbm - production</td><td>0.01</td><td>leaves 7</td><td>10</td><td>1.43</td><td>0.393</td></tr>
+      <tr><td>lightgbm - HUC8 greedy</td><td>0.01</td><td>leaves 7</td><td>10</td><td>1.51</td><td>0.381</td></tr>
+      <tr class="good"><td>lightgbm - HUC8 seed 3</td><td>0.01</td><td>leaves 7</td><td>10</td><td>1.47</td><td>0.354</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Gap-aware tuning result on the frozen intersection-16 feature set, by scheme. lightgbm's config is close to identical across all three (seed 3 reproduces production exactly); xgboost's eta, max_depth, and reg_lambda all move, though it stays within the same general "shallow tree, some regularization" family each time.</p>
+
+  <p>The higher validation RMSE under both alternate schemes isn't evidence the model got worse - it's the opposite kind of signal. Production's CV pool walled off most of Lake Powell into the untouched test set, so its validation RMSE during tuning never had to face that basin's difficulty. The alternate schemes' CV folds include much more of it, so their validation RMSE reflects a harder, more representative task, not a regression. That framing is reinforced by the gap column: xgboost's train-val gap under HUC8 seed 3 (0.307) is meaningfully <i>smaller</i> than production's (0.375), despite the harder validation task - a hint that more representative exposure to hard basins during tuning can improve generalization rather than hurt it.</p>
+
+  <h3>Architecture ranking: stable between xgboost and lightgbm, untested for the NN</h3>
+  <p>Reusing the rotation results from earlier in this report: lightgbm's mean test RMSE across rotations is narrowly ahead of xgboost's under HUC4 baseline (1.497 vs. 1.513), HUC8 greedy (1.466 vs. 1.471), and the 10 pooled random seeds (1.478 vs. 1.478, effectively tied) - no scheme flips which of the two looks better. But the NN was excluded from every experiment in this project, both the rotation-sensitivity work and this spot check, to avoid its process-isolation overhead. Whether the NN's place in the production ensemble - or the ensemble weights themselves - would look different under a different split is the one architecture-level question this work leaves entirely open.</p>
+
+  <div class="callout good">
+    <span class="label">Verdict: worth a more formal revisit before implementing</span>
+    <p>This was a spot check, not a full re-selection - two alternate schemes, starting hyperparameters and the correlation-pruned candidate pool held fixed rather than re-derived, no NN. But the signal is consistent enough to act on rather than wave away: two specific features show a clean, repeated case for reconsideration rather than a coin flip; xgboost's hyperparameters shift by a real amount; and elimination's stopping point in general looks sensitive to how evenly the hard regimes are spread across CV folds. Before building the ensemble-of-splits production workflow on today's fixed intersection-16 feature set and hyperparameters, it's worth re-running backward elimination and gap-aware tuning across the actual ensemble of partition assignments that workflow will use (or a small handful of them, e.g. 3-5 random-HUC8 seeds) and taking a consensus feature set and hyperparameter choice from that - the same cross-fold-consensus logic already used to reconcile the three models' separate elimination paths, extended one level up to reconcile across split assignments too.</p>
+  </div>
+</section>
+
+<section id="conclusion">
+  <div class="section-label">Conclusion</div>
+  <h2>The split-concentration problem is real and structural - and no single alternative split removes it</h2>
+  <p>Rotating the test-partition role across today's HUC4 grouping confirms that partitions 3 and 5's underperformance isn't an accident of which partition a script happened to label "test" - it's a direct, deterministic consequence of a single HUC4-to-partition assignment that locks each hard basin (HUC4 1701, HUC4 1407) entirely into one fold. Moving to finer HUC8 units doesn't inherently solve this: with the same size-based greedy algorithm, it just as readily concentrates the same hard cluster into a different fold, occasionally producing a rotation modestly worse than today's worst case. Only when the assignment order is randomized - not just the unit size - does the concentration meaningfully loosen, and even then inconsistently: a 10-seed sweep found real average improvement in rotation-to-rotation stability (roughly 10&ndash;18% lower spread) alongside genuine seed-to-seed variation, including one seed no better than today's split.</p>
+
+  <p>Lake Powell's case adds a distinct, harder constraint: because 47% of its rows sit in a single HUC8 sub-basin, no partitioning scheme built from whole HUC8 units can spread it much further than that without splitting a sub-basin itself (which would reintroduce the near-site leakage the whole HUC-grouped design exists to prevent). Some concentration of a single large, well-sampled waterbody is close to unavoidable at this spatial resolution - a further argument for exposing models to more of Lake Powell's range through repeated splits and ensembling, rather than expecting any one split design to distribute it evenly.</p>
+
+  <p>The upstream-decision spot check above adds a third piece: the split doesn't just affect final-evaluation performance, it reaches back into the decisions that produced today's feature set and hyperparameters in the first place. Two features (<code>swir1_corr7</code>, <code>tmax_degC_prev30</code>) show a consistent, repeated case for reconsideration that production's single HUC4 split never gave them, and xgboost's hyperparameters move by a real amount once the CV pool is exposed to more of Lake Powell and HUC4 1701. That's a reason to sequence the next step carefully rather than skip straight to implementation.</p>
+
+  <div class="callout good">
+    <span class="label">What this confirms for the next step</span>
+    <p>These results sharpen, rather than change, the outlier-HUC investigation's recommendation: build a larger ensemble across multiple partition assignments - different seeds, and optionally finer HUC8-level grouping - instead of treating the current single HUC4 split (or any single replacement for it) as ground truth. The 10-seed sweep here demonstrates concretely that different reasonable assignments produce a real distribution of outcomes, not a single better answer, so the value is in pooling across several rather than picking one. A larger ensemble also gives every model more cumulative exposure to hard-but-real regimes like HUC4 1701's clear forested lakes and Lake Powell's dynamic range, since a regime excluded from training in one split's draw is likely included in another's. But the upstream spot check means this shouldn't be implemented directly on top of today's fixed intersection-16 feature set and hyperparameters - both were chosen under exactly the single-split conditions this report just showed are unrepresentative, and at least a lightweight, multi-split re-selection of both should come first.</p>
+  </div>
+</section>
+
+<footer>
+  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; partition-sensitivity follow-up to the outlier-HUC investigation (next-steps thread&nbsp;#1) &middot; xgboost + lightgbm, final tuned hyperparameters (fixed, not retuned unless noted), intersection-16 features, SDD-weighted (k=2.0) &middot; 480 model fits across 60 rotations &times; 2 models, plus an upstream-decision spot check (backward elimination + gap-aware tuning rerun under 2 alternate schemes &times; 2 models).
+</footer>
+
+</div>

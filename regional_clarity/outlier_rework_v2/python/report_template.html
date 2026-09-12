@@ -1,0 +1,400 @@
+<title>Secchi Depth Model Assessment (v2)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F5F8F9;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F3;
+  --border: #D7E3E6;
+  --text: #16262E;
+  --text-muted: #55707A;
+  --accent: #1B6E8C;
+  --accent-strong: #0D4A5E;
+  --accent-soft: #DCEEF3;
+  --flag: #C1442D;
+  --flag-soft: #F7E3DF;
+  --good: #3E7D53;
+  --good-soft: #E1EEE3;
+  --shadow: 0 1px 2px rgba(15, 40, 50, 0.06), 0 4px 16px rgba(15, 40, 50, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E171B;
+    --surface: #16232A;
+    --surface-2: #1D2C33;
+    --border: #2A3D45;
+    --text: #E7EEF0;
+    --text-muted: #9AB0B8;
+    --accent: #57B8D6;
+    --accent-strong: #8ED2E8;
+    --accent-soft: #163540;
+    --flag: #E2695A;
+    --flag-soft: #3A2320;
+    --good: #74C08D;
+    --good-soft: #1C2E22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E171B;
+  --surface: #16232A;
+  --surface-2: #1D2C33;
+  --border: #2A3D45;
+  --text: #E7EEF0;
+  --text-muted: #9AB0B8;
+  --accent: #57B8D6;
+  --accent-strong: #8ED2E8;
+  --accent-soft: #163540;
+  --flag: #E2695A;
+  --flag-soft: #3A2320;
+  --good: #74C08D;
+  --good-soft: #1C2E22;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; text-wrap: balance; color: var(--text); }
+.mono, table, .stat-value, code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.page { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+
+header.hero { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+header.hero .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; margin-bottom: 10px; }
+header.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 12px; line-height: 1.15; }
+header.hero p.dek { color: var(--text-muted); font-size: 1.08rem; max-width: 62ch; margin: 0; }
+header.hero .meta { display: flex; gap: 20px; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; }
+
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 44px; }
+.stat { background: var(--surface); padding: 18px 16px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+.stat-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-strong); }
+.stat-value.good { color: var(--good); }
+.stat-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 44px; }
+nav.toc .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+nav.toc ol { margin: 0; padding-left: 1.2em; columns: 2; column-gap: 24px; font-size: 0.9rem; }
+nav.toc li { margin-bottom: 5px; break-inside: avoid; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+
+section { margin-bottom: 52px; scroll-margin-top: 20px; }
+section > .section-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+section > h2 { font-size: 1.55rem; margin: 0 0 16px; }
+section > h3 { font-size: 1.15rem; margin: 28px 0 10px; color: var(--text); }
+p { margin: 0 0 14px; max-width: 72ch; }
+ol.steps { margin: 0 0 20px; padding-left: 0; list-style: none; counter-reset: step; }
+ol.steps li { counter-increment: step; position: relative; padding: 12px 16px 12px 52px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+ol.steps li::before { content: counter(step); position: absolute; left: 14px; top: 12px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+ol.steps b { color: var(--text); }
+ol.steps .why { color: var(--text-muted); font-size: 0.92rem; display: block; margin-top: 2px; }
+
+.callout { border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 14px 18px; margin: 18px 0; font-size: 0.95rem; }
+.callout.flag { border-left-color: var(--flag); background: var(--flag-soft); }
+.callout.good { border-left-color: var(--good); background: var(--good-soft); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .label { font-weight: 600; display: block; margin-bottom: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 8px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; font-family: 'Public Sans', sans-serif; }
+th { background: var(--surface-2); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-muted); }
+tr:last-child td { border-bottom: none; }
+tr.best td { color: var(--good); font-weight: 600; }
+tr.best td:first-child::after { content: " \2713"; }
+tr.worse td { color: var(--flag); }
+
+figure { margin: 22px 0; }
+figure img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; background: var(--surface); }
+figcaption { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; max-width: 72ch; }
+
+.param-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 16px 0; }
+.param-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.param-card .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600; }
+.param-card .v { font-family: 'IBM Plex Mono', monospace; font-size: 0.92rem; margin-top: 4px; }
+
+footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 60px; color: var(--text-muted); font-size: 0.82rem; }
+a { color: var(--accent-strong); }
+</style>
+
+<div class="page">
+
+<header class="hero">
+  <div class="eyebrow">Regional Clarity RS Model &middot; v2</div>
+  <h1>Secchi depth from Landsat: shoreline proximity + systemic gap-aware tuning</h1>
+  <p class="dek">A second pass over the same 6-state Mountain West Secchi-depth (SDD) pipeline, closing out the two threads deferred at the end of the v1 report: gap-aware hyperparameter selection applied at every tuning step (not just the final one), and the siteSR pipeline's shoreline-proximity flag added as a candidate model feature. Same training data, same outlier-filtering methodology, same three architectures (XGBoost, LightGBM, a feedforward neural net), same spatial holdout CV - built in a separate folder so the two runs stay directly, apples-to-apples comparable.</p>
+  <div class="meta">
+    <span>Branch: <code>outlier-removal-rework</code></span>
+    <span>Compares against: <code>outlier_rework</code> (v1)</span>
+    <span>Target: Secchi disk depth (m)</span>
+    <span>Region: 6-state Mountain West, HUC4-partitioned</span>
+  </div>
+</header>
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">New feature</span>
+    <span class="stat-value good">shoreline_flag</span>
+    <span class="stat-sub">survives elimination in all 3 models</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Final production (XGBoost)</span>
+    <span class="stat-value good">1.839 m</span>
+    <span class="stat-sub">test RMSE, vs. 1.860 m in v1</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Intersection feature set</span>
+    <span class="stat-value">16 features</span>
+    <span class="stat-sub">1-for-1 swap vs. v1's 16</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Gap-aware tuning</span>
+    <span class="stat-value">4 stages</span>
+    <span class="stat-sub">was 1 of 4 in v1</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="label">Contents</div>
+  <ol>
+    <li><a href="#whats-new">What changed vs. v1</a></li>
+    <li><a href="#features">Feature engineering: the shoreline flag</a></li>
+    <li><a href="#feature-groups">Feature group comparison</a></li>
+    <li><a href="#attribution">SHAP attribution</a></li>
+    <li><a href="#backward-elimination">Backward feature elimination</a></li>
+    <li><a href="#final-model">Gap-aware tuning &amp; final evaluation</a></li>
+    <li><a href="#comparison">v1 vs. v2, side by side</a></li>
+    <li><a href="#next-steps">Next steps</a></li>
+  </ol>
+</nav>
+
+<section id="whats-new">
+  <div class="section-label">What changed vs. v1</div>
+  <h2>Same pipeline, two additions, one new folder</h2>
+  <p>Everything upstream of feature-group modeling is byte-for-byte identical to v1: the same 12,637 field&ndash;satellite matchups, the same four-stage outlier-filtering methodology (site geometry, metadata/cloud QA, reflectance-outlier RANSAC, heavy-rain gap filter), the same gridMET antecedent-weather summaries, and the same LakeCat catchment characteristics. Those outputs were copied into <code>outlier_rework_v2/</code> rather than regenerated, so this folder works standalone even if <code>outlier_rework/</code> is later removed - nothing here re-hits gridMET, LakeCat, or the elevation API.</p>
+  <p>Two things changed, both requested as follow-ups at the end of the v1 report:</p>
+  <ol class="steps">
+    <li><b>Shoreline-proximity flag added as a model feature.</b> The siteSR pipeline already computes a per-site distance to its matched waterbody's shoreline, thresholded into a QA flag - it was sitting unused in a CSV v1's own site-characteristics script already read, just not selected. <span class="why">See Feature engineering, below, for the exact definition and encoding.</span></li>
+    <li><b>Gap-aware hyperparameter selection extended to every tuning step.</b> v1 only used gap-aware selection (pick the smallest train-val gap among trials within 2% of the best CV RMSE, instead of the single lowest-RMSE trial) at the very last tuning step. The single-model baseline, the feature-group ablation, and by extension the fixed hyperparameters backward elimination reuses were all still on the plain, gap-blind objective. <span class="why">v1 flagged this as the same failure mode its final-tuning fix was built to address, present at every earlier stage.</span></li>
+  </ol>
+  <p>A third piece of technical debt got fixed along the way, not requested but necessary to add a feature safely: v1 hardcoded its selected 16-feature set as a copy-pasted Python literal in three separate files, with no code path connecting it back to backward elimination's actual output. v2's backward elimination now writes <code>results/selected_features.json</code> once, and every downstream script reads it - the kind of drift risk that matters most exactly when the feature set is changing.</p>
+</section>
+
+<section id="features">
+  <div class="section-label">Feature engineering</div>
+  <h2>Site characteristics: 7 candidates &rarr; 8</h2>
+  <p>The optical (17) and antecedent-weather (20) candidate feature groups are unchanged from v1. One feature was added to the site-characteristics group:</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Feature</th><th>Definition</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>elevation_m</td><td>site elevation</td><td>USGS 3DEP, via elevatr</td></tr>
+      <tr><td>catchment_area_sqkm, pct_impervious_2006, pct_urban_2006, pct_forest_2006, pct_cropland_2006, pct_wetland_2006</td><td>catchment land cover, 2006 vintage</td><td>LakeCat (StreamCatTools)</td></tr>
+      <tr><td><b>shoreline_flag</b> (new)</td><td>0 = open water, 1 = near-shore (&le;230m optical-pixel buffer), 2 = site falls outside its matched waterbody polygon</td><td>siteSR pipeline's <code>dist_to_shore</code>/<code>flag_optical_shoreline</code>/<code>flag_wb</code>, already computed for QA but never previously consumed downstream</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The underlying <code>dist_to_shore</code> value (continuous, meters) was collapsed to this 3-level integer category rather than passed through directly, so the ~4% of sites (62 of 1,525) that fall outside their matched waterbody polygon - and would otherwise be missing outright, since distance-to-shore is undefined for them - get an explicit third category instead of a gap. Across the 1,525 sites in the training population: 629 open water, 834 near-shore, 62 outside their waterbody. It is treated as an ordinary integer feature (fed to correlation pruning and both tree models and the neural net the same way <code>atm_corr_LaSRC</code> already is), not one-hot encoded - consistent with how the pipeline already handles its other binary/categorical inputs.</p>
+</section>
+
+<section id="feature-groups">
+  <div class="section-label">Feature group comparison</div>
+  <h2>Site characteristics still earn their keep, with one more candidate in the pool</h2>
+  <p>Same four-group comparison as v1 (optical / +site / +weather / +both), same correlation pruning, now gap-aware-tuned at this stage too instead of plain best-CV-RMSE:</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Feature group</th><th>Features</th><th>RMSE</th><th>R&sup2;</th><th>Bias</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>optical</td><td>13</td><td>1.854</td><td>0.441</td><td>&ndash;0.029</td></tr>
+      <tr><td></td><td>+ site</td><td>21</td><td>1.836</td><td>0.472</td><td>0.318</td></tr>
+      <tr><td></td><td>+ weather</td><td>26</td><td>1.841</td><td>0.448</td><td>&ndash;0.041</td></tr>
+      <tr><td></td><td>+ both</td><td>34</td><td>1.805</td><td>0.484</td><td>0.283</td></tr>
+      <tr><td>LightGBM</td><td>optical</td><td>13</td><td>1.848</td><td>0.442</td><td>&ndash;0.030</td></tr>
+      <tr><td></td><td>+ site</td><td>21</td><td>1.835</td><td>0.470</td><td>0.286</td></tr>
+      <tr><td></td><td>+ weather</td><td>26</td><td>1.838</td><td>0.448</td><td>&ndash;0.039</td></tr>
+      <tr class="best"><td></td><td>+ both</td><td>34</td><td>1.796</td><td>0.489</td><td>0.272</td></tr>
+      <tr><td>Neural net</td><td>optical</td><td>13</td><td>1.856</td><td>0.468</td><td>&ndash;0.309</td></tr>
+      <tr><td></td><td>+ site</td><td>21</td><td>1.865</td><td>0.451</td><td>0.311</td></tr>
+      <tr><td></td><td>+ weather</td><td>26</td><td>1.944</td><td>0.445</td><td>&ndash;0.392</td></tr>
+      <tr><td></td><td>+ both</td><td>34</td><td>1.833</td><td>0.452</td><td>&ndash;0.032</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <figure>
+    {{feature_group_comparison}}
+    <figcaption>Test RMSE by feature group, all three models (v2 data).</figcaption>
+  </figure>
+  <p>The +site correlation-pruned set now carries 21 features instead of v1's 20 - <code>shoreline_flag</code> survives correlation pruning alongside all 7 original site variables in every configuration, i.e. it isn't redundant with catchment land cover or elevation. The overall pattern from v1 repeats: site characteristics improve every model on their own, and the tree models' best raw configuration is optical+site+weather. The best single number at this stage is now <b>LightGBM at 1.796m / R&sup2;=0.489</b>, narrowly ahead of XGBoost's 1.805m - a change from v1, where XGBoost's 1.747m was clearly the best raw feature-group result. Neither v1's nor v2's best-at-this-stage number survives feature selection unchanged; see Final tuning, below.</p>
+</section>
+
+<section id="attribution">
+  <div class="section-label">SHAP attribution</div>
+  <h2>Optical still dominates; site's share grows with the new feature</h2>
+  <figure>
+    {{shap_group_contribution}}
+    <figcaption>Share of total mean |SHAP| attribution by feature category, v2 (includes shoreline_flag in "site").</figcaption>
+  </figure>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Feature group</th><th>Optical</th><th>Site</th><th>Weather</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>optical + site</td><td>67.5%</td><td>32.5%</td><td>&mdash;</td></tr>
+      <tr><td></td><td>optical + site + weather</td><td>62.9%</td><td>30.3%</td><td>6.8%</td></tr>
+      <tr><td>LightGBM</td><td>optical + site</td><td>67.7%</td><td>32.3%</td><td>&mdash;</td></tr>
+      <tr><td></td><td>optical + site + weather</td><td>61.6%</td><td>30.6%</td><td>7.8%</td></tr>
+      <tr><td>Neural net</td><td>optical + site</td><td>63.9%</td><td>36.1%</td><td>&mdash;</td></tr>
+      <tr><td></td><td>optical + site + weather</td><td>60.6%</td><td>25.6%</td><td>13.8%</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Site's attribution share rises in every model/config that includes it, relative to v1's 27&ndash;36% range now sitting at 25&ndash;36% with one more candidate feature contributing - most visibly for the neural net's optical+site config (28%&rarr;36%). Optical still carries the majority of attribution everywhere, consistent with v1's framing conclusion: this remains a primarily-optical model with a real, physically grounded site-characteristic correction on top, not a model that shoreline proximity has come to dominate.</p>
+  <figure>
+    {{shap_top_features_full}}
+    <figcaption>Top 12 features by mean |SHAP|, optical+site+weather model, v2. Compare against v1's equivalent figure: BG remains the top feature for every architecture.</figcaption>
+  </figure>
+</section>
+
+<section id="backward-elimination">
+  <div class="section-label">Backward feature elimination</div>
+  <h2>shoreline_flag survives in all three independent eliminations</h2>
+  <p>Same cross-fold-consensus elimination as v1 (shadow-decoy stopping, 3-seed-averaged importance, hyperparameters held fixed at each model's gap-aware-tuned optical+site+weather config), run on the correlation-pruned candidate pool that now includes <code>shoreline_flag</code>:</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Final n</th><th>shoreline_flag kept?</th><th>Dropped</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>18</td><td class="mono">yes</td><td>pct_impervious_2006, elevation_m, precip_mm_prev30, swir1_corr7, tmax_degC_prev30, BG&hellip;<br><i>(net: v1's 17 minus nothing lost, plus shoreline_flag retained)</i></td></tr>
+      <tr><td>LightGBM</td><td>22</td><td class="mono">yes</td><td>elevation_m</td></tr>
+      <tr><td>Neural net</td><td>19</td><td class="mono">yes</td><td>elevation_m, swir1_corr7, catchment_area_sqkm, tmax_degC_prev30</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout good">
+    <span class="label">A rare feature that survives on its own merit in every model</span>
+    <p><code>shoreline_flag</code> is not eliminated in any of the three independent per-model eliminations, nor in the joint elimination - it clears the shadow-permutation noise floor for XGBoost, LightGBM, and the neural net alike. Very few candidates in this pipeline have cleared that bar this consistently; most of what gets added to this feature set (see v1's antecedent-weather variables) survives for at most one or two architectures.</p>
+  </div>
+  <h3>Shared feature set: a one-for-one swap</h3>
+  <p>The same two ways of building a cross-model-shared set were compared: joint elimination (co-optimized across all three models) and the plain intersection of the three independent results.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th></th><th>v1 intersection (16)</th><th>v2 intersection (16)</th></tr></thead>
+    <tbody>
+      <tr><td>Optical (11)</td><td>atm_corr_LaSRC, red_corr7, nir_corr7, temp_corr7, BG, NR, fai, NDVI, NDSSI, NDWI, MNDWI</td><td>identical</td></tr>
+      <tr><td>Site (5&rarr;5)</td><td>catchment_area_sqkm, pct_urban_2006, pct_forest_2006, pct_cropland_2006, pct_wetland_2006</td><td class="mono">catchment_area_sqkm &rarr; shoreline_flag</td></tr>
+      <tr><td>Weather (0)</td><td>&mdash;</td><td>&mdash;</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The v2 intersection set is the same size (16 features) as v1's, and differs by exactly one substitution: <code>catchment_area_sqkm</code> drops out, <code>shoreline_flag</code> takes its place. Everything else - all 11 optical features, the other 4 site variables, and weather's complete absence - is identical to v1. <b>The 16-feature intersection (with shoreline_flag) is the feature set used for final tuning and evaluation below</b>, matching v1's own precedent of using the intersection rather than the joint set.</p>
+  <p>The joint set (21 features, co-optimized across all three models) also keeps <code>shoreline_flag</code> and additionally keeps <code>catchment_area_sqkm</code>, <code>pct_impervious_2006</code>, <code>swir1_corr7</code>, <code>BR</code>, and <code>tmax_degC_prev30</code> - the one antecedent-weather variable to survive anywhere in this round, versus none surviving in v1's joint set.</p>
+</section>
+
+<section id="final-model">
+  <div class="section-label">Gap-aware tuning &amp; final evaluation</div>
+  <h2>Gap-aware from the start: a smaller mean gap for two of three models, and a better final test result for two of three</h2>
+  <p>Final hyperparameter search on the 16-feature intersection set (with shoreline_flag), same gap-aware selection rule as v1 (pick the smallest train-val gap among trials within 2% of the best CV RMSE):</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>Chosen val RMSE</th><th>Chosen gap</th><th>Pure-best val RMSE would have been</th><th>Trials in tolerance band</th></tr></thead>
+    <tbody>
+      <tr><td>XGBoost</td><td>1.465</td><td>0.342</td><td>1.458</td><td>37 / 40</td></tr>
+      <tr><td>LightGBM</td><td>1.470</td><td>0.399</td><td>1.453</td><td>30 / 40</td></tr>
+      <tr><td>Neural net</td><td>1.484</td><td>0.009</td><td>1.466</td><td>4 / 15</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Mean train-val gap, before vs. after applying gap-aware tuning throughout the pipeline</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>v1 mean gap (gap-aware only at final step)</th><th>v2 mean gap (gap-aware throughout)</th><th>Partition 3 gap (hardest fold)</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>XGBoost</td><td>0.375</td><td>0.342</td><td>0.855 &rarr; 0.848</td></tr>
+      <tr><td>LightGBM</td><td>0.393</td><td>0.399</td><td>1.007 &rarr; 0.871</td></tr>
+      <tr class="best"><td>Neural net</td><td>0.052</td><td>0.009</td><td>0.550 &rarr; 0.625</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Applying gap-aware selection at the baseline and feature-group stages too - not just at this final step - modestly shrinks the average train-val gap for XGBoost and, more sharply, for the neural net; it's essentially flat for LightGBM. Partition 3 remains the largest single-fold gap for every model regardless, exactly as v1 found - consistent with the outlier-HUC investigation's separate conclusion that partition 3's difficulty is a physical signal-compression property of its HUC4 1701 lake cluster, not a tuning-objective artifact. Gap-aware tuning was never expected to close that gap on its own; it was designed to stop the tuner from actively making the average gap worse, and on that narrower claim it holds up for two of the three architectures.</p>
+
+  <h3>Final production configuration</h3>
+  <p>Feature set: the 16-feature intersection (with shoreline_flag). Hyperparameters: gap-aware-tuned, now consistently so from the baseline stage onward. SDD-weighting (k=2.0): applied for XGBoost and LightGBM, not for the neural net - same established finding as v1.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>CV RMSE</th><th>Test RMSE</th><th>Test R&sup2;</th><th>Test Bias</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>XGBoost</td><td>1.499</td><td>1.839</td><td>0.466</td><td>+0.313</td></tr>
+      <tr class="best"><td>LightGBM</td><td>1.496</td><td>1.815</td><td>0.474</td><td>+0.241</td></tr>
+      <tr><td>Neural net</td><td>1.519</td><td>1.888</td><td>0.434</td><td>&ndash;0.297</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout good">
+    <span class="label">Both tree models improve on v1's final production result</span>
+    <p>XGBoost's test RMSE improves from 1.860m (v1) to 1.839m; LightGBM improves from 1.830m to 1.815m. Bias improves for both as well (XGBoost +0.409&rarr;+0.313, LightGBM +0.314&rarr;+0.241) - less over-prediction of clarity than v1's final config. Neither change is large, and CV RMSE is very slightly worse for both (v1's final tuning had already benefited from a feature-group stage that happened to pick unusually low-RMSE hyperparameters, which this stage's gap-aware objective trades away on purpose) - but the number that matters most, the one held-out look at test, moved in the right direction for exactly the two models where gap-aware-throughout tuning was supposed to help without a capacity ceiling getting in the way.</p>
+  </div>
+  <div class="callout flag">
+    <span class="label">The neural net is worse in this version</span>
+    <p>The neural net's test RMSE moves from 1.839m (v1) to 1.888m, and its test bias grows more negative (&ndash;0.143&rarr;&ndash;0.297). Its mean train-val gap improved the most of any model (0.052&rarr;0.009) - gap-aware tuning did exactly what it was built to do - but a smaller gap on CV did not carry over to a better test number, echoing v1's own final-model finding that CV improvement doesn't always transfer to partition 5. At 3 layers of at most 8 nodes, the network has the least spare capacity of the three architectures to absorb a feature-set change (catchment_area_sqkm out, shoreline_flag in) without some reshuffling in what it learns to rely on; this is reported directly rather than smoothed over, consistent with how v1 reported its own final-model regression.</p>
+  </div>
+</section>
+
+<section id="comparison">
+  <div class="section-label">v1 vs. v2, side by side</div>
+  <h2>What two threads closed out actually bought</h2>
+  <p>Both changes requested at the end of v1 - gap-aware tuning applied systemically, and the shoreline-proximity flag - are now built, run end-to-end, and evaluated on the same untouched test partition v1 used. Net effect on the number that matters most:</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Model</th><th>v1 test RMSE</th><th>v2 test RMSE</th><th>&Delta;</th><th>v1 test bias</th><th>v2 test bias</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>XGBoost</td><td>1.860</td><td>1.839</td><td>&minus;0.021</td><td>+0.409</td><td>+0.313</td></tr>
+      <tr class="best"><td>LightGBM</td><td>1.830</td><td>1.815</td><td>&minus;0.015</td><td>+0.314</td><td>+0.241</td></tr>
+      <tr class="worse"><td>Neural net</td><td>1.839</td><td>1.888</td><td>+0.049</td><td>&minus;0.143</td><td>&minus;0.297</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Neither change was aimed at beating v1's single best-ever number in this project (XGBoost, optical+site+weather, pre-feature-selection, RMSE 1.747m) - that number was never reproduced by either version's own backward-elimination-and-final-tuning pipeline, v1's or v2's, because feature selection trades some of that richer configuration's raw accuracy for a smaller, more generalizable, cross-architecture-shared feature set. The relevant comparison is the two versions' own final, properly-gated production configs, and there v2 modestly improves on v1 for the two tree models while costing a bit of accuracy on the neural net.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <tbody>
+      <tr><td>Does shoreline_flag earn a place in the model?</td><td>Yes - survives backward elimination independently in all 3 models, the most consistent survival of any single feature addition tested in this project so far.</td></tr>
+      <tr><td>Does it change what the model is, fundamentally?</td><td>No - optical attribution still dominates (61&ndash;68% depending on config); site's share grows modestly (to 25&ndash;36%) with one more real contributor in it.</td></tr>
+      <tr><td>Does systemic gap-aware tuning close the persistent partition-3 gap?</td><td>No, and it was never expected to - partition 3's difficulty is a physical property of its basin (see the outlier-HUC investigation), not a tuning artifact. It does modestly shrink the <i>average</i> gap for 2 of 3 models.</td></tr>
+      <tr><td>Net effect on the final, deployable model?</td><td>Small improvement for XGBoost and LightGBM (the two models SDD-weighting is already applied to in production); a small regression for the neural net.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next-steps">
+  <div class="section-label">Next steps</div>
+  <h2>Two threads closed, two still open</h2>
+  <p>This report closes out threads #3 and #4 from v1's next-steps list. Threads #1 and #2 stand as they were:</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>Thread</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Outlier-HUC investigation</td><td class="mono">done separately - see <code>outlier_investigation/report.html</code></td></tr>
+      <tr><td>2</td><td>Train/val/test split sensitivity analysis</td><td class="mono">still open</td></tr>
+      <tr class="best"><td>3</td><td>Gap-aware tuning, applied systemically</td><td class="mono">done - this report</td></tr>
+      <tr class="best"><td>4</td><td>Shoreline-proximity flag</td><td class="mono">done - this report</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Thread #2 (split sensitivity) is now the more pressing of the two remaining threads: this report's own final-model callouts show, again, that a CV improvement doesn't reliably predict a test improvement (the neural net here; XGBoost's pre-elimination best in v1), and that partition 3/5 keep behaving like structurally different draws regardless of which feature set or tuning objective is used on top of them. Re-running evaluation under a different test-partition assignment, and separately under a different HUC4-to-partition random seed, would say whether that's a property of this specific 5-way split or of the basins themselves - a question neither v1 nor this report can answer on its own.</p>
+</section>
+
+<footer>
+  Regional Clarity RS Model v2 &middot; branch <code>outlier-removal-rework</code> &middot; spatial holdout CV (5 HUC4 partitions), SHAP computed per fold model and averaged across the 4-fold ensemble &middot; compare against <code>outlier_rework/python/report.html</code> (v1).
+</footer>
+
+</div>

@@ -1,0 +1,7 @@
+[14:02:09]  base site_characteristics rows: 1525 
+[14:02:14]  shoreline_flag value counts: 
+
+      0       1       2    <NA> 
+  40774  113321   34927 1018192 
+[14:02:14]  wrote site_characteristics.feather (15 cols, 1525 rows) 
+[14:02:14]  done 
