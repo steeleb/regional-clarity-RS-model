@@ -16,16 +16,14 @@ def data_uri(path: Path) -> str:
 
 
 figures = {
-    "feature_stability": data_uri(FIG_DIR / "v3_feature_stability.png"),
+    "feature_stability_gapaware": data_uri(FIG_DIR / "v3_feature_stability_gapaware.png"),
     "controlled_comparison": data_uri(FIG_DIR / "v3_controlled_comparison.png"),
     "per_seed_rmse": data_uri(FIG_DIR / "v3_per_seed_rmse.png"),
     "pred_vs_obs": data_uri(FIG_DIR / "v3_pred_vs_obs.png"),
     "compression_bias": data_uri(FIG_DIR / "v3_compression_bias.png"),
     "huc4_rmse": data_uri(FIG_DIR / "v3_huc4_rmse.png"),
-    "weighting_rmse": data_uri(FIG_DIR / "v3_weighting_rmse.png"),
-    "weighting_bias": data_uri(FIG_DIR / "v3_weighting_bias.png"),
-    "feature_stability_gapaware": data_uri(FIG_DIR / "v3_feature_stability_gapaware.png"),
-    "gapaware_comparison": data_uri(FIG_DIR / "v3_gapaware_comparison.png"),
+    "weighting_train_val_test": data_uri(FIG_DIR / "v3_weighting_train_val_test.png"),
+    "three_way_comparison": data_uri(FIG_DIR / "v3_three_way_comparison.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

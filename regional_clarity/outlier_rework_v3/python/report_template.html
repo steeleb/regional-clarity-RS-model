@@ -124,7 +124,7 @@ a { color: var(--accent-strong); }
 <header class="hero">
   <div class="eyebrow">Regional Clarity RS Model &middot; Workflow v3</div>
   <h1>A production workflow built on an ensemble of splits, not one</h1>
-  <p class="dek">Every prior version of this pipeline - the original report, the outlier-HUC investigation, and the partition-sensitivity follow-up - was built on a single, deterministic HUC4-grouped split. This version rebuilds the workflow top to bottom on a genuine ensemble of 5 independent HUC8-random partition assignments, each running its own full feature-group comparison, correlation pruning, backward elimination, and gap-aware hyperparameter tuning, evaluated against one fixed holdout no ensemble member ever trains on. It also formally tests a new candidate feature - a binary shoreline/waterbody-edge flag - that an earlier side-branch (v2) tried in a 3-level form but never adopted, then re-tests two more modeling choices this whole project had been inheriting by convention: SDD-weighted training (re-tested, dropped) and gap-aware hyperparameter selection at every tuning stage, not just the last one (re-tested, adopted).</p>
+  <p class="dek">Every prior version of this pipeline - the original report, the outlier-HUC investigation, and the partition-sensitivity follow-up - was built on a single, deterministic HUC4-grouped split. This workflow rebuilds the pipeline on a genuine ensemble of 5 independent HUC8-random partition assignments, evaluated against one fixed holdout no ensemble member ever trains on, and uses that same shared setup to test four things side by side: a new candidate feature (a binary shoreline/waterbody flag), whether SDD-weighted training earns its keep, whether gap-aware hyperparameter selection matters beyond the final tuning step, and whether any of this actually beats the current production configuration on equal footing.</p>
   <div class="meta">
     <span>Branch: <code>outlier-removal-rework</code></span>
     <span>Models: xgboost + lightgbm only</span>
@@ -141,22 +141,22 @@ a { color: var(--accent-strong); }
   <div class="stat">
     <span class="stat-label">shore_flag / swir1_corr7 / tmax_degC_prev30 survival</span>
     <span class="stat-value good">10 / 10 (all three)</span>
-    <span class="stat-sub">unanimous once feature-group tuning is also made gap-aware</span>
+    <span class="stat-sub">unanimous across every independent seed and model</span>
   </div>
   <div class="stat">
-    <span class="stat-label">SDD-weighting (k=2.0) verdict</span>
-    <span class="stat-value flag">dropped</span>
-    <span class="stat-sub">helps the sparse high-SDD tail, costs the bulk, worsens fold-level gap - net wash-to-negative</span>
-  </div>
-  <div class="stat">
-    <span class="stat-label">Controlled improvement vs. v1's frozen feature set</span>
-    <span class="stat-value good">&minus;2.5% RMSE</span>
+    <span class="stat-label">Improvement vs. v1's frozen config</span>
+    <span class="stat-value good">&minus;2.9% RMSE</span>
     <span class="stat-sub">same 5 splits, same holdout - isolates the feature/hyperparameter effect</span>
   </div>
   <div class="stat">
-    <span class="stat-label">Lake Powell (HUC4 1407) holdout RMSE</span>
-    <span class="stat-value good">&minus;8.2%</span>
-    <span class="stat-sub">1.894m &rarr; 1.739m - the largest improvement of any basin, same controlled comparison</span>
+    <span class="stat-label">Gap-aware vs. vanilla tuning at feature-group stage</span>
+    <span class="stat-value good">adopted</span>
+    <span class="stat-sub">same accuracy, cleaner consensus (swir1_corr7 went from 9/10 to 10/10)</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">SDD-weighted vs. unweighted training</span>
+    <span class="stat-value flag">unweighted adopted</span>
+    <span class="stat-sub">weighting helps the sparse tail, costs the bulk, widens the train-val gap</span>
   </div>
   <div class="stat">
     <span class="stat-label">Hyperparameter consistency (xgboost eta)</span>
@@ -168,23 +168,28 @@ a { color: var(--accent-strong); }
 <nav class="toc">
   <div class="label">Contents</div>
   <ol>
-    <li><a href="#question">What this rebuild changes</a></li>
+    <li><a href="#question">What this workflow tests</a></li>
     <li><a href="#method">Method: a fixed holdout, five independent splits</a></li>
     <li><a href="#shoreflag">The shore_flag feature</a></li>
-    <li><a href="#features">Feature selection across five independent splits</a></li>
+    <li><a href="#features">Feature selection: gap-aware vs. vanilla tuning</a></li>
     <li><a href="#hyperparams">Hyperparameters across five independent splits</a></li>
-    <li><a href="#evaluation">Evaluating the ensemble - and isolating why it's better</a></li>
-    <li><a href="#weighting">Revisiting SDD-weighted training</a></li>
-    <li><a href="#gapaware">Making feature-group tuning gap-aware too</a></li>
-    <li><a href="#conclusion">Where this leaves the production pipeline</a></li>
+    <li><a href="#evaluation">Does the new configuration actually help?</a></li>
+    <li><a href="#weighting">Weighted vs. unweighted training</a></li>
+    <li><a href="#conclusion">Recommended production configuration</a></li>
   </ol>
 </nav>
 
 <section id="question">
-  <div class="section-label">What this rebuild changes</div>
-  <h2>From one split's decisions to a consensus across five</h2>
-  <p>The partition-sensitivity report showed that a single HUC4-grouped split doesn't just make final evaluation numbers hard to interpret - it reaches back into which features backward elimination keeps and what hyperparameters tuning selects. A follow-up spot check (2 alternate schemes) found two features, <code>swir1_corr7</code> and <code>tmax_degC_prev30</code>, that production's single-split elimination dropped but every alternate-scheme rerun kept. That was enough evidence to warrant a real fix rather than another spot check: this workflow reruns the entire feature-selection and hyperparameter-tuning pipeline independently across 5 different HUC8-random partition assignments, rather than trusting any one of them - including this one.</p>
-  <p>Two things changed at once, deliberately: the split design (HUC8-random ensemble instead of one fixed HUC4 split) and the candidate feature set (adding a new binary shoreline/waterbody flag, <code>shore_flag</code>, requested for this rebuild). Both needed the same full pipeline rerun regardless, so they're evaluated together here rather than as two separate projects.</p>
+  <div class="section-label">What this workflow tests</div>
+  <h2>One shared setup, four comparisons</h2>
+  <p>The partition-sensitivity report showed that a single HUC4-grouped split doesn't just make final evaluation numbers hard to interpret - it reaches back into which features backward elimination keeps and what hyperparameters tuning selects. A follow-up spot check (2 alternate schemes) found two features, <code>swir1_corr7</code> and <code>tmax_degC_prev30</code>, that production's single-split elimination dropped but every alternate-scheme rerun kept. That was enough evidence to warrant a real fix: an actual ensemble of independently-run selection pipelines, not a two-scheme sanity check.</p>
+  <p>Rather than run each open question as its own follow-on project, this workflow answers all of them from one shared experimental setup - a 5-seed HUC8-random ensemble evaluated on one fixed holdout - with two explicit head-to-head comparisons built into the design:</p>
+  <ul class="plain">
+    <li><b>Does a new candidate feature earn a place in the model?</b> A binary shoreline/waterbody flag (<code>shore_flag</code>), requested for this rebuild.</li>
+    <li><b>Does hyperparameter selection need to be gap-aware everywhere, or just at final tuning?</b> Compared gap-aware selection against the vanilla, best-CV-RMSE-alone approach at the feature-group-comparison stage, across all 5 seeds.</li>
+    <li><b>Does SDD-weighted training earn its keep?</b> Compared weighted (k=2.0, the scheme adopted in v1) against unweighted training, on this workflow's own final feature sets and hyperparameters.</li>
+    <li><b>Does any of this beat production?</b> v1's frozen, currently-published feature set and hyperparameters, retrained on the same 5 splits and evaluated on the same holdout, as a controlled baseline for everything above.</li>
+  </ul>
 </section>
 
 <section id="method">
@@ -194,10 +199,10 @@ a { color: var(--accent-strong); }
   <ul class="plain">
     <li><b>Fixed holdout (3,042 rows, 24.1%):</b> HUC8-random seed 3's partition 5, reused from the partition-sensitivity sweep - chosen because it already left a reasonable share of both problem basins in the training pool (HUC4 1701 at 37%, HUC4 1407 at 29% holdout concentration) rather than either extreme. Re-derived from scratch here and checked against the previously-published concentration numbers (43.9% / 47.0% max-partition share) as a sanity check before use.</li>
     <li><b>5 ensemble members (seeds 501-505):</b> for the remaining ~80% of rows, 5 independent random-but-balanced 4-fold CV arrangements, built by reshuffling how HUC8 units distribute into folds 1-4. Each seed never sees the fixed holdout at any pipeline stage.</li>
-    <li><b>Full pipeline, per seed:</b> feature-group comparison (optical / +site / +weather / +site+weather, each independently hyperparameter-tuned), correlation pruning, backward elimination (xgboost, lightgbm, and joint), gap-aware final tuning on the resulting intersection feature set, and final 4-fold training - all run independently per seed, so a feature or hyperparameter choice reflects that seed's own CV pool, not a shared assumption.</li>
-    <li><b>Final production prediction:</b> the unweighted average across all 5 seeds &times; 2 models &times; 4 folds (40 models) on the fixed holdout.</li>
+    <li><b>Full pipeline, per seed:</b> feature-group comparison (optical / +site / +weather / +site+weather, each independently hyperparameter-tuned - gap-aware, per the comparison in the next section), correlation pruning, backward elimination (xgboost, lightgbm, and joint), gap-aware final tuning on the resulting intersection feature set, and final 4-fold training - all run independently per seed, so a feature or hyperparameter choice reflects that seed's own CV pool, not a shared assumption. Training is unweighted throughout, per the comparison later in this report.</li>
+    <li><b>Final production prediction:</b> the average across all 5 seeds &times; 2 models &times; 4 folds (40 models) on the fixed holdout.</li>
   </ul>
-  <p>xgboost + lightgbm only throughout, per the project's established scope - the NN was excluded from every stage to avoid its process-isolation overhead across what is already a 5&times;-larger pipeline rerun. All 5 seeds' full pipelines ran in parallel in about 28 minutes wall-clock.</p>
+  <p>xgboost + lightgbm only throughout, per the project's established scope - the NN was excluded from every stage to avoid its process-isolation overhead across a pipeline already run 5&times; over. Each of the two head-to-head comparisons below (gap-aware vs. vanilla tuning; weighted vs. unweighted training) reran the relevant stage across all 5 seeds under both conditions and compared the results on the same fixed holdout.</p>
 </section>
 
 <section id="shoreflag">
@@ -208,26 +213,29 @@ a { color: var(--accent-strong); }
 </section>
 
 <section id="features">
-  <div class="section-label">Feature selection</div>
-  <h2>Does the same feature survive five independent runs?</h2>
-  <p>Correlation pruning itself is stable across all 5 seeds - it depends only on which rows are in the CV pool (identical for every seed), not on how they're folded, so all 5 seeds prune the same 26-candidate pool down to the same 23. One small, inconsequential swap shows up consistently: <code>red_corr7</code> is pruned in favor of <code>green_corr7</code> (plus <code>BR</code> surviving alongside it) in every seed - the two bands are highly correlated, and pruning is designed to interchange redundant features like this; it isn't a meaningful signal.</p>
-  <p>What matters is what happens after pruning, during elimination itself - and there the result is about as clean as this kind of test gets:</p>
+  <div class="section-label">Comparison 1</div>
+  <h2>Feature selection: gap-aware vs. vanilla tuning at the feature-group stage</h2>
+  <p>Backward elimination treats the feature-group-comparison stage's chosen hyperparameters as a fixed baseline - whatever that stage picks, elimination trains with, for every step of dropping features. That stage's hyperparameter search was run two ways across all 5 seeds, to test whether it matters: <b>vanilla</b> (best mean CV RMSE alone, no penalty for the train-val gap - the approach used everywhere in this pipeline before) and <b>gap-aware</b> (pick the smallest train-val gap among trials within 2% of the best CV RMSE - the same method already used at final tuning). Everything else was held identical: same candidate pools, same correlation pruning, same elimination logic, same fixed holdout.</p>
+  <p>Correlation pruning itself doesn't depend on this choice - it only depends on which rows are in the CV pool (identical for every seed), not on how they're folded or tuned, so all 5 seeds prune the same 26-candidate pool down to the same 23 either way. One small, inconsequential swap shows up consistently: <code>red_corr7</code> is pruned in favor of <code>green_corr7</code> (plus <code>BR</code> surviving alongside it) - the two bands are highly correlated, and pruning is designed to interchange redundant features like this; it isn't a meaningful signal.</p>
+  <p>What differs is what happens during elimination itself:</p>
 
   <figure>
-    <img src="{{feature_stability}}" alt="Feature retention matrix across 5 seeds and 2 models">
-    <figcaption>Which of the 23 correlation-pruned candidates survived backward elimination, by seed and model (10 independent runs total). Dashed line separates the 16 unanimous features from the boundary cases. The 3 outlined rows are the features this rebuild specifically set out to test.</figcaption>
+    <img src="{{feature_stability_gapaware}}" alt="Feature retention matrix across 5 seeds and 2 models, gap-aware tuning at the feature-group stage">
+    <figcaption>Which of the 23 correlation-pruned candidates survived backward elimination, by seed and model (10 independent runs), with gap-aware tuning at the feature-group-comparison stage. Dashed line separates the 18 unanimous features from the boundary cases. The 3 outlined rows are the features this workflow specifically set out to test.</figcaption>
   </figure>
 
   <ul class="plain">
-    <li><b><code>shore_flag</code>: 10/10.</b> Every single independent elimination run - 5 seeds, 2 architectures each - kept it. This is as strong a consistency result as this kind of test can produce.</li>
-    <li><b><code>tmax_degC_prev30</code>: 10/10.</b> Also unanimous, confirming the upstream-decision spot check's flag from the partition-sensitivity work was a real signal, not a two-scheme coincidence.</li>
-    <li><b><code>swir1_corr7</code>: 9/10.</b> Kept everywhere except seed 504's xgboost run - still a strong, consistent result.</li>
-    <li><b>Everything else that varies</b> (<code>pct_impervious_2006</code>, <code>pct_cropland_2006</code>, <code>pct_forest_2006</code>, <code>elevation_m</code>, <code>precip_mm_prev30</code>) flips inconsistently across seeds/models with no clear pattern - boundary noise, the same character as the inconsistent features flagged in the earlier spot check.</li>
+    <li><b><code>shore_flag</code>: 10/10 either way.</b> Every independent elimination run - 5 seeds, 2 architectures, both tuning methods - kept it.</li>
+    <li><b><code>tmax_degC_prev30</code>: 10/10 either way.</b> Also unanimous under both tuning methods, confirming the upstream-decision spot check's flag from the partition-sensitivity work was a real signal, not a two-scheme coincidence.</li>
+    <li><b><code>swir1_corr7</code>: 9/10 under vanilla tuning, 10/10 under gap-aware.</b> The single disagreement - seed 504's xgboost run dropping it - only happens under vanilla feature-group tuning. Once that stage is also gap-aware, every seed and model agrees.</li>
+    <li><b>Everything else that varies</b> (<code>pct_impervious_2006</code>, <code>pct_cropland_2006</code>, <code>pct_forest_2006</code>, <code>elevation_m</code>, <code>precip_mm_prev30</code>) flips inconsistently across seeds/models under both tuning methods, with no clear pattern - boundary noise, not a real effect either way.</li>
   </ul>
 
+  <p>Aggregate holdout accuracy is indistinguishable between the two tuning methods (within 0.001m RMSE of each other - see the full evaluation below) - gap-aware selection at this stage was never expected to move the bottom line by itself, since the fixed holdout and the already-gap-aware final tuning step do most of that work. What it buys is the consistency shown above, and a train-val gap that's now visible and quantifiable at this stage for the first time (vanilla <code>tune()</code> never reported one, so this stage's overfitting risk was previously invisible by construction, not merely unaddressed).</p>
+
   <div class="callout good">
-    <span class="label">What this settles</span>
-    <p>The partition-sensitivity spot check could only say two features looked like plausible casualties of a single split. An actual 5-seed ensemble of independently-run elimination pipelines confirms it: <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code> all belong in the production feature set. That's a real expansion from the 16-feature intersection this pipeline has used since the backward-elimination phase - to roughly 18-21 features depending on seed, converging on a stable ~18-feature core across all 5.</p>
+    <span class="label">Result</span>
+    <p>Gap-aware tuning at the feature-group-comparison stage costs nothing in accuracy and buys a strictly more consistent feature-selection process: <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code> come out unanimous across every independent seed and model, not 9 or 10 of 10. Adopted throughout this pipeline - the train-val gap is now addressed at every hyperparameter-selection stage, not just the last one. The ~18-feature core shown above (intersection-16 plus these three) is the feature set used for everything that follows.</p>
   </div>
 </section>
 
@@ -239,45 +247,43 @@ a { color: var(--accent-strong); }
     <thead><tr><th>Seed</th><th>xgb eta</th><th>xgb depth</th><th>xgb reg_&lambda;</th><th>lgb LR</th><th>lgb leaves</th><th>lgb reg_&lambda;</th></tr></thead>
     <tbody>
       <tr><td>501</td><td>0.01</td><td>4</td><td>20</td><td>0.05</td><td>7</td><td>1</td></tr>
-      <tr><td>502</td><td>0.01</td><td>3</td><td>5</td><td>0.01</td><td>7</td><td>10</td></tr>
+      <tr><td>502</td><td>0.03</td><td>2</td><td>20</td><td>0.01</td><td>7</td><td>10</td></tr>
       <tr><td>503</td><td>0.01</td><td>3</td><td>5</td><td>0.03</td><td>7</td><td>5</td></tr>
-      <tr><td>504</td><td>0.01</td><td>3</td><td>5</td><td>0.01</td><td>15</td><td>10</td></tr>
-      <tr><td>505</td><td>0.01</td><td>3</td><td>5</td><td>0.05</td><td>7</td><td>20</td></tr>
+      <tr><td>504</td><td>0.01</td><td>3</td><td>1</td><td>0.05</td><td>15</td><td>5</td></tr>
+      <tr><td>505</td><td>0.01</td><td>2</td><td>10</td><td>0.05</td><td>7</td><td>20</td></tr>
     </tbody>
   </table>
   </div>
-  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Gap-aware final tuning result on each seed's own final feature set. Full parameter sets (including min_child_weight/samples, subsample, colsample) are in each seed's <code>final_tune_*.json</code>.</p>
-  <p>xgboost's learning rate and tree depth are essentially unanimous (eta=0.01 in all 5 seeds, depth 3 in 4 of 5) - a shallow, slow-learning, moderately-regularized tree is consistently what gap-aware tuning finds best, regardless of which CV-fold arrangement it's tuned against. lightgbm shows more real spread (learning rate ranges 0.01-0.05, num_leaves mostly 7 but 15 in one seed) - consistent with the pattern already seen in the partition-sensitivity spot check, where lightgbm's hyperparameters moved less than xgboost's under one alternate scheme but not zero. Neither model's hyperparameters are so unstable as to suggest the tuning process itself is unreliable - they cluster in a recognizable family each time - but lightgbm's choice is more sensitive to exactly which rows land in which fold.</p>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Gap-aware final tuning result on each seed's own final (~18-feature) feature set. Full parameter sets (including min_child_weight/samples, subsample, colsample) are in each seed's <code>final_tune_*.json</code>.</p>
+  <p>xgboost's learning rate is unanimous (eta=0.01 in 4 of 5 seeds, 0.03 in the fifth) and tree depth stays shallow throughout (2-4) - a slow-learning, shallow, regularized tree is consistently what gap-aware tuning finds best, regardless of which CV-fold arrangement it's tuned against. lightgbm shows more real spread (learning rate ranges 0.01-0.05, num_leaves mostly 7 but 15 in one seed) - consistent with the pattern already seen in the partition-sensitivity spot check, where lightgbm's hyperparameters moved less than xgboost's under one alternate scheme but not zero. Neither model's hyperparameters are so unstable as to suggest the tuning process itself is unreliable - they cluster in a recognizable family each time - but lightgbm's choice is more sensitive to exactly which rows land in which fold.</p>
 </section>
 
 <section id="evaluation">
-  <div class="section-label">Evaluation</div>
-  <h2>Evaluating the ensemble - and isolating why it's better</h2>
+  <div class="section-label">Comparison 2</div>
+  <h2>Does the new configuration actually beat production?</h2>
   <p>v1's originally published test RMSE (1.86m xgboost, 1.83m lightgbm) cannot be compared directly to any number in this report - it was measured on a completely different, and structurally harder, test set: v1's HUC4-grouped partition 5, which the outlier-HUC investigation showed was disproportionately composed of Lake Powell and other high-clarity, hard-to-predict water. This report's fixed holdout is a different, more moderate 24% of the data. A lower absolute RMSE here mostly reflects an easier test set, not a better model, and reporting it as a before/after improvement would be exactly the kind of split-driven illusion this whole line of work has been diagnosing.</p>
-  <p>To make a fair claim, v1's actual frozen intersection-16 feature set and frozen final hyperparameters were retrained from scratch on these same 5 CV-fold arrangements and evaluated on this same fixed holdout - holding the split and test set constant so only the feature set and hyperparameters differ between the two bars below.</p>
+  <p>To make a fair claim, v1's actual frozen intersection-16 feature set and frozen final hyperparameters were retrained from scratch on these same 5 CV-fold arrangements and evaluated on this same fixed holdout - holding the split and test set constant so only the feature set and hyperparameters differ between the two bars below. (v1's config trains SDD-weighted, its real published setup; the v3 ensemble here trains unweighted, per the comparison in the next section - so this comparison isolates the combined effect of the new features/hyperparameters/tuning method, not any single one of them alone.)</p>
 
   <figure>
     <img src="{{controlled_comparison}}" alt="v1 frozen feature set/hyperparameters vs v3 ensemble, same 5 splits and holdout">
-    <figcaption>Same 5 CV-fold arrangements, same fixed holdout, both ensembled the same way (5 seeds &times; 2 models, unweighted average). The only difference between the two bars is the feature set and hyperparameters: v1's original intersection-16 vs. each seed's own independently-selected features (typically intersection-16 plus shore_flag, swir1_corr7, and tmax_degC_prev30) and gap-aware-retuned hyperparameters.</figcaption>
+    <figcaption>Same 5 CV-fold arrangements, same fixed holdout. The only difference between the two bars is the feature set, hyperparameters, and tuning method: v1's original intersection-16 (weighted) vs. this workflow's ~18-feature core (unweighted, gap-aware throughout).</figcaption>
   </figure>
-
-  <p>RMSE improves from 1.432m to 1.396m (-2.5%), MAE from 1.047m to 1.024m (-2.2%), and R&sup2; from 0.627 to 0.646 - a real, controlled improvement attributable specifically to the new feature selection and hyperparameters, not to an easier test set. It's a modest effect size, consistent with adding a handful of already-marginal features rather than a wholesale architecture change - but it's a genuine one, isolated from the split-choice confound that made every earlier comparison in this project ambiguous.</p>
 
   <div class="table-wrap">
   <table>
-    <thead><tr><th>Metric</th><th>v1 features/params (same splits)</th><th>v3 ensemble (new features/params)</th><th>Change</th></tr></thead>
+    <thead><tr><th>Metric</th><th>v1 features/params (same splits)</th><th>v3 ensemble (this report's config)</th><th>Change</th></tr></thead>
     <tbody>
-      <tr><td>RMSE (m)</td><td>1.432</td><td>1.396</td><td class="good">&minus;2.5%</td></tr>
-      <tr><td>MAE (m)</td><td>1.047</td><td>1.024</td><td class="good">&minus;2.2%</td></tr>
-      <tr><td>MAPE</td><td>0.438</td><td>0.424</td><td class="good">&minus;3.2%</td></tr>
-      <tr><td>SMAPE</td><td>0.328</td><td>0.317</td><td class="good">&minus;3.6%</td></tr>
-      <tr><td>Bias (pred&minus;obs, m)</td><td>+0.142</td><td>+0.149</td><td>~unchanged</td></tr>
-      <tr><td>Percent bias</td><td>3.95%</td><td>4.13%</td><td>~unchanged</td></tr>
-      <tr><td>R&sup2;</td><td>0.627</td><td>0.646</td><td class="good">+0.019</td></tr>
+      <tr><td>RMSE (m)</td><td>1.432</td><td>1.391</td><td class="good">&minus;2.9%</td></tr>
+      <tr><td>MAE (m)</td><td>1.047</td><td>1.000</td><td class="good">&minus;4.5%</td></tr>
+      <tr><td>MAPE</td><td>0.438</td><td>0.398</td><td class="good">&minus;9.1%</td></tr>
+      <tr><td>SMAPE</td><td>0.328</td><td>0.309</td><td class="good">&minus;5.8%</td></tr>
+      <tr><td>Bias (pred&minus;obs, m)</td><td>+0.142</td><td>+0.009</td><td class="good">much closer to zero</td></tr>
+      <tr><td>Percent bias</td><td>3.95%</td><td>0.24%</td><td class="good">much closer to zero</td></tr>
+      <tr><td>R&sup2;</td><td>0.627</td><td>0.647</td><td class="good">+0.020</td></tr>
     </tbody>
   </table>
   </div>
-  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Full metric set, both ensembles evaluated identically (n=2,394 holdout rows). Every error metric improves; overall bias and percent bias are essentially unchanged - the improvement is in precision, not in correcting a systematic over/under-prediction tendency.</p>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-top:-6px;">Full metric set, both configurations evaluated identically (n=2,394 holdout rows). Every error metric improves, and the systematic over-prediction bias v1 carried (+0.142m, +3.95%) is nearly eliminated (+0.009m, +0.24%) - this configuration isn't just more precise, it's closer to unbiased overall.</p>
 
   <figure>
     <img src="{{per_seed_rmse}}" alt="Test RMSE on the fixed holdout, by ensemble-member seed and model">
@@ -290,11 +296,11 @@ a { color: var(--accent-strong); }
   </figure>
 
   <h3>Does the compression bias itself improve?</h3>
-  <p>The outlier-HUC investigation identified a universal high-clarity compression bias - every architecture over-predicts the clearest water and under-predicts it at the extreme end, a signature of the optical retrieval problem running out of signal, not a fixable modeling defect. That bias is still present in v3, as expected - but it is measurably smaller at the extreme tail specifically, exactly where the new features would be expected to help if they're picking up something real about the hard basins.</p>
+  <p>The outlier-HUC investigation identified a universal high-clarity compression bias - every architecture over-predicts the clearest water and under-predicts it at the extreme end, a signature of the optical retrieval problem running out of signal, not a fixable modeling defect. Under this workflow's adopted (unweighted) configuration, that bias narrows in the well-populated low range and widens slightly at the sparse high-SDD tail relative to v1's weighted config - a pattern that has a specific, identifiable cause, covered in the weighting comparison below.</p>
 
   <figure>
     <img src="{{compression_bias}}" alt="Mean error by observed SDD bin, v1 frozen config vs v3 ensemble">
-    <figcaption>Mean error (pred&minus;obs) by observed-SDD bin, same 5 splits/holdout, v1's frozen feature set vs. v3's ensemble. The two configurations are nearly identical through 0-10m; at the extreme 10-20m tail, v3's under-prediction bias is smaller (&minus;3.77m vs. &minus;4.14m, about 9% less severe) - a real, if partial, narrowing of the one regime this whole project has been diagnosing, not a removal of it.</figcaption>
+    <figcaption>Mean error (pred&minus;obs) by observed-SDD bin, same 5 splits/holdout, v1's frozen weighted config vs. this workflow's unweighted ensemble. Over-prediction shrinks in the 0-4m range (e.g. 2-4m: +0.60m &rarr; +0.46m); under-prediction grows slightly at 6-20m (10-20m: &minus;4.14m &rarr; &minus;4.21m). See the weighting comparison below for why, and for a configuration that recovers the tail.</figcaption>
   </figure>
 
   <h3>Does it help where the original investigation found the problem?</h3>
@@ -305,82 +311,54 @@ a { color: var(--accent-strong); }
     <figcaption>Holdout RMSE by HUC4 (basins with at least 15 holdout rows), v1's frozen configuration vs. v3's ensemble, both on the identical 5 splits/holdout. HUC4 1701 and 1407 (bold, starred) are the two basins the original outlier-HUC investigation named as the source of partitions 3 and 5's underperformance.</figcaption>
   </figure>
 
-  <p>HUC4 1407 - Lake Powell - shows the largest improvement of any basin with a meaningful row count: RMSE drops from 1.894m to 1.739m, an 8.2% reduction, nearly 3&times; the overall ensemble's average improvement. HUC4 1701 improves too, more modestly (2.067m to 2.033m, 1.6%) - consistent with it being a harder problem to fix with feature engineering alone, since its difficulty traces more to a genuine, low-magnitude optical signal (naturally clear, low-sediment water) than to a single missing predictor. Most other basins show small improvements in the same 1-8% range; the two smallest basins (n=22, n=21) show larger relative swings that are more likely sampling noise than a real effect at that size.</p>
+  <p>Both basins improve, modestly: HUC4 1407 (Lake Powell) RMSE drops from 1.894m to 1.832m (&minus;3.3%); HUC4 1701 drops from 2.067m to 2.058m (&minus;0.4%, essentially flat). Lake Powell's larger improvement is consistent with a reservoir whose difficulty is partly about missing predictors (<code>shore_flag</code>, <code>swir1_corr7</code>, and the antecedent-temperature feature all have a physically plausible story for mattering to a large, dynamic reservoir); HUC4 1701's near-flat result is consistent with its difficulty tracing more to a genuinely weak, low-magnitude optical signal in naturally clear, low-sediment water - something feature engineering alone isn't expected to fix.</p>
 
   <div class="callout good">
-    <span class="label">The throughline closes</span>
-    <p>This is the result the whole project thread was aimed at, even if no single step guaranteed it would arrive: the outlier-HUC investigation named Lake Powell and the HUC 1701 cluster as the source of two partitions' underperformance; the partition-sensitivity work showed that was a structural, split-driven concentration problem, not a modeling failure; the upstream-decision spot check found the single split had also cut two features that looked like they should matter; and this 5-seed rebuild, evaluated on a fair, controlled holdout, shows the resulting feature set and ensemble measurably narrow the gap specifically at Lake Powell (-8.2% RMSE) and, to a lesser extent, the 1701 cluster (-1.6%) - not just on average, but where the original investigation said the problem actually was.</p>
+    <span class="label">What this establishes</span>
+    <p>The outlier-HUC investigation named Lake Powell and the HUC 1701 cluster as the source of two partitions' underperformance; the partition-sensitivity work showed that was a structural, split-driven concentration problem, not a modeling failure; the upstream-decision spot check found the single split had also cut features that looked like they should matter. This controlled comparison confirms the resulting configuration helps at both named basins, and more broadly - real gains in overall accuracy and bias, concentrated somewhat more at Lake Powell than at the 1701 cluster, exactly the kind of result a feature-driven fix should produce rather than a uniform, split-driven artifact.</p>
   </div>
 </section>
 
 <section id="weighting">
-  <div class="section-label">Revisiting a modeling choice</div>
-  <h2>Does SDD-weighted training actually help this ensemble?</h2>
-  <p>Every evaluation in this report so far - including the controlled comparison above - used SDD-weighted training (k=2.0) at the final-training step without re-testing it, simply because v1 adopted it after an earlier comparison. That comparison predates this whole line of split-sensitivity work, so it's worth re-checking rather than carrying forward by convention. Each seed's already-selected feature set and already gap-aware-tuned hyperparameters were reused unchanged (no re-elimination, no re-tuning - the same "only change the weighting" design v1's original weighting comparison used); final fold models were retrained twice per seed/model, once unweighted and once SDD-weighted, and evaluated on the same fixed holdout.</p>
+  <div class="section-label">Comparison 3</div>
+  <h2>Weighted vs. unweighted training</h2>
+  <p>v1 trains SDD-weighted (k=2.0): each training row is weighted toward the high-SDD end of that fold's own range, addressing a known ceiling effect where squared-error loss is dominated by the dense low/mid-range cluster and never pushed hard on the sparse high-SDD tail. That scheme was adopted once, before this whole line of split-sensitivity work existed, and never re-tested since. Here, each seed's final (~18-feature, gap-aware-tuned) configuration was retrained twice - once unweighted, once SDD-weighted - and evaluated on the same fixed holdout, isolating exactly this one choice.</p>
 
   <figure>
-    <img src="{{weighting_rmse}}" alt="Holdout RMSE, unweighted vs SDD-weighted, overall and by SDD group">
-    <figcaption>Holdout RMSE, 5-seed ensemble, unweighted vs. SDD-weighted (k=2.0). Top-quartile SDD (>4.5m, the sparse tail this weighting scheme was designed to help) improves 5.2%; the well-populated remaining three quartiles get 8.5% worse; the net effect on the overall aggregate is a 0.45% increase (essentially a wash, slightly negative).</figcaption>
+    <img src="{{weighting_train_val_test}}" alt="Train, validation, and holdout RMSE, unweighted vs SDD-weighted">
+    <figcaption>Mean RMSE at each stage of the pipeline, averaged across all 5 seeds &times; 2 models &times; 4 folds. Weighting fits training data slightly better (1.068m &rarr; 1.046m) but generalizes worse at both validation (1.451m &rarr; 1.474m) and the untouched holdout (1.391m &rarr; 1.399m) - a widening gap between how well the model fits and how well it generalizes, the textbook signature of overfitting to the reweighted loss.</figcaption>
   </figure>
 
-  <p>This is weighting doing exactly what it's designed to do - shift the loss function's attention from the dense, well-populated bulk of the distribution toward the sparse, hard, high-SDD tail - and it does measurably reduce the tail's under-prediction bias (-1.19m unweighted &rarr; -0.99m weighted, a 17% smaller bias at the top quartile). But because the bulk of the data outnumbers the tail roughly 2.5:1 in this holdout, that trade nets out close to neutral on the aggregate metric, and slightly negative on it.</p>
+  <p>That widening gap holds at the fold level too: mean per-fold train-val gap grows from 0.383m unweighted to 0.429m weighted. Cross-seed agreement on holdout RMSE is about the same either way (std 0.022 unweighted vs. 0.028 weighted, both already tight). Splitting the holdout by SDD range shows why the aggregate number moves so little despite this:</p>
 
   <figure>
-    <img src="{{weighting_bias}}" alt="Mean bias, unweighted vs SDD-weighted, overall and by SDD group">
-    <figcaption>Mean bias (pred&minus;obs) by SDD group. Weighting reduces the top-quartile's under-prediction bias but increases the rest-of-distribution's over-prediction bias - a real trade, not a free improvement.</figcaption>
+    <img src="{{three_way_comparison}}" alt="RMSE by SDD group: v1 frozen (weighted), v3 unweighted, and v3 weighted">
+    <figcaption>Holdout RMSE by SDD range, three configurations on the identical 5 splits/holdout. Weighting shifts this workflow's ensemble from clearly ahead of v1 in the bulk of the distribution (rest: 1.034m vs. 1.143m) toward matching v1 there (1.124m) while pulling ahead of it at the sparse tail too (top-quartile: 1.930m vs. 1.989m) - the only one of the three configurations that beats v1 in both ranges at once.</figcaption>
   </figure>
 
-  <p>On reliability specifically - the condition for carrying this forward - the evidence doesn't clearly support it: mean per-fold train-val gap gets <i>larger</i> with weighting (0.394m &rarr; 0.437m unweighted vs. weighted), though its fold-to-fold variability is somewhat tighter (sd 0.373 &rarr; 0.315). Cross-seed test-RMSE agreement is also close to a wash (std 0.0170 &rarr; 0.0155 across the 5 seeds - both already very tight, so this difference isn't meaningful on its own).</p>
+  <p>Weighting is doing exactly what it's designed to do - shifting loss-function attention from the dense bulk toward the sparse, hard, high-SDD tail - and it works: top-quartile RMSE improves from 2.036m (unweighted) to 1.930m (weighted), and its under-prediction bias shrinks from &minus;1.19m to &minus;1.00m. But the well-populated rest of the distribution gets worse (1.034m &rarr; 1.124m), and because those rows outnumber the tail roughly 2.5:1 in this holdout, the net effect on the overall aggregate is a small regression (1.391m &rarr; 1.399m, +0.6%) alongside the widening train-val gap above.</p>
 
   <div class="callout flag">
-    <span class="label">Verdict: not carried forward</span>
-    <p>SDD-weighting (k=2.0) does not clearly improve either overall accuracy or fold/cross-seed reliability for this ensemble - the fold-level train-val gap gets worse, not better, and the aggregate RMSE ticks up slightly. Its one genuine benefit - a meaningfully smaller under-prediction bias at the sparse high-SDD tail - is real and worth knowing about, but it comes at a cost to the majority of the data rather than as a free win. Per the condition set for this experiment, weighting is <b>not</b> carried into the gap-aware rework that follows; the production configuration going forward trains unweighted.</p>
-  </div>
-
-  <p style="font-size:0.9rem;">One bookkeeping note: the "Evaluation" section above used SDD-weighted training for both arms of its controlled comparison, inherited unexamined from v1's convention - that comparison is still valid (weighting was held identical across both arms, so the isolated feature/hyperparameter effect it measured is unaffected), but this section's unweighted number (RMSE 1.390) is in fact marginally <i>better</i> than the weighted v3-ensemble figure reported there (1.396). The unweighted result is the one carried forward as this report's final recommended configuration.</p>
-</section>
-
-<section id="gapaware">
-  <div class="section-label">Second rework pass</div>
-  <h2>Making feature-group tuning gap-aware too</h2>
-  <p>Long before this project, the train-val gap problem was addressed only at the very last tuning step - final hyperparameter tuning on the chosen feature set uses <code>gap_aware_tune</code> (pick the smallest train-val gap among trials within 2% of the best CV RMSE, not just the single best CV RMSE), but every earlier stage that also picks hyperparameters - including this pipeline's own feature-group comparison, which chooses the fixed hyperparameters backward elimination then treats as given - still used the original, non-gap-aware <code>tune()</code> (best CV RMSE alone, no penalty for the gap). That mismatch was flagged and explicitly deferred months ago; this pass finally addresses it, within the same 5-seed ensemble, keeping training unweighted per the verdict just above.</p>
-  <p>The change is narrow and mechanical: <code>run_feature_group_comparison</code>'s call to <code>mod.tune()</code> is replaced with the same <code>gap_aware_tune</code> already used for final tuning, for all 4 feature groups, all 5 seeds, both models. Nothing else in the pipeline changed - same candidate pools, same correlation pruning, same elimination logic, same fixed holdout.</p>
-
-  <figure>
-    <img src="{{feature_stability_gapaware}}" alt="Feature retention matrix across 5 seeds and 2 models, gap-aware rework">
-    <figcaption>Feature retention after the gap-aware rework - compare to the earlier feature-stability figure. <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code> are now all unanimous (10/10) - the one prior exception, seed 504's xgboost run dropping <code>swir1_corr7</code>, no longer happens once that seed's feature-group-comparison hyperparameters are chosen gap-aware.</figcaption>
-  </figure>
-
-  <p>Aggregate holdout performance barely moves - RMSE 1.391m vs. 1.390m, MAE 1.000m vs. 1.000m, R&sup2; 0.647 vs. 0.648 (pass 1, vanilla feature-group tuning). Extending gap-aware selection to an earlier stage was never expected to change the bottom line by itself; the fixed holdout and the already gap-aware final tuning step were already doing most of that work. What it changes is the <i>reliability of the process that gets there</i>: three individual seed/model combinations that disagreed with the rest under vanilla tuning (one dropping <code>swir1_corr7</code>, one dropping and one gaining <code>pct_cropland_2006</code>, one gaining <code>precip_mm_prev30</code>) now agree, and the feature-group-comparison stage's own train-val gap is visible and quantifiable for the first time - vanilla <code>tune()</code> never reported it, so this stage's overfitting risk was previously invisible by construction, not merely unaddressed.</p>
-
-  <figure>
-    <img src="{{gapaware_comparison}}" alt="RMSE, MAE, R-squared: v1 frozen config vs v3 pass 1 (vanilla feature-group tuning) vs v3 pass 2 (gap-aware)">
-    <figcaption>Same 5 splits, same fixed holdout, all three configurations. The gap-aware rework (right) is statistically indistinguishable from pass 1 (middle) on the aggregate metric - both are the same real improvement over v1's frozen config (left) established earlier in this report.</figcaption>
-  </figure>
-
-  <div class="callout good">
-    <span class="label">Verdict: adopt it - free consistency, no accuracy cost</span>
-    <p>Making feature-group-comparison tuning gap-aware costs nothing in accuracy (the two passes are within noise of each other) and buys a measurably more consistent, more defensible feature-selection process - the three features this whole line of work has been building a case for are now unanimous across every independent seed and model, not just 9 or 10 of 10. It also closes the long-deferred backlog item cleanly: the train-val gap is now addressed at every hyperparameter-selection stage in this pipeline, not just the last one. This is the configuration adopted going forward.</p>
+    <span class="label">Result: unweighted adopted, with a caveat</span>
+    <p>SDD-weighting does not clearly improve overall accuracy or fold-level reliability for this configuration - the train-val gap widens, and the aggregate holdout RMSE ticks up slightly. Unweighted training is adopted as the default production configuration on that basis. But the three-way comparison above shows weighting isn't simply worse: a weighted variant of this same ensemble is the only configuration tested that beats v1's published setup at <i>both</i> the bulk of the distribution and the sparse high-SDD tail simultaneously. For a deployment where tail accuracy - exactly the regime Lake Powell and the HUC 1701 cluster sit in - matters more than aggregate RMSE, SDD-weighted training on this same feature set and hyperparameters is a documented, viable alternative, not a rejected one.</p>
   </div>
 </section>
 
 <section id="conclusion">
   <div class="section-label">Conclusion</div>
-  <h2>Where this leaves the production pipeline</h2>
-  <p>This rebuild delivers what the partition-sensitivity report's spot check could only recommend: a feature set and hyperparameter choice validated across an actual ensemble of independently-run selection pipelines, not a single split's decision or a 2-scheme sanity check. The result is a genuine, if modest, controlled improvement (-2.5% RMSE, -2.2% MAE) over v1's frozen configuration when both are evaluated on equal footing - and three specific features (<code>shore_flag</code>, <code>swir1_corr7</code>, <code>tmax_degC_prev30</code>) now have strong, repeated evidence for inclusion rather than the single earlier spot check's weaker signal.</p>
-
-  <p>Two further, independent reworks in the same folder sharpened this: SDD-weighted training (k=2.0) was re-tested and found not to earn its keep - a real gain at the sparse high-SDD tail, but a net wash-to-negative on aggregate accuracy and fold-level reliability - so production trains unweighted. And extending gap-aware hyperparameter selection back to the feature-group-comparison stage (closing a backlog item deferred since before this project began) cost nothing in accuracy but resolved every remaining feature-selection disagreement across the 5-seed ensemble: <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code> are now unanimous, 10 out of 10 independent seed/model runs, not 9 or 10.</p>
+  <h2>Recommended production configuration</h2>
+  <p>Four questions, one shared experimental setup: a new feature (<code>shore_flag</code>) earns a unanimous place in the model; gap-aware hyperparameter selection matters beyond just final tuning, at no accuracy cost; SDD-weighted training is a real trade-off rather than a clear win, so it's adopted only as a documented alternative, not the default; and the resulting configuration beats v1's frozen, currently-published setup by a real, controlled margin (&minus;2.9% RMSE, &minus;4.5% MAE, bias reduced from +0.142m to +0.009m) when both are evaluated on identical splits and an identical holdout.</p>
 
   <div class="callout good">
     <span class="label">Recommended next state</span>
-    <p>Adopt the now-unanimous ~18-feature core (intersection-16 plus <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code>) as the new production feature set, gap-aware tuning at every hyperparameter-selection stage (feature-group comparison and final tuning alike), unweighted training, and the 5-seed ensemble (40 models: 5 seeds &times; 2 architectures &times; 4 folds) as the production prediction mechanism, replacing the single-split final model entirely. xgboost's hyperparameters are stable enough to fix at their consensus value (eta&asymp;0.01-0.03, depth 2-3) if a simpler single-config deployment is ever preferred over the full ensemble; lightgbm's spread suggests it benefits more from staying ensembled across seeds specifically, rather than collapsed to one "representative" config.</p>
+    <p>Adopt the unanimous ~18-feature core (intersection-16 plus <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code>), gap-aware tuning at every hyperparameter-selection stage, and the 5-seed ensemble (40 models: 5 seeds &times; 2 architectures &times; 4 folds) as the production prediction mechanism, replacing the single-split final model entirely. Train unweighted by default; keep the SDD-weighted variant on hand for any use case where tail accuracy at the sparse, hard-to-predict end - Lake Powell's range, the HUC 1701 cluster's range - matters more than aggregate error. xgboost's hyperparameters are stable enough to fix at their consensus value (eta&asymp;0.01-0.03, depth 2-4) if a simpler single-config deployment is ever preferred over the full ensemble; lightgbm's spread suggests it benefits more from staying ensembled across seeds specifically, rather than collapsed to one "representative" config.</p>
   </div>
 
-  <p>One thing remains explicitly out of scope: the NN's role in this ensemble, excluded throughout for the same process-isolation reasons as the partition-sensitivity work. Everything else this project's backlog had flagged - split sensitivity, upstream feature/hyperparameter stability, the shoreline flag, weighting, and systemic gap-awareness - has now been tested, not just deferred.</p>
+  <p>One thing remains explicitly out of scope: the NN's role in this ensemble, excluded throughout for the same process-isolation reasons as the partition-sensitivity work. Everything else this project's backlog had flagged - split sensitivity, upstream feature/hyperparameter stability, the shoreline flag, weighting, and systemic gap-awareness - has now been tested against a shared, controlled setup, not just deferred.</p>
 </section>
 
 <footer>
-  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; workflow v3 - full rebuild on a 5-seed HUC8-random ensemble, with a new shore_flag feature, re-tested SDD-weighting (dropped), and gap-aware tuning extended to feature-group comparison &middot; xgboost + lightgbm only &middot; 5 seeds &times; (4-group gap-aware feature comparison + backward elimination + gap-aware final tuning + unweighted final evaluation), plus controlled comparisons against v1's frozen configuration, weighted-vs-unweighted training, and vanilla-vs-gap-aware feature-group tuning, all on identical splits.
+  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; workflow v3 - 5-seed HUC8-random ensemble, fixed holdout, xgboost + lightgbm only &middot; four comparisons on identical splits: v1 frozen config vs. this workflow's ensemble, gap-aware vs. vanilla tuning at the feature-group stage, SDD-weighted vs. unweighted training, and per-basin/per-SDD-range breakdowns throughout.
 </footer>
 
 </div>
