@@ -159,9 +159,9 @@ a { color: var(--accent-strong); }
     <span class="stat-sub">weighting helps the sparse tail, costs the bulk, widens the train-val gap</span>
   </div>
   <div class="stat">
-    <span class="stat-label">Hyperparameter consistency (xgboost eta)</span>
-    <span class="stat-value good">5 / 5 seeds</span>
-    <span class="stat-sub">all chose eta=0.01 independently; lightgbm's learning_rate varied more</span>
+    <span class="stat-label">Non-remote-sensing share of SHAP attribution</span>
+    <span class="stat-value">19.2%</span>
+    <span class="stat-sub">site/catchment 16.4% + weather 2.8%, concentrated in specific basins (see below)</span>
   </div>
 </div>
 
@@ -173,6 +173,7 @@ a { color: var(--accent-strong); }
     <li><a href="#shoreflag">The shore_flag feature</a></li>
     <li><a href="#features">Feature selection: gap-aware vs. vanilla tuning</a></li>
     <li><a href="#hyperparams">Hyperparameters across five independent splits</a></li>
+    <li><a href="#shap">Feature importance and SHAP: does it line up with reality?</a></li>
     <li><a href="#evaluation">Does the new configuration actually help?</a></li>
     <li><a href="#weighting">Weighted vs. unweighted training</a></li>
     <li><a href="#conclusion">Recommended production configuration</a></li>
@@ -258,6 +259,36 @@ a { color: var(--accent-strong); }
   <p>xgboost's learning rate is unanimous (eta=0.01 in 4 of 5 seeds, 0.03 in the fifth) and tree depth stays shallow throughout (2-4) - a slow-learning, shallow, regularized tree is consistently what gap-aware tuning finds best, regardless of which CV-fold arrangement it's tuned against. lightgbm shows more real spread (learning rate ranges 0.01-0.05, num_leaves mostly 7 but 15 in one seed) - consistent with the pattern already seen in the partition-sensitivity spot check, where lightgbm's hyperparameters moved less than xgboost's under one alternate scheme but not zero. Neither model's hyperparameters are so unstable as to suggest the tuning process itself is unreliable - they cluster in a recognizable family each time - but lightgbm's choice is more sensitive to exactly which rows land in which fold.</p>
 </section>
 
+<section id="shap">
+  <div class="section-label">Model characterization</div>
+  <h2>Feature importance and SHAP: does it line up with reality?</h2>
+  <p>Backward elimination says a feature clears a statistical bar - it doesn't say how much that feature actually moves a prediction, or whether the direction it moves it makes physical sense. Each seed's own final feature set and hyperparameters were retrained unweighted (the adopted default) on that seed's own 4 folds and explained with <code>shap.TreeExplainer</code> on the shared fixed holdout, so every row is explained by a model that never trained on it, and every seed/model explains the identical rows. Because seeds select slightly different feature sets, the figures below are restricted to the 18 features unanimous across all 5 seeds &times; 2 models - the actual recommended production core - so every one of the 10 independent SHAP explanations contributes to every bar and cell shown.</p>
+
+  <figure>
+    <img src="{{shap_aggregate}}" alt="Mean absolute SHAP value per feature, colored by category">
+    <figcaption>Mean |SHAP value| per feature, averaged across all 5 seeds &times; 2 models, on the fixed holdout. Colored by category: optical/spectral (blue), site/catchment (green), antecedent weather (gold).</figcaption>
+  </figure>
+
+  <p><b>Non-remote-sensing variables account for roughly a fifth of total attribution</b> - site/catchment features (<code>catchment_area_sqkm</code>, <code>pct_urban_2006</code>, <code>pct_wetland_2006</code>, <code>shore_flag</code>) contribute 16.4% of total mean |SHAP|, and the one antecedent-weather feature (<code>tmax_degC_prev30</code>) another 2.8% - 19.2% combined, against 80.9% for the 13 optical/spectral features. The three top-ranked features overall - <code>BG</code> (blue/green ratio), <code>green_corr7</code>, and <code>BR</code> (blue/red ratio) - are exactly the literature-cited chlorophyll and clarity ratios this project's feature engineering was built around (Kloiber et al.'s blue/red Secchi ratio, the canonical ocean-color blue/green chlorophyll ratio), not some feature engineering coincidence.</p>
+
+  <figure>
+    <img src="{{shap_beeswarm}}" alt="SHAP summary beeswarm plot, ensemble-averaged, unanimous core features">
+    <figcaption>SHAP summary plot (ensemble-averaged across the 5-seed &times; 2-model core, one dot per holdout row). Color is the row's own feature value (red = high, blue = low); position is that feature's contribution to the prediction for that row. Directionality matches physical expectation throughout: high <code>BG</code>/<code>BR</code> (blue-dominant, clear-water signatures) push predicted SDD up; high <code>green_corr7</code> and <code>pct_wetland_2006</code> (more backscatter, more organic/tannin input) push it down; a small cluster of very large <code>catchment_area_sqkm</code> values pushes predictions sharply up.</figcaption>
+  </figure>
+
+  <p>That last point is worth a closer look - a handful of extreme-catchment rows dominate <code>catchment_area_sqkm</code>'s SHAP spread more than any other feature's high-value tail. Breaking mean |SHAP| out by HUC4 shows why:</p>
+
+  <figure>
+    <img src="{{shap_by_huc4}}" alt="Mean absolute SHAP value by feature and HUC4, stability check">
+    <figcaption>Mean |SHAP value| by feature (rows) and HUC4 (columns, basins with &ge;30 holdout rows, both problem basins starred), same 18-feature core. The three top optical ratios stay dominant almost everywhere - a stable ranking. <code>catchment_area_sqkm</code> does not: it is the single most important feature anywhere in this heatmap, but only at HUC4 1407 (Lake Powell), where its importance dwarfs its value at every other basin.</figcaption>
+  </figure>
+
+  <div class="callout good">
+    <span class="label">It lines up with reality - and explains an earlier finding</span>
+    <p>The top-line optical ratios are stable across basins, which is reassuring - the model isn't leaning on a different feature depending on which lake it's looking at for the signal that matters most. But <code>catchment_area_sqkm</code>'s importance is almost entirely concentrated at Lake Powell specifically, which is exactly what the original outlier-HUC investigation's training-envelope finding predicted: Lake Powell's catchment area sits at the 97th percentile of the training distribution, an extreme, sparse value the model has few nearby examples to interpolate from. This SHAP breakdown shows that extremity isn't just sitting there unused - the model is leaning on it heavily, specifically where it's most extrapolated. HUC4 1701 shows the opposite pattern - its optical ratios (particularly <code>BG</code> and <code>green_corr7</code>) run to the strongest values anywhere in the dataset, consistent with it being a cluster of exceptionally, naturally clear lakes rather than a basin the model treats unusually.</p>
+  </div>
+</section>
+
 <section id="evaluation">
   <div class="section-label">Comparison 2</div>
   <h2>Does the new configuration actually beat production?</h2>
@@ -337,6 +368,11 @@ a { color: var(--accent-strong); }
   </figure>
 
   <p>Weighting is doing exactly what it's designed to do - shifting loss-function attention from the dense bulk toward the sparse, hard, high-SDD tail - and it works: top-quartile RMSE improves from 2.036m (unweighted) to 1.930m (weighted), and its under-prediction bias shrinks from &minus;1.19m to &minus;1.00m. But the well-populated rest of the distribution gets worse (1.034m &rarr; 1.124m), and because those rows outnumber the tail roughly 2.5:1 in this holdout, the net effect on the overall aggregate is a small regression (1.391m &rarr; 1.399m, +0.6%) alongside the widening train-val gap above.</p>
+
+  <figure>
+    <img src="{{pred_vs_obs_weighted}}" alt="Predicted vs observed SDD, unweighted vs SDD-weighted, side by side">
+    <figcaption>Predicted vs. observed SDD on the fixed holdout, unweighted (left, adopted) vs. SDD-weighted (right), same axes and scale. The weighted panel tracks the 1:1 line visibly better above ~6-8m - the sparse tail it was designed to help - at the cost of slightly more scatter through the dense 1-5m range, the same trade the RMSE-by-group numbers above describe, visible row by row.</figcaption>
+  </figure>
 
   <div class="callout flag">
     <span class="label">Result: unweighted adopted, with a caveat</span>

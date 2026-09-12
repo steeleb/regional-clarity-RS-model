@@ -1,0 +1,13 @@
+[07:20:44] seed501/xgboost: training 4 folds + SHAP on 3042-row holdout (21 feats)
+[07:21:05] seed501/lightgbm: training 4 folds + SHAP on 3042-row holdout (21 feats)
+[07:21:12] seed502/xgboost: training 4 folds + SHAP on 3042-row holdout (19 feats)
+[07:21:19] seed502/lightgbm: training 4 folds + SHAP on 3042-row holdout (19 feats)
+[07:21:33] seed503/xgboost: training 4 folds + SHAP on 3042-row holdout (21 feats)
+[07:21:49] seed503/lightgbm: training 4 folds + SHAP on 3042-row holdout (21 feats)
+[07:21:55] seed504/xgboost: training 4 folds + SHAP on 3042-row holdout (21 feats)
+[07:22:07] seed504/lightgbm: training 4 folds + SHAP on 3042-row holdout (21 feats)
+[07:22:13] seed505/xgboost: training 4 folds + SHAP on 3042-row holdout (22 feats)
+[07:22:25] seed505/lightgbm: training 4 folds + SHAP on 3042-row holdout (22 feats)
+[07:22:33] unanimous core (18 features): ['BG', 'BR', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'catchment_area_sqkm', 'fai', 'green_corr7', 'nir_corr7', 'pct_urban_2006', 'pct_wetland_2006', 'shore_flag', 'swir1_corr7', 'temp_corr7', 'tmax_degC_prev30']
+[07:22:33] wrote shap_values_long.parquet (30420 rows), shap_ensemble_mean.parquet (3042 rows)
+[07:22:33] DONE

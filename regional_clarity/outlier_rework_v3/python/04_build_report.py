@@ -24,6 +24,10 @@ figures = {
     "huc4_rmse": data_uri(FIG_DIR / "v3_huc4_rmse.png"),
     "weighting_train_val_test": data_uri(FIG_DIR / "v3_weighting_train_val_test.png"),
     "three_way_comparison": data_uri(FIG_DIR / "v3_three_way_comparison.png"),
+    "pred_vs_obs_weighted": data_uri(FIG_DIR / "v3_pred_vs_obs_weighted.png"),
+    "shap_aggregate": data_uri(FIG_DIR / "v3_shap_aggregate.png"),
+    "shap_beeswarm": data_uri(FIG_DIR / "v3_shap_beeswarm.png"),
+    "shap_by_huc4": data_uri(FIG_DIR / "v3_shap_by_huc4.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()
