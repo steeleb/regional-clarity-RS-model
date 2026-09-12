@@ -22,6 +22,8 @@ figures = {
     "pred_vs_obs": data_uri(FIG_DIR / "v3_pred_vs_obs.png"),
     "compression_bias": data_uri(FIG_DIR / "v3_compression_bias.png"),
     "huc4_rmse": data_uri(FIG_DIR / "v3_huc4_rmse.png"),
+    "weighting_rmse": data_uri(FIG_DIR / "v3_weighting_rmse.png"),
+    "weighting_bias": data_uri(FIG_DIR / "v3_weighting_bias.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

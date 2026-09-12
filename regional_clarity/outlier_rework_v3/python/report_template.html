@@ -174,6 +174,7 @@ a { color: var(--accent-strong); }
     <li><a href="#features">Feature selection across five independent splits</a></li>
     <li><a href="#hyperparams">Hyperparameters across five independent splits</a></li>
     <li><a href="#evaluation">Evaluating the ensemble - and isolating why it's better</a></li>
+    <li><a href="#weighting">Revisiting SDD-weighted training</a></li>
     <li><a href="#conclusion">Where this leaves the production pipeline</a></li>
   </ol>
 </nav>
@@ -311,6 +312,33 @@ a { color: var(--accent-strong); }
   </div>
 </section>
 
+<section id="weighting">
+  <div class="section-label">Revisiting a modeling choice</div>
+  <h2>Does SDD-weighted training actually help this ensemble?</h2>
+  <p>Every evaluation in this report so far - including the controlled comparison above - used SDD-weighted training (k=2.0) at the final-training step without re-testing it, simply because v1 adopted it after an earlier comparison. That comparison predates this whole line of split-sensitivity work, so it's worth re-checking rather than carrying forward by convention. Each seed's already-selected feature set and already gap-aware-tuned hyperparameters were reused unchanged (no re-elimination, no re-tuning - the same "only change the weighting" design v1's original weighting comparison used); final fold models were retrained twice per seed/model, once unweighted and once SDD-weighted, and evaluated on the same fixed holdout.</p>
+
+  <figure>
+    <img src="{{weighting_rmse}}" alt="Holdout RMSE, unweighted vs SDD-weighted, overall and by SDD group">
+    <figcaption>Holdout RMSE, 5-seed ensemble, unweighted vs. SDD-weighted (k=2.0). Top-quartile SDD (>4.5m, the sparse tail this weighting scheme was designed to help) improves 5.2%; the well-populated remaining three quartiles get 8.5% worse; the net effect on the overall aggregate is a 0.45% increase (essentially a wash, slightly negative).</figcaption>
+  </figure>
+
+  <p>This is weighting doing exactly what it's designed to do - shift the loss function's attention from the dense, well-populated bulk of the distribution toward the sparse, hard, high-SDD tail - and it does measurably reduce the tail's under-prediction bias (-1.19m unweighted &rarr; -0.99m weighted, a 17% smaller bias at the top quartile). But because the bulk of the data outnumbers the tail roughly 2.5:1 in this holdout, that trade nets out close to neutral on the aggregate metric, and slightly negative on it.</p>
+
+  <figure>
+    <img src="{{weighting_bias}}" alt="Mean bias, unweighted vs SDD-weighted, overall and by SDD group">
+    <figcaption>Mean bias (pred&minus;obs) by SDD group. Weighting reduces the top-quartile's under-prediction bias but increases the rest-of-distribution's over-prediction bias - a real trade, not a free improvement.</figcaption>
+  </figure>
+
+  <p>On reliability specifically - the condition for carrying this forward - the evidence doesn't clearly support it: mean per-fold train-val gap gets <i>larger</i> with weighting (0.394m &rarr; 0.437m unweighted vs. weighted), though its fold-to-fold variability is somewhat tighter (sd 0.373 &rarr; 0.315). Cross-seed test-RMSE agreement is also close to a wash (std 0.0170 &rarr; 0.0155 across the 5 seeds - both already very tight, so this difference isn't meaningful on its own).</p>
+
+  <div class="callout flag">
+    <span class="label">Verdict: not carried forward</span>
+    <p>SDD-weighting (k=2.0) does not clearly improve either overall accuracy or fold/cross-seed reliability for this ensemble - the fold-level train-val gap gets worse, not better, and the aggregate RMSE ticks up slightly. Its one genuine benefit - a meaningfully smaller under-prediction bias at the sparse high-SDD tail - is real and worth knowing about, but it comes at a cost to the majority of the data rather than as a free win. Per the condition set for this experiment, weighting is <b>not</b> carried into the gap-aware rework that follows; the production configuration going forward trains unweighted.</p>
+  </div>
+
+  <p style="font-size:0.9rem;">One bookkeeping note: the "Evaluation" section above used SDD-weighted training for both arms of its controlled comparison, inherited unexamined from v1's convention - that comparison is still valid (weighting was held identical across both arms, so the isolated feature/hyperparameter effect it measured is unaffected), but this section's unweighted number (RMSE 1.390) is in fact marginally <i>better</i> than the weighted v3-ensemble figure reported there (1.396). The unweighted result is the one carried forward as this report's final recommended configuration.</p>
+</section>
+
 <section id="conclusion">
   <div class="section-label">Conclusion</div>
   <h2>Where this leaves the production pipeline</h2>
@@ -318,14 +346,14 @@ a { color: var(--accent-strong); }
 
   <div class="callout good">
     <span class="label">Recommended next state</span>
-    <p>Adopt the ~18-feature core validated here (intersection-16 plus <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code>) as the new production feature set, and the 5-seed ensemble (40 models: 5 seeds &times; 2 architectures &times; 4 folds) as the production prediction mechanism, replacing the single-split final model. xgboost's hyperparameters are stable enough to fix at their consensus value (eta=0.01, depth 3) if a simpler single-config deployment is ever preferred over the full ensemble; lightgbm's spread suggests it benefits more from staying ensembled across seeds specifically, rather than collapsed to one "representative" config.</p>
+    <p>Adopt the ~18-feature core validated here (intersection-16 plus <code>shore_flag</code>, <code>swir1_corr7</code>, and <code>tmax_degC_prev30</code>) as the new production feature set, and the 5-seed ensemble (40 models: 5 seeds &times; 2 architectures &times; 4 folds), trained <b>unweighted</b>, as the production prediction mechanism, replacing the single-split final model. xgboost's hyperparameters are stable enough to fix at their consensus value (eta=0.01, depth 3) if a simpler single-config deployment is ever preferred over the full ensemble; lightgbm's spread suggests it benefits more from staying ensembled across seeds specifically, rather than collapsed to one "representative" config.</p>
   </div>
 
-  <p>Two things remain explicitly out of scope here, both flagged in earlier reports: the NN's role in this ensemble (excluded throughout, for the same process-isolation reasons as the partition-sensitivity work), and the systemic gap-aware-tuning question for pipeline stages this rebuild also touched (feature-group comparison used the same vanilla, non-gap-aware <code>tune()</code> as v1/v2, consistent with existing convention, but not re-examined here).</p>
+  <p>Two things remain explicitly out of scope here, both flagged in earlier reports: the NN's role in this ensemble (excluded throughout, for the same process-isolation reasons as the partition-sensitivity work), and the systemic gap-aware-tuning question for pipeline stages this rebuild also touched (feature-group comparison used the same vanilla, non-gap-aware <code>tune()</code> as v1/v2, consistent with existing convention - addressed next).</p>
 </section>
 
 <footer>
-  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; workflow v3 - full rebuild on a 5-seed HUC8-random ensemble, with a new shore_flag feature &middot; xgboost + lightgbm only &middot; 5 seeds &times; (4-group feature comparison + backward elimination + gap-aware tuning + final evaluation), plus a controlled comparison against v1's frozen configuration on the same splits.
+  Regional Clarity RS Model &middot; branch <code>outlier-removal-rework</code> &middot; workflow v3 - full rebuild on a 5-seed HUC8-random ensemble, with a new shore_flag feature &middot; xgboost + lightgbm only &middot; 5 seeds &times; (4-group feature comparison + backward elimination + gap-aware tuning + final evaluation), plus a controlled comparison against v1's frozen configuration on the same splits, plus a weighted-vs-unweighted retraining comparison (unweighted adopted).
 </footer>
 
 </div>

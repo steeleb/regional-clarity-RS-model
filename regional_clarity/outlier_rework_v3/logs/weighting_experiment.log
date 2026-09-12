@@ -1,0 +1,26 @@
+[21:17:53] top-quartile SDD cutoff (from full CV pool): 4.500 m
+[21:18:10] seed501/xgboost/unweighted: test_rmse=1.3354
+[21:18:20] seed501/xgboost/weighted: test_rmse=1.3500
+[21:18:27] seed501/lightgbm/unweighted: test_rmse=1.3364
+[21:18:32] seed501/lightgbm/weighted: test_rmse=1.3594
+[21:18:42] seed502/xgboost/unweighted: test_rmse=1.3326
+[21:18:51] seed502/xgboost/weighted: test_rmse=1.3514
+[21:19:07] seed502/lightgbm/unweighted: test_rmse=1.3276
+[21:19:21] seed502/lightgbm/weighted: test_rmse=1.3462
+[21:19:36] seed503/xgboost/unweighted: test_rmse=1.3371
+[21:19:50] seed503/xgboost/weighted: test_rmse=1.3588
+[21:19:56] seed503/lightgbm/unweighted: test_rmse=1.3570
+[21:20:05] seed503/lightgbm/weighted: test_rmse=1.3846
+[21:20:14] seed504/xgboost/unweighted: test_rmse=1.3820
+[21:20:24] seed504/xgboost/weighted: test_rmse=1.3814
+[21:20:40] seed504/lightgbm/unweighted: test_rmse=1.3599
+[21:20:57] seed504/lightgbm/weighted: test_rmse=1.3876
+[21:21:09] seed505/xgboost/unweighted: test_rmse=1.3421
+[21:21:20] seed505/xgboost/weighted: test_rmse=1.3556
+[21:21:27] seed505/lightgbm/unweighted: test_rmse=1.3320
+[21:21:35] seed505/lightgbm/weighted: test_rmse=1.3542
+[21:21:35] unweighted ENSEMBLE: overall_rmse=1.3901 top_quartile_rmse=2.0346 (n=673) rest_rmse=1.0340 (n=1721)
+[21:21:35] weighted ENSEMBLE: overall_rmse=1.3964 top_quartile_rmse=1.9288 (n=673) rest_rmse=1.1214 (n=1721)
+[21:21:35] fold train-val gap by weighting: {'mean_gap': {False: 0.39402991875256005, True: 0.4367031593184551}, 'sd_gap': {False: 0.3732147907379967, True: 0.31514824053822177}}
+[21:21:35] cross-seed test-RMSE variance by weighting: {'mean': {False: 1.3442239659534259, True: 1.3629229485355991}, 'std': {False: 0.016969235855533445, True: 0.015471265747564562}}
+[21:21:35] wrote /Users/steeleb/Documents/GitHub/regional-clarity-RS-model/regional_clarity/outlier_rework_v3/results/weighting_experiment_summary.json
