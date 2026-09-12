@@ -13,7 +13,6 @@
     "fai",
     "green_corr7",
     "nir_corr7",
-    "pct_cropland_2006",
     "pct_forest_2006",
     "pct_urban_2006",
     "pct_wetland_2006",
@@ -23,18 +22,18 @@
     "tmax_degC_prev30"
   ],
   "best_params": {
-    "eta": 0.01,
-    "max_depth": 3,
-    "min_child_weight": 3,
-    "subsample": 0.7,
+    "eta": 0.03,
+    "max_depth": 2,
+    "min_child_weight": 5,
+    "subsample": 0.6,
     "colsample_bytree": 0.4,
-    "reg_alpha": 0.1,
-    "reg_lambda": 5
+    "reg_alpha": 1,
+    "reg_lambda": 20
   },
-  "best_score": 1.4761132323115715,
-  "best_gap": 0.37411459386258383,
-  "best_train_rmse": 1.1019986384489877,
-  "pure_best_val_rmse": 1.4659282797947841,
+  "best_score": 1.4780925160999487,
+  "best_gap": 0.328452040397349,
+  "best_train_rmse": 1.1496404757025998,
+  "pure_best_val_rmse": 1.4541959214465099,
   "band_size": 25,
   "n_trials": 40
 }

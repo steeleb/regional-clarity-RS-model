@@ -1,0 +1,110 @@
+{
+  "xgboost": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_urban_2006",
+      "pct_wetland_2006",
+      "shore_flag",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30"
+    ],
+    "params": {
+      "eta": 0.01,
+      "max_depth": 4,
+      "min_child_weight": 10,
+      "subsample": 0.6,
+      "colsample_bytree": 0.4,
+      "reg_alpha": 5,
+      "reg_lambda": 20
+    },
+    "cv_metrics": {
+      "rmse": 1.4938279337234281,
+      "mae": 1.0401578070504478,
+      "mape": 0.6656497086480981,
+      "bias": 0.16866178409618832,
+      "p_bias": 5.229948678116684,
+      "smape": 0.38697415692656617,
+      "r2": 0.6274462136118917,
+      "n": 9595
+    },
+    "test_metrics": {
+      "rmse": 1.3499788740668048,
+      "mae": 0.9873021321654084,
+      "mape": 0.4452794881573924,
+      "bias": 0.1994032860076561,
+      "p_bias": 5.755975043866353,
+      "smape": 0.3156138600652283,
+      "r2": 0.640862511545902,
+      "n": 3042
+    }
+  },
+  "lightgbm": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_urban_2006",
+      "pct_wetland_2006",
+      "shore_flag",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30"
+    ],
+    "params": {
+      "learning_rate": 0.05,
+      "num_leaves": 7,
+      "min_child_samples": 50,
+      "subsample": 0.7,
+      "colsample_bytree": 0.4,
+      "reg_alpha": 5,
+      "reg_lambda": 1
+    },
+    "cv_metrics": {
+      "rmse": 1.504048083541292,
+      "mae": 1.0466344023744956,
+      "mape": 0.6620272697564293,
+      "bias": 0.14063639433036343,
+      "p_bias": 4.360923421773548,
+      "smape": 0.39932827862683057,
+      "r2": 0.6210062124356028,
+      "n": 9595
+    },
+    "test_metrics": {
+      "rmse": 1.3593919448441185,
+      "mae": 1.0081966197683159,
+      "mape": 0.4637125547037182,
+      "bias": 0.2732684797045234,
+      "p_bias": 7.888167647318223,
+      "smape": 0.32307474450743096,
+      "r2": 0.6427563854044825,
+      "n": 3042
+    }
+  }
+}

@@ -1,0 +1,15 @@
+[22:16:14] v3 ENSEMBLE (5 seeds x 2 models, 5x2=40 models): {'rmse': 1.3906779045227118, 'mae': 1.0003604754202324, 'mape': 0.398271158216716, 'bias': 0.008797565992687105, 'p_bias': 0.2438929186091474, 'smape': 0.3094338022879285, 'r2': 0.6470988799842949, 'n': 2394}
+[22:16:14] v3 xgboost-only ensemble (5 seeds): {'rmse': 1.3995641862170072, 'mae': 1.003352664289952, 'mape': 0.39941489107130157, 'bias': -0.003911072040296756, 'p_bias': -0.10842575953297938, 'smape': 0.3109104508102697, 'r2': 0.6425644441257268, 'n': 2394}
+[22:16:14] v3 lightgbm-only ensemble (5 seeds): {'rmse': 1.3850680923539214, 'mae': 0.9992289533123974, 'mape': 0.3984904154616026, 'bias': 0.021506204025671036, 'p_bias': 0.5962115967512762, 'smape': 0.3092543773814569, 'r2': 0.6497726826014231, 'n': 2394}
+[22:16:17] v1-frozen-config seed501/xgboost: test_rmse=1.3994
+[22:16:26] v1-frozen-config seed501/lightgbm: test_rmse=1.4167
+[22:16:31] v1-frozen-config seed502/xgboost: test_rmse=1.3904
+[22:16:46] v1-frozen-config seed502/lightgbm: test_rmse=1.3931
+[22:16:49] v1-frozen-config seed503/xgboost: test_rmse=1.3792
+[22:17:03] v1-frozen-config seed503/lightgbm: test_rmse=1.3772
+[22:17:06] v1-frozen-config seed504/xgboost: test_rmse=1.3977
+[22:17:14] v1-frozen-config seed504/lightgbm: test_rmse=1.4132
+[22:17:17] v1-frozen-config seed505/xgboost: test_rmse=1.4017
+[22:17:26] v1-frozen-config seed505/lightgbm: test_rmse=1.4082
+[22:17:26] v1-FROZEN-CONFIG ENSEMBLE (same 5 splits, old features/hyperparams): {'rmse': 1.4324902748550201, 'mae': 1.047289824668566, 'mape': 0.438147592834192, 'bias': 0.14232978670799573, 'p_bias': 3.9457762651721593, 'smape': 0.3284672743181742, 'r2': 0.6265434287747422, 'n': 2394}
+[22:17:26] wrote /Users/steeleb/Documents/GitHub/regional-clarity-RS-model/regional_clarity/outlier_rework_v3/results/ensemble_comparison_summary.json

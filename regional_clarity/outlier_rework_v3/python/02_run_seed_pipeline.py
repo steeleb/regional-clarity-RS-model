@@ -14,6 +14,16 @@ run_final_tuning.py / run_final_evaluation.py, but:
   - gap_aware_tune is ported inline (not imported from run_final_tuning.py)
     to avoid that module's top-level `import model_nn` (torch)
 
+REWORK (second pass, same folder - see git history for the prior version):
+  - feature-group comparison now uses gap_aware_tune instead of the vanilla,
+    non-gap-aware mod.tune() - addresses the long-deferred backlog item that
+    every pipeline stage before final tuning picked hyperparameters by raw
+    CV RMSE alone, with no penalty for the train-val gap, same failure mode
+    final tuning had before it was made gap-aware
+  - training is unweighted throughout (SDD-weighting, k=2.0, was re-tested
+    in the first pass and found not to clearly improve accuracy or
+    fold/cross-seed reliability - see results/weighting_experiment_summary.json)
+
 Run as its own process per seed - isolates state between seeds and makes
 individual seed runs resumable/inspectable independently.
 """
@@ -35,7 +45,6 @@ import features  # noqa: E402
 import metrics as M  # noqa: E402
 import model_lgb  # noqa: E402
 import model_xgb  # noqa: E402
-from weighting import make_sdd_weight_fn  # noqa: E402
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "base_with_splits.parquet"
 RESULTS_ROOT = Path(__file__).resolve().parents[1] / "results"
@@ -133,11 +142,11 @@ def run_feature_group_comparison(seed, df, folds, test, out_dir):
         pruned = features.correlation_prune(train_val, candidate_feats, target=TARGET)
         for model_name, mod in MODELS.items():
             log(seed, f"=== feature-group {group_name} / {model_name} "
-                      f"({len(pruned)} candidates after pruning) ===")
+                      f"({len(pruned)} candidates after pruning) - gap-aware ===")
             t0 = time.time()
-            tune_result = mod.tune(folds, pruned, TARGET, n_trials=N_TRIALS_GROUP[model_name], seed=47)
-            fold_models = mod.train_fold_models(folds, pruned, TARGET, tune_result["best_params"],
-                                                weight_fn=make_sdd_weight_fn(k=2.0))
+            tune_result = gap_aware_tune(mod, folds, pruned, TARGET,
+                                         n_trials=N_TRIALS_GROUP[model_name], seed=47)
+            fold_models = mod.train_fold_models(folds, pruned, TARGET, tune_result["best_params"])
             cv_preds, cv_ys = [], []
             for f, model in zip(folds, fold_models):
                 cv_preds.append(mod.predict_ensemble([model], f.val[pruned]))
@@ -146,10 +155,11 @@ def run_feature_group_comparison(seed, df, folds, test, out_dir):
             test_pred = mod.predict_ensemble(fold_models, test[pruned])
             test_metrics = M.all_metrics(test[TARGET].values, test_pred)
             log(seed, f"{group_name}/{model_name}: cv_rmse={cv_metrics['rmse']:.4f} "
-                      f"test_rmse={test_metrics['rmse']:.4f} ({time.time()-t0:.0f}s)")
+                      f"test_rmse={test_metrics['rmse']:.4f} gap={tune_result['best_gap']:.4f} "
+                      f"({time.time()-t0:.0f}s)")
             key = f"{model_name}_{group_name}"
             results[key] = dict(model=model_name, feature_group=group_name, features=pruned,
-                                 best_params=tune_result["best_params"],
+                                 best_params=tune_result["best_params"], best_gap=tune_result["best_gap"],
                                  cv_metrics=cv_metrics, test_metrics=test_metrics)
     with open(out_dir / "feature_group_results.json", "w") as fh:
         json.dump(results, fh, indent=2, default=str)
@@ -214,12 +224,14 @@ def run_final_tuning(seed, folds, feats, out_dir):
 
 
 def run_final_evaluation(seed, folds, test, feats, tuned, out_dir):
-    weight_fn = make_sdd_weight_fn(k=2.0)
+    # unweighted: the weighting-scheme experiment (results/weighting_experiment_summary.json)
+    # found SDD-weighting (k=2.0) does not clearly improve overall accuracy or
+    # fold/cross-seed reliability for this ensemble - not carried forward
     summary = {}
     holdout_rows = []
     for model_name, mod in MODELS.items():
         params = tuned[model_name]["best_params"]
-        fold_models = mod.train_fold_models(folds, feats, TARGET, params, weight_fn=weight_fn)
+        fold_models = mod.train_fold_models(folds, feats, TARGET, params)
 
         cv_preds, cv_ys = [], []
         for f, model in zip(folds, fold_models):

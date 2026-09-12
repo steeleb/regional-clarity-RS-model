@@ -1,0 +1,55 @@
+[21:34:33][seed503] folds: [(1, 7189, 2406), (2, 7120, 2475), (3, 7194, 2401), (4, 7282, 2313)], holdout n=3042
+[21:34:33][seed503] ### STAGE 1: feature-group comparison ###
+[21:34:33][seed503] === feature-group optical / xgboost (13 candidates after pruning) - gap-aware ===
+[21:35:42][seed503] optical/xgboost: cv_rmse=1.5604 test_rmse=1.5527 gap=0.1555 (68s)
+[21:35:42][seed503] === feature-group optical / lightgbm (13 candidates after pruning) - gap-aware ===
+[21:37:25][seed503] optical/lightgbm: cv_rmse=1.5500 test_rmse=1.5400 gap=0.1642 (103s)
+[21:37:25][seed503] === feature-group optical_site / xgboost (21 candidates after pruning) - gap-aware ===
+[21:38:58][seed503] optical_site/xgboost: cv_rmse=1.5083 test_rmse=1.4104 gap=0.2373 (94s)
+[21:38:58][seed503] === feature-group optical_site / lightgbm (21 candidates after pruning) - gap-aware ===
+[21:41:47][seed503] optical_site/lightgbm: cv_rmse=1.4957 test_rmse=1.3575 gap=0.3051 (168s)
+[21:41:47][seed503] === feature-group optical_weather / xgboost (26 candidates after pruning) - gap-aware ===
+[21:43:29][seed503] optical_weather/xgboost: cv_rmse=1.5659 test_rmse=1.5487 gap=0.1837 (102s)
+[21:43:29][seed503] === feature-group optical_weather / lightgbm (26 candidates after pruning) - gap-aware ===
+[21:47:47][seed503] optical_weather/lightgbm: cv_rmse=1.5509 test_rmse=1.5259 gap=0.2457 (259s)
+[21:47:47][seed503] === feature-group optical_site_weather / xgboost (34 candidates after pruning) - gap-aware ===
+[21:49:52][seed503] optical_site_weather/xgboost: cv_rmse=1.5114 test_rmse=1.4013 gap=0.2931 (125s)
+[21:49:52][seed503] === feature-group optical_site_weather / lightgbm (34 candidates after pruning) - gap-aware ===
+[21:54:13][seed503] optical_site_weather/lightgbm: cv_rmse=1.4768 test_rmse=1.3409 gap=0.3977 (261s)
+[21:54:13][seed503] ### STAGE 2: backward elimination ###
+[21:54:13][seed503] elimination candidate pool: 27 -> 23 after correlation pruning
+[21:54:13][seed503] pruned set: ['atm_corr_LaSRC', 'green_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shore_flag', 'precip_mm_prev30', 'tmax_degC_prev30']
+[21:54:13][seed503] === backward elimination: xgboost ===
+[21:54:45][seed503]   [xgboost] step 0: n=23 cv_rmse=1.4817 shadow_floor=0.0001
+[21:54:45][seed503]   [xgboost] drop 'elevation_m' (importance -0.0034 <= shadow floor 0.0001)
+[21:55:25][seed503]   [xgboost] step 1: n=22 cv_rmse=1.4772 shadow_floor=0.0002
+[21:55:25][seed503]   [xgboost] drop 'precip_mm_prev30' (importance -0.0007 <= shadow floor 0.0002)
+[21:56:02][seed503]   [xgboost] step 2: n=21 cv_rmse=1.4751 shadow_floor=0.0001
+[21:56:02][seed503]   [xgboost] stop: worst real feature 'NDVI' (0.0018) beats shadow floor (0.0001)
+[21:56:02][seed503] xgboost final (21): ['atm_corr_LaSRC', 'green_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shore_flag', 'tmax_degC_prev30']
+[21:56:02][seed503] === backward elimination: lightgbm ===
+[21:56:29][seed503]   [lightgbm] step 0: n=23 cv_rmse=1.4478 shadow_floor=0.0003
+[21:56:29][seed503]   [lightgbm] drop 'elevation_m' (importance -0.0090 <= shadow floor 0.0003)
+[21:57:00][seed503]   [lightgbm] step 1: n=22 cv_rmse=1.4293 shadow_floor=0.0002
+[21:57:00][seed503]   [lightgbm] drop 'precip_mm_prev30' (importance -0.0006 <= shadow floor 0.0002)
+[21:57:34][seed503]   [lightgbm] step 2: n=21 cv_rmse=1.4255 shadow_floor=0.0002
+[21:57:34][seed503]   [lightgbm] stop: worst real feature 'NDSSI' (0.0014) beats shadow floor (0.0002)
+[21:57:34][seed503] lightgbm final (21): ['atm_corr_LaSRC', 'green_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shore_flag', 'tmax_degC_prev30']
+[21:57:34][seed503] === joint elimination (xgboost + lightgbm) ===
+[21:58:32][seed503]   [joint] step 0: n=23 xgboost_rmse=1.4817 lightgbm_rmse=1.4478
+[21:58:32][seed503]   [joint] drop 'elevation_m' (norm importance -27.909 <= 1.0)
+[21:59:44][seed503]   [joint] step 1: n=22 xgboost_rmse=1.4772 lightgbm_rmse=1.4293
+[21:59:44][seed503]   [joint] drop 'precip_mm_prev30' (norm importance -2.886 <= 1.0)
+[22:00:56][seed503]   [joint] step 2: n=21 xgboost_rmse=1.4751 lightgbm_rmse=1.4255
+[22:00:56][seed503]   [joint] stop: worst real feature 'NDWI' (norm importance 16.872) beats the noise floor (1.0) for all models
+[22:00:56][seed503] joint final (21): ['atm_corr_LaSRC', 'green_corr7', 'nir_corr7', 'swir1_corr7', 'temp_corr7', 'BR', 'BG', 'NR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shore_flag', 'tmax_degC_prev30']
+[22:00:56][seed503] intersection (21): ['BG', 'BR', 'MNDWI', 'NDSSI', 'NDVI', 'NDWI', 'NR', 'atm_corr_LaSRC', 'catchment_area_sqkm', 'fai', 'green_corr7', 'nir_corr7', 'pct_cropland_2006', 'pct_forest_2006', 'pct_impervious_2006', 'pct_urban_2006', 'pct_wetland_2006', 'shore_flag', 'swir1_corr7', 'temp_corr7', 'tmax_degC_prev30']
+[22:00:56][seed503] ### STAGE 3: gap-aware final tuning ###
+[22:00:56][seed503] === gap-aware tuning: xgboost on final feature set ===
+[22:04:10][seed503] xgboost chosen: {'eta': 0.01, 'max_depth': 3, 'min_child_weight': 10, 'subsample': 0.7, 'colsample_bytree': 0.5, 'reg_alpha': 5, 'reg_lambda': 5} val_rmse=1.4312 gap=0.3787
+[22:04:10][seed503] === gap-aware tuning: lightgbm on final feature set ===
+[22:08:41][seed503] lightgbm chosen: {'learning_rate': 0.03, 'num_leaves': 7, 'min_child_samples': 30, 'subsample': 0.6, 'colsample_bytree': 0.5, 'reg_alpha': 0, 'reg_lambda': 5} val_rmse=1.4273 gap=0.3450
+[22:08:41][seed503] ### STAGE 4: final evaluation on fixed holdout ###
+[22:08:49][seed503] xgboost FINAL: cv_rmse=1.4608 test_rmse=1.3371
+[22:08:51][seed503] lightgbm FINAL: cv_rmse=1.4562 test_rmse=1.3570
+[22:08:51][seed503] SEED 503 DONE in 2058s

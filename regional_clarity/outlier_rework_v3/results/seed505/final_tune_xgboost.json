@@ -18,6 +18,7 @@
     "pct_impervious_2006",
     "pct_urban_2006",
     "pct_wetland_2006",
+    "precip_mm_prev30",
     "shore_flag",
     "swir1_corr7",
     "temp_corr7",
@@ -25,17 +26,17 @@
   ],
   "best_params": {
     "eta": 0.01,
-    "max_depth": 3,
-    "min_child_weight": 10,
+    "max_depth": 2,
+    "min_child_weight": 7,
     "subsample": 0.7,
-    "colsample_bytree": 0.5,
-    "reg_alpha": 5,
-    "reg_lambda": 5
+    "colsample_bytree": 0.7,
+    "reg_alpha": 0,
+    "reg_lambda": 10
   },
-  "best_score": 1.4818997613831795,
-  "best_gap": 0.40983192169232074,
-  "best_train_rmse": 1.0720678396908587,
-  "pure_best_val_rmse": 1.4639918127585125,
-  "band_size": 27,
+  "best_score": 1.4953940375907155,
+  "best_gap": 0.30497730080035623,
+  "best_train_rmse": 1.1904167367903593,
+  "pure_best_val_rmse": 1.4671840170134858,
+  "band_size": 30,
   "n_trials": 40
 }

@@ -24,6 +24,8 @@ figures = {
     "huc4_rmse": data_uri(FIG_DIR / "v3_huc4_rmse.png"),
     "weighting_rmse": data_uri(FIG_DIR / "v3_weighting_rmse.png"),
     "weighting_bias": data_uri(FIG_DIR / "v3_weighting_bias.png"),
+    "feature_stability_gapaware": data_uri(FIG_DIR / "v3_feature_stability_gapaware.png"),
+    "gapaware_comparison": data_uri(FIG_DIR / "v3_gapaware_comparison.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()
