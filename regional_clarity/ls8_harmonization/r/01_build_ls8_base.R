@@ -35,7 +35,8 @@ stopifnot(
 )
 
 base <- expanded %>%
-  mutate(med_Blue = raw$med_Blue, med_Green = raw$med_Green, med_Red = raw$med_Red,
+  mutate(sat_id = raw$sat_id,
+         med_Blue = raw$med_Blue, med_Green = raw$med_Green, med_Red = raw$med_Red,
          med_Nir = raw$med_Nir, med_Swir1 = raw$med_Swir1, med_Swir2 = raw$med_Swir2,
          med_SurfaceTemp = raw$med_SurfaceTemp)
 
@@ -99,7 +100,7 @@ log("after (LE07/LC08/LC09 only): %s", paste(capture.output(print(table(base_ls8
 
 ## ---- export: corr7 (existing) + corr8 (new) + site/weather columns, mission preserved ----
 final <- base_ls8 %>%
-  select(siteSR_id, date, HUC4, harmonized_value, mission, time_diff, misc_flag,
+  select(siteSR_id, sat_id, date, HUC4, harmonized_value, mission, time_diff, misc_flag,
          atm_corr_LaSRC, lat, lon,
          red_corr7, green_corr7, blue_corr7, nir_corr7, swir1_corr7, swir2_corr7, temp_corr7,
          red_corr8, green_corr8, blue_corr8, nir_corr8, swir1_corr8, swir2_corr8, temp_corr8,
