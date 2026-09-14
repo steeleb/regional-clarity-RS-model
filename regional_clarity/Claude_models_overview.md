@@ -176,15 +176,15 @@ Two questions from one shared 5-seed-ensemble setup: does referencing cross-sens
 
 **SHAP/feature assessment (new):** run fresh for all three models (same design as v3's SHAP analysis — each seed's own selected features/hyperparameters, holdout never trained on). Optical signal dominates in every model (72–80% of total attribution), site features pick up more of the remainder for LS8/9-only (28%) than the full-corpus model (~20–22%), and no model gives weather meaningful weight. `GR` and `blue_corr8` — the two features newly-unanimous under the LS8 reference — are real but marginal SHAP contributors, not dominant ones. The LS8-ref model's SHAP independently re-derives v3's Lake Powell catchment-area finding via a completely different corpus/reference.
 
-![SHAP attribution, LS8-ref arm](ls8_harmonization/figures/ls8ref_shap_aggregate.png)
+![SHAP attribution, LS8-ref model](ls8_harmonization/figures/ls8ref_shap_aggregate.png)
 
 *Mean |SHAP value| per feature, LS8-ref model's 17-feature unanimous core.*
 
-![SHAP by HUC4, LS8-ref arm](ls8_harmonization/figures/ls8ref_shap_by_huc4.png)
+![SHAP by HUC4, LS8-ref model](ls8_harmonization/figures/ls8ref_shap_by_huc4.png)
 
 *Mean |SHAP value| by feature and HUC4, LS8-ref model.*
 
-![pred vs obs, all arms](ls8_harmonization/figures/pred_vs_obs_arms.png)
+![pred vs obs, all models](ls8_harmonization/figures/pred_vs_obs_arms.png)
 
 *Predicted vs. observed SDD, all three sensor variations side by side, each on its own fixed holdout.*
 
@@ -204,13 +204,13 @@ Note the continued benching performance above 6m.
 
 ![example time series, all three arms](ls8_harmonization/figures/multiarm_timeseries_examples.png)
 
-*Observed vs. predicted Secchi depth over time, all three arms' 5-seed ensemble predictions on the same sites/observations, named where a GNIS name exists. LS7-ref and LS8-ref track each other closely (same rows/splits); LS8/9-only is sparser (LC08/LC09 dates only) and diverges more.*
+*Observed vs. predicted Secchi depth over time, all three models' 5-seed ensemble predictions on the same sites/observations, named where a GNIS name exists. LS7-ref and LS8-ref track each other closely (same rows/splits); LS8/9-only is sparser (LC08/LC09 dates only) and diverges more.*
 
 **SDD-weighting note:** examined for all three models. Same shape as every prior report: weighting narrows the top-quartile gap (LS8-ref RMSE 2.434→2.308m, bias −1.584→−1.415m) but leaves overall RMSE flat-to-worse (1.592→1.597m) with overall bias moving further from zero (+0.153→+0.276m), and the "rest" group getting worse on both metrics — the LS8/9-only model is the one exception where weighting also helps overall RMSE slightly (1.667→1.610m), likely a smaller-sample-size effect. Not adopted as default for any model.
 
 ![weighted pred vs obs, LS8-ref arm](ls8_harmonization/figures/ls8ref_pred_vs_obs_weighted.png)
 
-*Predicted vs. observed, unweighted vs. SDD-weighted, LS8-ref arm.*
+*Predicted vs. observed, unweighted vs. SDD-weighted, LS8-ref model.*
 
 **Overtraining check (LS8/9-only, 73% less data, same hyperparameter search space):** checked directly from each seed's saved in-CV vs. held-out-test RMSE, no retraining needed. LS8/9-only's mean CV→test gap (23.3%) tracks the full-corpus control model's (22.4%) rather than blowing out — it's the noisiest of the three (17.3–27.8% across seeds×models) but not disproportionately worse, and the tuned hyperparameters (tree depth, regularization) aren't measurably more permissive for this model specifically. Reads as "not obviously overtraining," with the caveat that 5 seeds×2 models is a small sample for characterizing that spread.
 
