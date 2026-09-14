@@ -1,0 +1,96 @@
+[10:29:53][seed505] mission-filter l8_only: 7112 -> 1925 rows
+[10:29:53][seed505] arm=l89only folds: [(1, 1189, 418), (2, 1211, 396), (3, 1155, 452), (4, 1266, 341)], holdout n=318
+[10:29:53][seed505] ### STAGE 1: feature-group comparison ###
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[10:29:53][seed505] === feature-group optical / xgboost (16 candidates after pruning) - gap-aware ===
+[10:30:52][seed505] optical/xgboost: cv_rmse=1.4286 test_rmse=1.5709 gap=0.4378 (59s)
+[10:30:52][seed505] === feature-group optical / lightgbm (16 candidates after pruning) - gap-aware ===
+[10:32:07][seed505] optical/lightgbm: cv_rmse=1.4073 test_rmse=1.6703 gap=0.3499 (75s)
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[10:32:07][seed505] === feature-group optical_site / xgboost (24 candidates after pruning) - gap-aware ===
+[10:34:01][seed505] optical_site/xgboost: cv_rmse=1.2143 test_rmse=1.4750 gap=0.5100 (113s)
+[10:34:01][seed505] === feature-group optical_site / lightgbm (24 candidates after pruning) - gap-aware ===
+[10:36:08][seed505] optical_site/lightgbm: cv_rmse=1.2512 test_rmse=1.5650 gap=0.5512 (127s)
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[10:36:08][seed505] === feature-group optical_weather / xgboost (33 candidates after pruning) - gap-aware ===
+[10:37:43][seed505] optical_weather/xgboost: cv_rmse=1.4350 test_rmse=1.5387 gap=0.6476 (95s)
+[10:37:43][seed505] === feature-group optical_weather / lightgbm (33 candidates after pruning) - gap-aware ===
+[10:39:28][seed505] optical_weather/lightgbm: cv_rmse=1.4124 test_rmse=1.6143 gap=0.5938 (104s)
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[10:39:28][seed505] === feature-group optical_site_weather / xgboost (41 candidates after pruning) - gap-aware ===
+[10:42:02][seed505] optical_site_weather/xgboost: cv_rmse=1.2363 test_rmse=1.5099 gap=0.6484 (154s)
+[10:42:02][seed505] === feature-group optical_site_weather / lightgbm (41 candidates after pruning) - gap-aware ===
+[10:44:51][seed505] optical_site_weather/lightgbm: cv_rmse=1.2636 test_rmse=1.5756 gap=0.7492 (169s)
+[10:44:51][seed505] ### STAGE 2: backward elimination ###
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/Users/steeleb/miniconda3/envs/regional_clarity/lib/python3.11/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[10:44:51][seed505] elimination candidate pool: 27 -> 26 after correlation pruning
+[10:44:51][seed505] pruned set: ['atm_corr_LaSRC', 'red_corr8', 'green_corr8', 'blue_corr8', 'nir_corr8', 'swir2_corr8', 'temp_corr8', 'BR', 'BG', 'NR', 'GR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'elevation_m', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'shore_flag', 'precip_mm_prev30', 'tmax_degC_prev30']
+[10:44:51][seed505] === backward elimination: xgboost ===
+[10:45:22][seed505]   [xgboost] step 0: n=26 cv_rmse=1.2312 shadow_floor=0.0017
+[10:45:22][seed505]   [xgboost] drop 'elevation_m' (importance -0.0031 <= shadow floor 0.0017)
+[10:45:57][seed505]   [xgboost] step 1: n=25 cv_rmse=1.2291 shadow_floor=0.0011
+[10:45:57][seed505]   [xgboost] drop 'shore_flag' (importance -0.0005 <= shadow floor 0.0011)
+[10:46:30][seed505]   [xgboost] step 2: n=24 cv_rmse=1.2232 shadow_floor=0.0019
+[10:46:30][seed505]   [xgboost] drop 'pct_cropland_2006' (importance -0.0002 <= shadow floor 0.0019)
+[10:47:00][seed505]   [xgboost] step 3: n=23 cv_rmse=1.2241 shadow_floor=0.0015
+[10:47:00][seed505]   [xgboost] drop 'atm_corr_LaSRC' (importance 0.0000 <= shadow floor 0.0015)
+[10:47:32][seed505]   [xgboost] step 4: n=22 cv_rmse=1.2171 shadow_floor=0.0018
+[10:47:32][seed505]   [xgboost] drop 'NDWI' (importance -0.0002 <= shadow floor 0.0018)
+[10:48:04][seed505]   [xgboost] step 5: n=21 cv_rmse=1.2141 shadow_floor=0.0013
+[10:48:04][seed505]   [xgboost] drop 'swir2_corr8' (importance 0.0009 <= shadow floor 0.0013)
+[10:48:33][seed505]   [xgboost] step 6: n=20 cv_rmse=1.2231 shadow_floor=0.0018
+[10:48:33][seed505]   [xgboost] stop: cv_rmse degraded >0.5% from best (1.2141)
+[10:48:33][seed505] xgboost final (21): ['red_corr8', 'green_corr8', 'blue_corr8', 'nir_corr8', 'swir2_corr8', 'temp_corr8', 'BR', 'BG', 'NR', 'GR', 'fai', 'NDVI', 'NDSSI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[10:48:33][seed505] === backward elimination: lightgbm ===
+[10:48:48][seed505]   [lightgbm] step 0: n=26 cv_rmse=1.2452 shadow_floor=0.0016
+[10:48:48][seed505]   [lightgbm] drop 'shore_flag' (importance -0.0019 <= shadow floor 0.0016)
+[10:49:02][seed505]   [lightgbm] step 1: n=25 cv_rmse=1.2489 shadow_floor=0.0011
+[10:49:02][seed505]   [lightgbm] drop 'pct_cropland_2006' (importance -0.0014 <= shadow floor 0.0011)
+[10:49:15][seed505]   [lightgbm] step 2: n=24 cv_rmse=1.2419 shadow_floor=0.0015
+[10:49:15][seed505]   [lightgbm] drop 'NDWI' (importance -0.0010 <= shadow floor 0.0015)
+[10:49:28][seed505]   [lightgbm] step 3: n=23 cv_rmse=1.2415 shadow_floor=0.0005
+[10:49:28][seed505]   [lightgbm] drop 'elevation_m' (importance -0.0027 <= shadow floor 0.0005)
+[10:49:42][seed505]   [lightgbm] step 4: n=22 cv_rmse=1.2300 shadow_floor=0.0020
+[10:49:42][seed505]   [lightgbm] drop 'tmax_degC_prev30' (importance -0.0015 <= shadow floor 0.0020)
+[10:49:53][seed505]   [lightgbm] step 5: n=21 cv_rmse=1.2287 shadow_floor=0.0024
+[10:49:53][seed505]   [lightgbm] drop 'atm_corr_LaSRC' (importance 0.0000 <= shadow floor 0.0024)
+[10:50:02][seed505]   [lightgbm] step 6: n=20 cv_rmse=1.2362 shadow_floor=0.0009
+[10:50:02][seed505]   [lightgbm] stop: cv_rmse degraded >0.5% from best (1.2287)
+[10:50:02][seed505] lightgbm final (21): ['atm_corr_LaSRC', 'red_corr8', 'green_corr8', 'blue_corr8', 'nir_corr8', 'swir2_corr8', 'temp_corr8', 'BR', 'BG', 'NR', 'GR', 'fai', 'NDVI', 'NDSSI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_wetland_2006', 'precip_mm_prev30']
+[10:50:02][seed505] === joint elimination (xgboost + lightgbm) ===
+[10:50:47][seed505]   [joint] step 0: n=26 xgboost_rmse=1.2312 lightgbm_rmse=1.2452
+[10:50:47][seed505]   [joint] drop 'shore_flag' (norm importance -0.885 <= 1.0)
+[10:51:31][seed505]   [joint] step 1: n=25 xgboost_rmse=1.2359 lightgbm_rmse=1.2489
+[10:51:31][seed505]   [joint] drop 'elevation_m' (norm importance -1.950 <= 1.0)
+[10:52:17][seed505]   [joint] step 2: n=24 xgboost_rmse=1.2232 lightgbm_rmse=1.2378
+[10:52:17][seed505]   [joint] drop 'atm_corr_LaSRC' (norm importance 0.000 <= 1.0)
+[10:53:03][seed505]   [joint] step 3: n=23 xgboost_rmse=1.2259 lightgbm_rmse=1.2333
+[10:53:03][seed505]   [joint] drop 'NDWI' (norm importance 0.223 <= 1.0)
+[10:53:48][seed505]   [joint] step 4: n=22 xgboost_rmse=1.2217 lightgbm_rmse=1.2382
+[10:53:48][seed505]   [joint] stop: worst real feature 'blue_corr8' (norm importance 1.322) beats the noise floor (1.0) for all models
+[10:53:48][seed505] joint final (23): ['red_corr8', 'green_corr8', 'blue_corr8', 'nir_corr8', 'swir2_corr8', 'temp_corr8', 'BR', 'BG', 'NR', 'GR', 'fai', 'NDVI', 'NDSSI', 'NDWI', 'MNDWI', 'catchment_area_sqkm', 'pct_impervious_2006', 'pct_urban_2006', 'pct_forest_2006', 'pct_cropland_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'tmax_degC_prev30']
+[10:53:48][seed505] intersection (20): ['BG', 'BR', 'GR', 'MNDWI', 'NDSSI', 'NDVI', 'NR', 'blue_corr8', 'catchment_area_sqkm', 'fai', 'green_corr8', 'nir_corr8', 'pct_forest_2006', 'pct_impervious_2006', 'pct_urban_2006', 'pct_wetland_2006', 'precip_mm_prev30', 'red_corr8', 'swir2_corr8', 'temp_corr8']
+[10:53:48][seed505] ### STAGE 3: gap-aware final tuning ###
+[10:53:48][seed505] === gap-aware tuning: xgboost on final feature set ===
+[10:56:34][seed505] xgboost chosen: {'eta': 0.03, 'max_depth': 2, 'min_child_weight': 5, 'subsample': 0.6, 'colsample_bytree': 0.4, 'reg_alpha': 1, 'reg_lambda': 20} val_rmse=1.1978 gap=0.5107
+[10:56:34][seed505] === gap-aware tuning: lightgbm on final feature set ===
+[10:59:33][seed505] lightgbm chosen: {'learning_rate': 0.03, 'num_leaves': 7, 'min_child_samples': 30, 'subsample': 0.6, 'colsample_bytree': 0.5, 'reg_alpha': 0, 'reg_lambda': 5} val_rmse=1.2296 gap=0.5855
+[10:59:33][seed505] ### STAGE 4: final evaluation on fixed holdout ###
+[10:59:35][seed505] xgboost FINAL: cv_rmse=1.2017 test_rmse=1.4912
+[10:59:37][seed505] lightgbm FINAL: cv_rmse=1.2300 test_rmse=1.5320
+[10:59:37][seed505] SEED 505 (l89only) DONE in 1784s

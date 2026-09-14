@@ -8,7 +8,7 @@ Six reports, built in sequence, all predicting Secchi disk depth (SDD, water cla
 
 **[Full report](outlier_rework/python/report.html)**
 
-Built the modeling pipeline from scratch: training-data construction (5-day Landsat/field-sample matching, 12,637 rows), cross-sensor harmonization, feature engineering, and a three-way model comparison (XGBoost, LightGBM, a feedforward neural net) under 5-fold HUC4 spatial CV. This is stored in the `outlier_rework` folder.
+Built the modeling pipeline from scratch: training-data construction (5-day Landsat/field-sample matching, 12,637 rows), cross-sensor harmonization (relative to LS7), feature engineering, and a three-way model comparison (XGBoost, LightGBM, a feedforward neural net) under 5-fold HUC4 spatial CV. This is stored in the `outlier_rework` folder.
 
 **Takeaway:** the final, properly-tuned production config (16-feature intersection set, gap-aware hyperparameters, SDD-weighted for the tree models) reached test RMSE **1.86m (XGBoost) / 1.83m (LightGBM) / 1.84m (NN)**, R²≈0.45–0.48. This careful, regularized final  actually did slightly worse on the held-out test partition than an earlier, richer 33-feature/unweighted checkpoint (RMSE 1.747m, R²=0.508), but this is not a meaninful loss of performance. Of note, there is significant benching at higher observed Secchi. We dig into why this might be happening in the subsequent reports.
 
@@ -22,7 +22,7 @@ Built the modeling pipeline from scratch: training-data construction (5-day Land
 
 **SHAP/feature assessment:** optical/spectral features dominate attribution, with site and weather covariates contributing the remainder; this optical-dominance finding holds throughout every later report in this series.
 
-**SDD-weighting note (corrected):** the production config already applies SDD-weighting (k=2.0) to both tree models — this note originally cited numbers from a stale artifact (an early 13-feature optical-only candidate, not the actual final 16-feature production set); regenerated against the real production config, and now matches this report's own published test numbers exactly. For XGBoost: top-quartile RMSE improves 2.385→2.230m and top-quartile bias moves toward zero (−1.28→−1.01m) — but **overall RMSE gets worse, not better** (1.809→1.860m), and overall bias moves further from zero (+0.233→+0.409m), because the "rest" group (73% of the data) degrades on both metrics (RMSE 1.546→1.705m). LightGBM shows the identical shape. Weighting is retained in production anyway — that was always a deliberate trade for tail accuracy, not a claim that it wins on every metric, but the original "bias improves in every slice" framing was wrong. The NN row could not be safely regenerated (a reproducible PyTorch/OpenMP conflict on this machine) and is left as originally reported — NN stays unweighted in production regardless, so this doesn't affect the adopted config.
+**SDD-weighting note:** the production config already applies SDD-weighting (k=2.0) to both tree models. For XGBoost: top-quartile RMSE improves 2.385→2.230m and top-quartile bias moves toward zero (−1.28→−1.01m) — but overall RMSE gets slightly worse (1.809→1.860m), and overall bias moves further from zero (+0.233→+0.409m), because the "rest" group (73% of the data) degrades on both metrics (RMSE 1.546→1.705m). LightGBM shows the identical shape. Weighting is retained in production — that was always a deliberate trade for tail accuracy, not a claim that it wins on every metric.
 
 ![weighted pred vs obs](outlier_rework/python/results/figures/weighted_pred_vs_obs.png)
 
@@ -44,13 +44,13 @@ Closed two threads v1 identified as opportunities: gap-aware hyperparameter sele
 
 ![pred vs obs](outlier_rework_v2/python/results/figures/pred_vs_obs.png)
 
-*Predicted vs. observed, test set.*
+*Predicted vs. observed, test set. Note benching at upper SDD for all models and benching at low SDD for lightGBM and NN models.*
 
 ![shap group contribution](outlier_rework_v2/python/results/figures/shap_group_contribution.png)
 
 *SHAP contribution by feature group (optical/site/weather).*
 
-**SDD-weighting note (corrected):** this note previously said weighting was "not adopted as the default" for v2 — that was wrong, based on the same stale 13-feature artifact as v1's note above. **v2's actual adopted production config already is SDD-weighted for XGBoost/LightGBM**, same as v1 (see this report's "Final production configuration" section: `weighted: true` for both tree models) — this was never a live decision to revisit, just my own mis-citation. Regenerated against the real final 16-feature+shore_flag config: XGBoost top-quartile RMSE improves 2.610→2.485m and bias moves toward zero (−1.41→−1.20m), but overall RMSE gets worse (1.813→1.839m, exactly matching this report's own published production number) and overall bias moves further from zero (+0.153→+0.313m) as the "rest" group degrades (RMSE 1.415→1.538m). LightGBM matches. So: v2 is already consistent with v1 (both weight the tree models, matching the user's expectation) — the trade-off is real and it's the same trade-off v1 makes, not a cleaner win than v1 had. NN row unregenerated for the same OpenMP-conflict reason as v1; NN stays unweighted in production regardless.
+**SDD-weighting note:** v2's actual adopted production config is SDD-weighted for XGBoost/LightGBM, same as v1. XGBoost top-quartile RMSE improves 2.610→2.485m and bias moves toward zero (−1.41→−1.20m), but overall RMSE gets worse (1.813→1.839m) and overall bias moves further from zero (+0.153→+0.313m) as the "rest" group degrades (RMSE 1.415→1.538m). LightGBM matches. NN stays unweighted in production.
 
 ![weighted pred vs obs](outlier_rework_v2/python/results/figures/weighted_pred_vs_obs.png)
 
@@ -84,16 +84,13 @@ This report asks why partition 5 (test) and partition 3 (the worst CV fold) pefo
 
 ![HUC4 test RMSE](outlier_investigation/figures/huc4_test_rmse.png) 
 
-*Test RMSE by HUC4 basin.
+*Test RMSE by HUC4 basin.*
 
 **HUC4 1009 (Powder-Tongue) note:** at the individual-HUC4 level (not partition level), 1009 is actually the single worst-performing basin in the test set (RMSE 3.47m, worse than Lake Powell's 2.98m), despite only 54 test rows/13 sites and feature values that sit comfortably mid-distribution (not an extrapolation case like Lake Powell). Nearly all of its error traces to one lake, Lake De Smet, whose observed SDD readings (9.75–14.1m) sit in the sparsest 1.7% of the training label distribution. This is directly attributed to the compression-above-6–10m mechanism as above, just concentrated in one very-clear lake with almost no training analogs rather than a large catchment or a geographic cluster.
 
 ![example time series, including Lake Powell and HUC4 1701 sites](outlier_investigation/figures/overview_timeseries_examples.png)
 
 *Observed vs. predicted Secchi depth over time, prioritizing Lake Powell and HUC4 1701 sites, named where a GNIS name exists.*
-
-**SHAP/feature assessment:** this report reuses v1's frozen model unchanged, so no new SHAP was computed here — see report 1's SHAP figures for feature attribution on this exact model. The physical-envelope diagnostics above (catchment area, forest cover) are this report's own, complementary evidence for *why* two basins fail, arrived at independently of SHAP.
-
 
 
 ---
@@ -150,7 +147,17 @@ A full top-to-bottom rebuild on an ensemble: one fixed holdout no model ever tra
 
 *Predicted vs. observed, unweighted (adopted) vs. SDD-weighted, side by side.*
 
-**Exploratory note — ensemble spread as a confidence interval:** tested whether the 5-seed×2-model ensemble's own spread (already trained, no new models needed) works as a usable interval, and whether CRPS adds anything over RMSE/MAE. Short answer: no, and the numbers show precisely why. Every band tested is dramatically under-covered — the full 10-member min-max range only contains the true observed value 14.9% of the time; mean±1 SD covers just 8.3% (vs. a ~68% target); mean±2 SD covers 18.5% (vs. ~95%). The mean 1-SD half-width is 0.137m against an actual holdout RMSE of 1.339m — the 10 members agree with each other far more than any agree with reality, because they share the same data/features/approach and differ only in CV-fold assignment and architecture (xgboost vs. lightgbm), which is disagreement-between-similar-models, not genuine predictive uncertainty. CRPS on that same 10-member empirical distribution comes out to 0.893m vs. the ensemble mean's MAE of 0.962m — CRPS is lower (as it should be, in theory), but by only ~7%, which is the quantitative signature of the same problem: there's barely any real spread in this ensemble for CRPS to reward. Not adopted; a genuine interval would need a different source of spread (quantile regression, or conformal calibration on held-out residuals), not explored here.
+
+![example time series](outlier_rework_v3/figures/v3_timeseries_examples.png)
+
+*Observed vs. predicted Secchi depth over time, 5-seed ensemble average, named where a GNIS name exists.*
+
+### Exploration of error metric/visualization
+
+
+
+
+We tested whether the 5-seed×2-model ensemble's own spread works as a usable interval, and whether CRPS adds anything over RMSE/MAE. The full 10-member min-max range only contains the true observed value 14.9% of the time; mean±1 SD covers just 8.3% (vs. a ~68% target); mean±2 SD covers 18.5% (vs. ~95%). The mean 1-SD half-width is 0.137m against an actual holdout RMSE of 1.339m — the 10 members agree with each other far more than any agree with reality, because they share the same data/features/approach and differ only in CV-fold assignment and architecture (xgboost vs. lightgbm), which is disagreement-between-similar-models, not genuine predictive uncertainty. CRPS on that same 10-member empirical distribution comes out to 0.893m vs. the ensemble mean's MAE of 0.962m — CRPS is lower (as it should be, in theory), but by only ~7%, which is the quantitative signature of the same problem: there's barely any real spread in this ensemble for CRPS to reward. Not adopted; a genuine interval would need a different source of spread (quantile regression, or conformal calibration on held-out residuals), not explored here.
 
 ![ensemble spread as interval](outlier_rework_v3/figures/v3_ensemble_ci.png)
 
@@ -160,9 +167,6 @@ A full top-to-bottom rebuild on an ensemble: one fixed holdout no model ever tra
 
 *Same envelope, shown on four well-sampled holdout sites' actual time series rather than a sorted cross-section — the band tracks the mean tightly while observed points fall outside it constantly.*
 
-![example time series](outlier_rework_v3/figures/v3_timeseries_examples.png)
-
-*Observed vs. predicted Secchi depth over time, 5-seed ensemble average, named where a GNIS name exists.*
 
 ---
 
