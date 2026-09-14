@@ -16,3 +16,6 @@ regional_clarity/xg_models/hypertune/
 **.DS_Store
 **.csv
 **.feather
+**.parquet
+**.rds
+**/__pycache__/
