@@ -26,6 +26,7 @@ figures = {
     "ls8ref_shap_aggregate": data_uri(FIG_DIR / "ls8ref_shap_aggregate.png"),
     "ls8ref_shap_by_huc4": data_uri(FIG_DIR / "ls8ref_shap_by_huc4.png"),
     "ls8ref_shap_beeswarm": data_uri(FIG_DIR / "ls8ref_shap_beeswarm.png"),
+    "multiarm_timeseries": data_uri(FIG_DIR / "multiarm_timeseries_examples.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

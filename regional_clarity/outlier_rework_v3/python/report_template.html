@@ -397,6 +397,13 @@ a { color: var(--accent-strong); }
     <figcaption>An 80-row evenly-spaced subset of the holdout, sorted by observed SDD. The envelope is visibly narrow and tracks the ensemble mean, not the observed value - most clearly at the high-SDD end, where the same compression bias documented throughout this project pulls predictions toward the middle of the range while the envelope itself stays tight.</figcaption>
   </figure>
 
+  <p>The same pattern holds on real per-site time series, not just a sorted cross-section:</p>
+
+  <figure>
+    <img src="{{ensemble_ci_timeseries}}" alt="Time series of ensemble mean prediction and min-max envelope vs observed SDD, four example holdout sites">
+    <figcaption>Four well-sampled holdout sites (all Deer Creek Reservoir, HUC4 1602, chosen only for having the most holdout observations - not cherry-picked for the result). The shaded band is the 10-member min-max envelope; the line is the ensemble mean; points are observed. The band tracks the mean tightly and observed values fall outside it constantly, visually confirming the aggregate coverage numbers above on real data.</figcaption>
+  </figure>
+
   <p>The reason is structural, not a bug: all 10 members share the same base data, feature engineering, and modeling approach, differing only in CV-fold assignment (5 seeds) and architecture (xgboost vs. lightgbm) - a source of <i>disagreement between similar models</i>, not a source of genuine predictive uncertainty. The mean 1-SD half-width is 0.137m, against an actual ensemble-mean RMSE of 1.339m on this same holdout - the models agree with each other far more than any of them agree with reality. Under-coverage is roughly even across SDD terciles and at Lake Powell specifically (~7-10% for the 1-SD band throughout), so this isn't a problem concentrated in the already-known hard regions - the interval is simply too narrow everywhere.</p>
 
   <p>Scoring the same 10-member ensemble as an empirical distribution with CRPS gives 0.893m, against the ensemble-mean point forecast's MAE of 0.962m - CRPS is lower, as it should be in theory (a good predictive distribution should never score worse than its own mean as a point forecast), but by only about 7%. That's the quantitative signature of the same under-coverage problem: CRPS rewards a forecast distribution for putting real spread around the truth, and there's barely any spread here to reward.</p>

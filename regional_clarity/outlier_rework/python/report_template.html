@@ -371,36 +371,39 @@ a { color: var(--accent-strong); }
   <h2>Correcting the high-clarity ceiling</h2>
   <p>Squared-error loss is dominated by the dense cluster of low/mid-clarity observations, so the sparse high-clarity tail is never pushed hard during ordinary training. Each model is retrained with a per-fold weight that scales linearly with observed Secchi depth (the highest-SDD training point counts 3&times; as much as the lowest, k=2), using the same tuned hyperparameters as the unweighted model.</p>
 
+  <p><i>Correction: the table/figures below were regenerated against the actual final 16-feature production configuration. The version originally published here reused a 13-feature optical-only candidate from an earlier pipeline stage (predating backward elimination's site/weather additions) for this specific comparison - same hyperparameters, different, smaller feature set - which understated how much weighting costs the bulk of the distribution. XGBoost/LightGBM's "weighted" column below now matches this report's own final production test numbers exactly (RMSE 1.860/1.830), confirming this is the true production-config comparison. The neural net row could not be safely regenerated on this machine (a reproducible PyTorch/OpenMP conflict when training a second NN model in the same process - documented in run_single_model.py's own docstring) and is left as originally published; since the neural net is unweighted in production regardless, this doesn't affect the actual adopted configuration, only the NN's own hypothetical "what if it were weighted" row.</i></p>
+
   <div class="table-wrap">
   <table>
     <thead><tr><th>Model</th><th>SDD range</th><th>n</th><th>RMSE unweighted</th><th>RMSE weighted</th><th>Bias unweighted</th><th>Bias weighted</th></tr></thead>
     <tbody>
-      <tr><td>XGBoost</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.054</td><td>2.945</td><td>&ndash;1.762</td><td>&ndash;1.550</td></tr>
-      <tr><td></td><td>rest</td><td>1,839</td><td>1.161</td><td>1.242</td><td>0.421</td><td>0.526</td></tr>
-      <tr><td></td><td>overall</td><td>2,509</td><td>1.865</td><td>1.857</td><td>&ndash;0.162</td><td>&ndash;0.028</td></tr>
-      <tr><td>LightGBM</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.078</td><td>2.960</td><td>&ndash;1.874</td><td>&ndash;1.679</td></tr>
-      <tr><td></td><td>rest</td><td>1,839</td><td>1.140</td><td>1.233</td><td>0.439</td><td>0.582</td></tr>
-      <tr><td></td><td>overall</td><td>2,509</td><td>1.866</td><td>1.859</td><td>&ndash;0.179</td><td>&ndash;0.022</td></tr>
-      <tr><td>Neural net</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.116</td><td>3.151</td><td>&ndash;2.159</td><td>&ndash;2.202</td></tr>
+      <tr><td>XGBoost</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>2.385</td><td class="good">2.230</td><td>&ndash;1.276</td><td class="good">&ndash;1.010</td></tr>
+      <tr><td></td><td>rest</td><td>1,839</td><td class="good">1.546</td><td>1.705</td><td class="good">0.782</td><td>0.927</td></tr>
+      <tr><td></td><td>overall</td><td>2,509</td><td class="good">1.809</td><td>1.860</td><td class="good">0.233</td><td>0.409</td></tr>
+      <tr><td>LightGBM</td><td>top quartile (&ge;4.5m)</td><td>670</td><td>2.468</td><td class="good">2.336</td><td>&ndash;1.370</td><td class="good">&ndash;1.151</td></tr>
+      <tr><td></td><td>rest</td><td>1,839</td><td class="good">1.485</td><td>1.607</td><td class="good">0.725</td><td>0.848</td></tr>
+      <tr><td></td><td>overall</td><td>2,509</td><td class="good">1.801</td><td>1.830</td><td class="good">0.166</td><td>0.314</td></tr>
+      <tr><td>Neural net<sup>&dagger;</sup></td><td>top quartile (&ge;4.5m)</td><td>670</td><td>3.116</td><td>3.151</td><td>&ndash;2.159</td><td>&ndash;2.202</td></tr>
       <tr><td></td><td>rest</td><td>1,839</td><td>1.039</td><td>1.042</td><td>0.355</td><td>0.381</td></tr>
       <tr><td></td><td>overall</td><td>2,509</td><td><b>1.840</b></td><td>1.856</td><td>&ndash;0.316</td><td>&ndash;0.309</td></tr>
     </tbody>
   </table>
   </div>
+  <p style="font-size:0.85rem;color:var(--text-muted);">&dagger; Neural net row not regenerated - see correction note above; treat as unverified against the final feature set.</p>
 
   <figure>
     {{weighted_bars}}
-    <figcaption>RMSE by SDD range, unweighted vs. SDD-weighted training. Weighting trades low/mid-range accuracy for top-quartile accuracy in the two tree models; the right-sized neural net shows no such tradeoff to make.</figcaption>
+    <figcaption>RMSE by SDD range, unweighted vs. SDD-weighted training (corrected, final config). Weighting trades low/mid-range and overall accuracy for top-quartile accuracy in the two tree models.</figcaption>
   </figure>
 
   <figure>
     {{weighted_pred_vs_obs}}
-    <figcaption>Predicted vs. observed, unweighted (grey) vs. SDD-weighted (color). XGBoost and LightGBM move closer to the 1:1 line at the high end; the neural net does not move.</figcaption>
+    <figcaption>Predicted vs. observed, unweighted (grey) vs. SDD-weighted (color), corrected to the final config. XGBoost and LightGBM move closer to the 1:1 line at the high end, at the cost of more scatter through the dense low/mid range.</figcaption>
   </figure>
 
-  <div class="callout">
-    <span class="label">Weighting helps the tree models, not the neural net</span>
-    <p>For XGBoost and LightGBM, SDD-weighting reproduces the same tradeoff in both: top-quartile RMSE improves (XGBoost 3.054&rarr;2.945, LightGBM 3.078&rarr;2.960) and bias improves in every slice, at a modest cost to low/mid-range RMSE. The right-sized neural net shows the opposite pattern - weighting very slightly worsens every metric in every slice, including the top quartile it's meant to help (RMSE 3.116&rarr;3.151). At 3 layers of at most 8 units, the network has little slack capacity left to trade off: it is already close to its ceiling on the dominant low/mid-range cluster, so reweighting the loss doesn't free up capacity for the tail the way it does for the higher-capacity tree ensembles. SDD-weighted training is retained for the tree models and not applied to the neural net's reported numbers elsewhere in this report.</p>
+  <div class="callout flag">
+    <span class="label">Weighting is a real trade-off, not a clean win, even for the tree models</span>
+    <p>On the actual final production feature set, SDD-weighting for XGBoost and LightGBM reproduces the same shape both times: top-quartile RMSE clearly improves (XGBoost 2.385&rarr;2.230, LightGBM 2.468&rarr;2.336) and top-quartile bias moves toward zero - but <b>overall RMSE and overall bias both get worse</b> (XGBoost overall RMSE 1.809&rarr;1.860, bias +0.233&rarr;+0.409; LightGBM 1.801&rarr;1.830, bias +0.166&rarr;+0.314), because the "rest" group (73% of the data) degrades on both metrics too. This is a real, honest correction to what this section originally reported (that bias "improves in every slice") - it doesn't, once measured on the actual final feature set rather than an earlier candidate. Weighting is retained in production for the tree models anyway, matching the original design intent of trading some aggregate accuracy for a real, specific improvement at the sparse high-SDD tail - not because it wins on every metric. The neural net's own comparison (unregenerated, see caveat above) is not used to justify anything here; NN stays unweighted in production for the same capacity-ceiling reasoning as originally stated, independent of this correction.</p>
   </div>
 </section>
 

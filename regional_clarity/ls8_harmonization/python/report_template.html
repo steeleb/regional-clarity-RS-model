@@ -329,6 +329,11 @@ a { color: var(--accent-strong); }
 
   <p>Lake Powell (HUC4 1407) and HUC4 1701 - the two hardest basins in this entire project - make up 55 of Arm C's 211 holdout rows (26%), against 151 of 1,114 (14%) in the full-corpus arms: with fewer alternate-sensor matchups to dilute them, the two hardest basins are structurally over-represented in the smaller holdout. On a basin-matched basis, <b>Lake Powell does about as well under LS8/9-only as under the full corpus</b> (3.540m vs. 3.799m) despite 73% less training data; HUC4 1701 is genuinely worse (2.731m vs. 2.308m); the three easier basins (1602, 1406, 1019) are comparable or better. The aggregate RMSE going up is a real fact about this smaller holdout's composition, not evidence the model itself is worse.</p>
 
+  <figure>
+    <img src="{{multiarm_timeseries}}" alt="Time series of all three arms' predictions vs the same observed values, example holdout sites">
+    <figcaption>All three arms' predictions against the same observed values, at sites present in every arm's holdout. LS7-ref and LS8-ref (which share every row and split) track each other closely throughout; LS8/9-only is visibly sparser - it only covers LC08/LC09 dates - and diverges more from the other two at some points, consistent with its noisier feature selection.</figcaption>
+  </figure>
+
   <p>The one place LS8/9-only shows a genuine cost, not just a composition effect: <b>feature-selection stability.</b> Across the 5 seeds, Arm C's intersection-of-per-model feature set ranged from 15 to 24 features (vs. 19-21 for the full-corpus arms), with only 12 features unanimous across all 5 seeds, against 16-17 for Arms A and B. Several features that were rock-solid at the full corpus's sample size - <code>NR</code>, <code>nir_corr8</code>, <code>blue_corr8</code>, <code>GR</code>, <code>swir2_corr8</code> - become boundary cases (3-4 of 5 seeds) here. This is an honest small-sample-selection-noise finding: at ~1,925 rows, exactly which features backward elimination keeps depends measurably more on which rows happen to land in which fold.</p>
 
   <div class="callout good">
