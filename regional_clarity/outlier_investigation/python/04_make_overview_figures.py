@@ -13,6 +13,12 @@ REWORK_RESULTS = "../../outlier_rework/python/results"
 MODELS = ["xgboost", "lightgbm", "nn"]
 
 
+def load_gnis_lookup(path):
+    sc = pd.read_feather(path)[["siteSR_id", "wb_gnis_name"]].drop_duplicates("siteSR_id")
+    return {row.siteSR_id: (row.wb_gnis_name if pd.notna(row.wb_gnis_name) else "Unnamed")
+            for row in sc.itertuples()}
+
+
 def main():
     cv = pd.concat([pd.read_parquet(f"../data/cv_oof_predictions_{m}.parquet") for m in MODELS], ignore_index=True)
     cv_avg = cv.groupby(["siteSR_id", "date", "HUC4"]).agg(y=("y", "first"), pred=("pred", "mean")).reset_index()
@@ -44,6 +50,7 @@ def main():
     plt.close(fig)
 
     # ---- time series examples: prioritize the two basins this report is about ----
+    gnis = load_gnis_lookup("../../outlier_rework/site_characteristics.feather")
     focus_sites = (all_avg[all_avg["HUC4"].isin(["1701", "1407"])]
                     .groupby("siteSR_id").size().sort_values(ascending=False).head(3).index.tolist())
     other_sites = (all_avg[~all_avg["siteSR_id"].isin(focus_sites)]
@@ -58,7 +65,7 @@ def main():
         ax.plot(sub["date"], sub["y"], "o-", color="black", label="observed", markersize=4)
         ax.plot(sub["date"], sub["pred"], "o--", color="#e06666", label="predicted (avg. of 3 models)",
                 markersize=3, alpha=0.85)
-        ax.set_title(f"site {site} (HUC4 {huc4}, n={len(sub)}){tag}", fontsize=9)
+        ax.set_title(f"{gnis.get(site, 'Unnamed')} (site {site}, HUC4 {huc4}, n={len(sub)}){tag}", fontsize=9)
         ax.set_ylabel("Secchi (m)")
     axes[0].legend(fontsize=8, loc="best")
     fig.tight_layout()

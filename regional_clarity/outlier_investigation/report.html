@@ -306,6 +306,16 @@ a { color: var(--accent-strong); }
   <p>That makes sense once Lake Powell's specific dynamics are separated out: most of its rows sit in the moderate, well-sampled 2&ndash;6&nbsp;m range where every model does reasonably well; it's specifically the sparse extremes - the very clearest and very lowest-clarity readings, still under-represented in training - that drive its error up, not its status as a reservoir. There's no case here for treating reservoirs, or Lake Powell specifically, as lower-quality or less-representative data to be filtered out; the opposite conclusion follows - the model needs more exposure to the range these rows cover, not less.</p>
 </section>
 
+<section id="huc1009">
+  <div class="section-label">A basin we'd overlooked</div>
+  <h2>HUC4 1009 (Powder-Tongue): worse than Lake Powell, and small</h2>
+  <p>Partitions 3 and 5 got the attention above because they're whole test/CV partitions. But at the individual-HUC4 level, HUC4 1009 (Powder-Tongue basin, WY/MT) is actually the single worst-performing basin in the test set: test RMSE 3.47m, worse than Lake Powell/HUC4 1407's 2.98m, on just 54 test rows across 13 sites.</p>
+
+  <p>Unlike Lake Powell, this isn't a feature-envelope extrapolation story - HUC4 1009's catchment area and elevation both sit comfortably mid-distribution (29th-41st percentile of training). Nearly the entire error traces to one waterbody, <b>Lake De Smet</b> (3 site records, 9 of the 54 test rows), whose observed SDD readings run 9.75-14.1m - errors on those 9 rows alone run -4.0 to -8.8m, over 90% of this HUC4's total squared error. Below 7m, HUC4 1009's predictions are unremarkable (errors mostly under 1.5m in either direction, both signs represented).</p>
+
+  <p>Those Lake De Smet readings sit deep in the sparse tail of the <i>training label distribution itself</i>, not the feature envelope: only 1.7% of training rows (175 of 10,128) have observed SDD above 9.75m at all. This is the same compression-above-6-10m mechanism documented for partitions 3 and 5 above, just concentrated in a single very-clear lake with almost no analogs in training, rather than in a large extrapolated catchment or a geographic cluster. Given the small sample (n=54, 9 of them driving the result), this reads as a real instance of the known mechanism rather than a new one - flagged here as a diagnostic note, not pursued further.</p>
+</section>
+
 <section id="conclusion">
   <div class="section-label">Conclusion</div>
   <h2>Two basins, the same physical mechanism, and a split that concentrated it</h2>

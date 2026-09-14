@@ -20,6 +20,12 @@ figures = {
     "feature_stability": data_uri(FIG_DIR / "feature_stability.png"),
     "pred_vs_obs_arms": data_uri(FIG_DIR / "pred_vs_obs_arms.png"),
     "l89_basin_matched": data_uri(FIG_DIR / "l89_basin_matched.png"),
+    "ls8ref_weighting_rmse": data_uri(FIG_DIR / "ls8ref_weighting_rmse.png"),
+    "ls8ref_pred_vs_obs_weighted": data_uri(FIG_DIR / "ls8ref_pred_vs_obs_weighted.png"),
+    "overtraining_gap_by_arm": data_uri(FIG_DIR / "overtraining_gap_by_arm.png"),
+    "ls8ref_shap_aggregate": data_uri(FIG_DIR / "ls8ref_shap_aggregate.png"),
+    "ls8ref_shap_by_huc4": data_uri(FIG_DIR / "ls8ref_shap_by_huc4.png"),
+    "ls8ref_shap_beeswarm": data_uri(FIG_DIR / "ls8ref_shap_beeswarm.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

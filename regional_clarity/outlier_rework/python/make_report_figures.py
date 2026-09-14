@@ -17,6 +17,12 @@ FIG_DIR = "results/figures"
 MODEL_COLORS = {"xgboost": "#1b9e77", "lightgbm": "#d95f02", "nn": "#7570b3"}
 
 
+def load_gnis_lookup(path):
+    sc = pd.read_feather(path)[["siteSR_id", "wb_gnis_name"]].drop_duplicates("siteSR_id")
+    return {row.siteSR_id: (row.wb_gnis_name if pd.notna(row.wb_gnis_name) else "Unnamed")
+            for row in sc.itertuples()}
+
+
 def main():
     os.makedirs(FIG_DIR, exist_ok=True)
     preds = pd.read_parquet(f"{OUT_DIR}/test_predictions.parquet")
@@ -81,6 +87,7 @@ def main():
     plt.close(fig)
 
     # ---- 4. timeseries examples for longer-record test sites ----
+    gnis = load_gnis_lookup("../site_characteristics.feather")
     site_counts = preds[preds["model"] == models[0]].groupby("siteSR_id").size()
     top_sites = site_counts[site_counts >= 3].sort_values(ascending=False).head(6).index.tolist()
     if top_sites:
@@ -96,7 +103,7 @@ def main():
                 s = sub[sub["model"] == name].sort_values("date")
                 ax.plot(s["date"], s["pred"], "o--", color=MODEL_COLORS.get(name, "grey"),
                         label=name, markersize=3, alpha=0.8)
-            ax.set_title(f"site {site} (n={len(obs)})", fontsize=9)
+            ax.set_title(f"{gnis.get(site, 'Unnamed')} (site {site}, n={len(obs)})", fontsize=9)
             ax.set_ylabel("Secchi (m)")
         axes[0].legend(fontsize=8, loc="best")
         fig.tight_layout()

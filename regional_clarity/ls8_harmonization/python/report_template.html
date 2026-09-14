@@ -259,6 +259,44 @@ a { color: var(--accent-strong); }
   <p>This is direct evidence for the "gain in spectral specificity" half of the motivating question: an LS8 reference doesn't just shuffle which of two redundant features survives pruning (the way, for example, <code>red_corr7</code>/<code>green_corr7</code> traded off in workflow v3's gap-aware comparison) - it makes a previously-uninformative band and ratio reliably useful.</p>
 </section>
 
+<section id="shap">
+  <div class="section-label">Feature assessment</div>
+  <h2>SHAP: does attribution line up with physical expectation, in all three arms?</h2>
+  <p>Same design as workflow v3's SHAP analysis: each seed's own already-selected features and already gap-aware-tuned hyperparameters are reused unchanged, trained unweighted on that seed's own 4 CV folds, and explained with <code>shap.TreeExplainer</code> on each arm's own shared holdout - so every feature's SHAP value comes from a model that never trained on that row. Run independently for all three arms (5 seeds &times; 2 models each), restricted per arm to its own unanimous feature core (16 features for LS7-ref, 17 for LS8-ref, 12 for LS8/9-only - the smaller core for the smallest-n arm matches the feature-selection noise already documented above).</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Arm</th><th>Optical share</th><th>Site share</th><th>Weather share</th></tr></thead>
+    <tbody>
+      <tr><td>LS7-ref</td><td>79.6%</td><td>20.4%</td><td>0.0%</td></tr>
+      <tr><td>LS8-ref</td><td>78.0%</td><td>22.0%</td><td>0.0%</td></tr>
+      <tr><td>LS8/9-only</td><td>71.9%</td><td>28.1%</td><td>0.0%</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Optical signal dominates in all three arms (72-80% of total mean |SHAP|, in the same range every prior report in this project found), with LS8/9-only leaning relatively more on site features - consistent with a smaller, noisier optical feature set needing more help from stable site covariates. No arm gives weather features meaningful weight, matching every prior report.</p>
+
+  <figure>
+    <img src="{{ls8ref_shap_aggregate}}" alt="Mean absolute SHAP value per feature, LS8-ref arm, colored by optical/site/weather category">
+    <figcaption>LS8-ref arm: mean |SHAP value| per feature, its 17-feature unanimous core. <code>green_corr8</code> dominates; <code>GR</code> and <code>blue_corr8</code> - the two features that only became unanimous under the LS8 reference (see feature-selection section above) - sit near the bottom: reliably selected, but marginal contributors, consistent with "small genuine gain" rather than "new dominant signal."</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{ls8ref_shap_by_huc4}}" alt="Heatmap of mean absolute SHAP value per feature, broken out by HUC4, LS8-ref arm">
+    <figcaption>LS8-ref arm: mean |SHAP value| by feature and HUC4 (basins with &ge;30 holdout rows, plus 1701/1407 starred). <code>catchment_area_sqkm</code>'s importance concentrates almost entirely in HUC4 1407 (Lake Powell) - independently re-deriving workflow v3's finding via this arm's own SHAP run, not a re-use of v3's numbers.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{ls8ref_shap_beeswarm}}" alt="SHAP beeswarm summary plot, LS8-ref arm">
+    <figcaption>LS8-ref arm: SHAP beeswarm (ensemble-mean SHAP per row, 5 seeds &times; 2 models). Direction of effect is physically sensible throughout - e.g. higher <code>green_corr8</code> reflectance pushes predicted SDD down, consistent with more scattering/turbid water.</figcaption>
+  </figure>
+
+  <div class="callout good">
+    <span class="label">Result</span>
+    <p>SHAP attribution is physically sensible and consistent across all three arms, and independently re-derives workflow v3's Lake Powell catchment-area finding via a completely different corpus/reference. The two features that the feature-selection section above flagged as newly-unanimous under the LS8 reference (<code>GR</code>, <code>blue_corr8</code>) are real but marginal contributors by SHAP magnitude - support for "genuine small gain," not "a dominant new signal."</p>
+  </div>
+</section>
+
 <section id="l89">
   <div class="section-label">Comparison 2</div>
   <h2>Can Landsat 8/9 alone carry an algorithm?</h2>
@@ -296,6 +334,62 @@ a { color: var(--accent-strong); }
   <div class="callout good">
     <span class="label">Result</span>
     <p>Yes - a real algorithm comes out of Landsat 8/9 data alone, and its typical-case accuracy (MAE, R&sup2;) is comparable to or better than the full multi-sensor corpus, including on the hardest basin (Lake Powell) specifically, despite 73% less training data. The apparent RMSE regression is a holdout-composition artifact, not a modeling one. The real, measurable cost is feature-selection noise: with a third the training rows, which features survive elimination becomes noticeably less reproducible across independent seeds, even though the resulting models still perform well.</p>
+  </div>
+</section>
+
+<section id="weighting">
+  <div class="section-label">Also examined</div>
+  <h2>Does SDD-weighted training help any of the three arms?</h2>
+  <p>Same weighting scheme v1 and v3 tested (k=2.0, upweighting higher-SDD rows), reusing each seed's already-selected features and already gap-aware-tuned hyperparameters unchanged - only the final fold training differs, run twice per seed/model, unweighted and weighted. All three arms show the same trade-off v3 reported: weighting reduces error and bias in the top-quartile SDD group, at the cost of overall RMSE (flat-to-worse) and the "rest" group getting worse on both metrics.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Arm</th><th>Group</th><th>RMSE unweighted</th><th>RMSE weighted</th><th>Bias unweighted</th><th>Bias weighted</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="3">LS7-ref</td><td>Overall</td><td>1.615</td><td>1.618</td><td>+0.143</td><td>+0.273</td></tr>
+      <tr><td>Top-quartile SDD</td><td>2.483</td><td class="good">2.350</td><td>&minus;1.543</td><td class="good">&minus;1.351</td></tr>
+      <tr><td>Rest</td><td>1.201</td><td>1.292</td><td>+0.696</td><td>+0.805</td></tr>
+      <tr><td rowspan="3">LS8-ref</td><td>Overall</td><td>1.592</td><td>1.597</td><td>+0.153</td><td>+0.276</td></tr>
+      <tr><td>Top-quartile SDD</td><td>2.434</td><td class="good">2.308</td><td>&minus;1.584</td><td class="good">&minus;1.415</td></tr>
+      <tr><td>Rest</td><td>1.192</td><td>1.280</td><td>+0.722</td><td>+0.831</td></tr>
+      <tr><td rowspan="3">LS8/9-only</td><td>Overall</td><td>1.667</td><td class="good">1.610</td><td>&minus;0.391</td><td class="good">&minus;0.309</td></tr>
+      <tr><td>Top-quartile SDD</td><td>2.580</td><td class="good">2.457</td><td>&minus;1.564</td><td class="good">&minus;1.438</td></tr>
+      <tr><td>Rest</td><td>0.774</td><td>0.808</td><td>+0.269</td><td>+0.327</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    <img src="{{ls8ref_weighting_rmse}}" alt="RMSE by SDD group, unweighted vs SDD-weighted, LS8-ref arm">
+    <figcaption>LS8-ref arm: holdout RMSE by group, unweighted vs. SDD-weighted (k=2.0). Weighting narrows the top-quartile gap but does not move overall RMSE.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{ls8ref_pred_vs_obs_weighted}}" alt="Predicted vs observed, unweighted vs SDD-weighted, LS8-ref arm">
+    <figcaption>LS8-ref arm: predicted vs. observed SDD, unweighted (adopted) vs. SDD-weighted. Weighting visibly lifts predictions at the high-SDD tail, at the cost of more scatter through the bulk of the range.</figcaption>
+  </figure>
+
+  <div class="callout">
+    <span class="label">Result</span>
+    <p>Consistent with v1/v3: SDD-weighting is a real, reproducible trade-off in every one of these three arms too, not a clear win - it earns back some of the high-SDD under-prediction at the cost of the bulk of the data. Not adopted as the default for any arm, for the same reason v3 didn't adopt it: it trades a well-characterized, widely-applicable bias for a narrower, sample-size-limited gain.</p>
+  </div>
+</section>
+
+<section id="overtraining">
+  <div class="section-label">Also examined</div>
+  <h2>Does the LS8/9-only arm's smaller n mean it's overtraining?</h2>
+  <p>Arm C runs the exact same gap-aware hyperparameter search space as Arms A/B on 73% fewer rows (1,925 vs 7,112) - a reasonable worry is that the same search space lets it pick configurations too complex for its smaller sample, inflating the gap between in-CV and true holdout performance. Answered directly from each seed's own <code>cv_metrics</code> (in-CV) vs. <code>test_metrics</code> (shared holdout) already saved per seed - no retraining needed.</p>
+
+  <figure>
+    <img src="{{overtraining_gap_by_arm}}" alt="CV to test RMSE gap percentage by arm, individual seed x model points plus arm means">
+    <figcaption>CV&rarr;test RMSE gap, as a percentage of CV RMSE, for all 5 seeds &times; 2 models per arm.</figcaption>
+  </figure>
+
+  <p>LS8/9-only's mean gap (23.3%, std 3.1) is close to LS7-ref's (22.4%, std 1.7) - not the disproportionate blowout the smaller sample size might suggest - though it is the noisiest of the three (widest spread across seeds, 17.3-27.8%). LS8-ref actually shows the smallest gap of all three (16.3%). Checking the tuned hyperparameters directly: selected tree depth is already shallow across every arm (XGBoost max_depth mostly 2-3, LightGBM num_leaves consistently 7), not measurably shallower for LS8/9-only specifically - the gap-aware selection stage (which re-ranks near-optimal configs by train/val gap, not just accuracy) appears to be doing its job at this smaller sample size too, rather than LS8/9-only needing a narrower search space than the other two arms got.</p>
+
+  <div class="callout good">
+    <span class="label">Result</span>
+    <p>No - at least not by this direct measure. The generalization gap for LS8/9-only tracks the full-corpus control arm closely rather than blowing out, and the hyperparameters actually selected aren't measurably more permissive than in the other arms. The honest caveat is sample size: 5 seeds &times; 2 models per arm is not a lot of points to characterize a distribution, and LS8/9-only's wider spread (17-28%) means a future re-run could land less favorably by chance alone - this supports "not obviously overtraining," not "definitely never will."</p>
   </div>
 </section>
 

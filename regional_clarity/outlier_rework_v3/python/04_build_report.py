@@ -28,6 +28,8 @@ figures = {
     "shap_aggregate": data_uri(FIG_DIR / "v3_shap_aggregate.png"),
     "shap_beeswarm": data_uri(FIG_DIR / "v3_shap_beeswarm.png"),
     "shap_by_huc4": data_uri(FIG_DIR / "v3_shap_by_huc4.png"),
+    "ensemble_ci": data_uri(FIG_DIR / "v3_ensemble_ci.png"),
+    "ensemble_ci_coverage": data_uri(FIG_DIR / "v3_ensemble_ci_coverage.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

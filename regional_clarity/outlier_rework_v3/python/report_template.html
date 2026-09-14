@@ -380,6 +380,33 @@ a { color: var(--accent-strong); }
   </div>
 </section>
 
+<section id="ensembleci">
+  <div class="section-label">Exploratory, not adopted</div>
+  <h2>Does the ensemble's own spread work as a confidence interval?</h2>
+  <p>An exploratory question, not a proposed feature: the adopted production config already trains 5 seeds &times; 2 models per holdout row. Rather than only averaging those 10 predictions into a point estimate, does their <i>spread</i> say anything useful about how much to trust any individual prediction - and if so, does scoring it with CRPS (a proper scoring rule for a predictive distribution, rather than a point forecast) show anything RMSE/MAE don't?</p>
+
+  <p>Treating each row's 10 predictions as an empirical band and checking whether the observed value actually falls inside it answers this directly, with no retraining needed:</p>
+
+  <figure>
+    <img src="{{ensemble_ci_coverage}}" alt="Bar chart of empirical coverage for the 10-member min-max envelope, mean +/- 1 SD, and mean +/- 2 SD bands, against their nominal targets">
+    <figcaption>Empirical coverage on the 3,042-row holdout: how often the observed value actually falls inside each band, against the coverage a calibrated interval of that type should hit (dashed lines). Every band is dramatically under-covered - even the full 10-member min-max range only catches the true value 14.9% of the time.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{ensemble_ci}}" alt="Ensemble mean prediction with min-max envelope vs observed SDD, 80-row evenly spaced subset sorted by observed SDD">
+    <figcaption>An 80-row evenly-spaced subset of the holdout, sorted by observed SDD. The envelope is visibly narrow and tracks the ensemble mean, not the observed value - most clearly at the high-SDD end, where the same compression bias documented throughout this project pulls predictions toward the middle of the range while the envelope itself stays tight.</figcaption>
+  </figure>
+
+  <p>The reason is structural, not a bug: all 10 members share the same base data, feature engineering, and modeling approach, differing only in CV-fold assignment (5 seeds) and architecture (xgboost vs. lightgbm) - a source of <i>disagreement between similar models</i>, not a source of genuine predictive uncertainty. The mean 1-SD half-width is 0.137m, against an actual ensemble-mean RMSE of 1.339m on this same holdout - the models agree with each other far more than any of them agree with reality. Under-coverage is roughly even across SDD terciles and at Lake Powell specifically (~7-10% for the 1-SD band throughout), so this isn't a problem concentrated in the already-known hard regions - the interval is simply too narrow everywhere.</p>
+
+  <p>Scoring the same 10-member ensemble as an empirical distribution with CRPS gives 0.893m, against the ensemble-mean point forecast's MAE of 0.962m - CRPS is lower, as it should be in theory (a good predictive distribution should never score worse than its own mean as a point forecast), but by only about 7%. That's the quantitative signature of the same under-coverage problem: CRPS rewards a forecast distribution for putting real spread around the truth, and there's barely any spread here to reward.</p>
+
+  <div class="callout flag">
+    <span class="label">Result: doesn't work as-is, and CRPS confirms why</span>
+    <p>The 5-seed &times; 2-model ensemble spread is not a usable confidence interval for this model - it under-covers by a wide margin at every band tested, because ensemble members here are too similar to each other to stand in for genuine predictive uncertainty. CRPS essentially agrees with MAE once that's understood, which is itself informative: CRPS only earns its keep over a simpler point-forecast metric when the underlying distribution has real, honest spread to score, and this one doesn't. A genuine confidence interval for this model would need a different source of spread entirely - e.g. quantile regression trained explicitly for it, or a conformal-prediction calibration step on held-out residuals - not explored here, and not currently planned.</p>
+  </div>
+</section>
+
 <section id="conclusion">
   <div class="section-label">Conclusion</div>
   <h2>Recommended production configuration</h2>
