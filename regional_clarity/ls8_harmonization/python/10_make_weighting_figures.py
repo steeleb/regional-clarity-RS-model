@@ -91,7 +91,7 @@ for arm in ARMS:
     axes[0].set_ylabel("predicted SDD (m)")
     fig.suptitle(ARM_LABEL[arm], fontsize=12, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIG_DIR / f"{arm}_pred_vs_obs_weighted.png", dpi=180, facecolor="white")
+    fig.savefig(FIG_DIR / f"{arm}_pred_vs_obs_weighted.png", dpi=180, facecolor="white", bbox_inches="tight")
     plt.close(fig)
 
     print(f"{arm}: wrote weighting_rmse, weighting_bias, pred_vs_obs_weighted figures")
