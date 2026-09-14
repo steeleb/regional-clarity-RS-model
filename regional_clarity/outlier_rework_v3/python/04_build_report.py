@@ -31,6 +31,7 @@ figures = {
     "ensemble_ci": data_uri(FIG_DIR / "v3_ensemble_ci.png"),
     "ensemble_ci_coverage": data_uri(FIG_DIR / "v3_ensemble_ci_coverage.png"),
     "ensemble_ci_timeseries": data_uri(FIG_DIR / "v3_ensemble_ci_timeseries.png"),
+    "timeseries_examples": data_uri(FIG_DIR / "v3_timeseries_examples.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

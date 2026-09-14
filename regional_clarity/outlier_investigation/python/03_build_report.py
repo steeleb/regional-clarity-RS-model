@@ -27,6 +27,8 @@ figures = {
     "powell_interannual": data_uri(FIG_DIR / "powell_interannual.png"),
     "catchment_envelope_powell": data_uri(FIG_DIR / "catchment_envelope_powell.png"),
     "forest_envelope_1701": data_uri(FIG_DIR / "forest_envelope_1701.png"),
+    "overview_pred_vs_obs": data_uri(FIG_DIR / "overview_pred_vs_obs.png"),
+    "overview_timeseries_examples": data_uri(FIG_DIR / "overview_timeseries_examples.png"),
 }
 
 html = (ROOT / "report_template.html").read_text()

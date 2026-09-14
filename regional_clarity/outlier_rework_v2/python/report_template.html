@@ -345,6 +345,24 @@ a { color: var(--accent-strong); }
     <span class="label">The neural net is worse in this version</span>
     <p>The neural net's test RMSE moves from 1.839m (v1) to 1.888m, and its test bias grows more negative (&ndash;0.143&rarr;&ndash;0.297). Its mean train-val gap improved the most of any model (0.052&rarr;0.009) - gap-aware tuning did exactly what it was built to do - but a smaller gap on CV did not carry over to a better test number, echoing v1's own final-model finding that CV improvement doesn't always transfer to partition 5. At 3 layers of at most 8 nodes, the network has the least spare capacity of the three architectures to absorb a feature-set change (catchment_area_sqkm out, shoreline_flag in) without some reshuffling in what it learns to rely on; this is reported directly rather than smoothed over, consistent with how v1 reported its own final-model regression.</p>
   </div>
+
+  <figure>
+    {{pred_vs_obs}}
+    <figcaption>Predicted vs. observed Secchi depth on the test partition, final production config, one panel per model.</figcaption>
+  </figure>
+
+  <figure>
+    {{timeseries}}
+    <figcaption>Example time series for a handful of longer-record test sites.</figcaption>
+  </figure>
+
+  <h3>SDD-weighting on the actual final config</h3>
+  <p>The production config above already applies SDD-weighting (k=2.0) to both tree models, carrying forward v1's finding without re-litigating it at the time. Re-checked here directly on this report's own final 16-feature+shoreline_flag config (not an earlier candidate): XGBoost top-quartile RMSE improves 2.610&rarr;2.485m and top-quartile bias moves toward zero (&minus;1.41&rarr;&minus;1.20m), but overall RMSE gets worse, not better (1.813&rarr;1.839m, exactly matching the production table above), and overall bias moves further from zero (+0.153&rarr;+0.313m) as the "rest" group (73% of the data) degrades on both metrics. LightGBM shows the identical shape. Weighting is retained anyway, matching v1's own reasoning: a deliberate trade for tail accuracy, not a claim that it wins on every metric.</p>
+
+  <figure>
+    {{weighted_pred_vs_obs}}
+    <figcaption>Predicted vs. observed, unweighted vs. SDD-weighted, on this report's final config.</figcaption>
+  </figure>
 </section>
 
 <section id="comparison">

@@ -326,6 +326,11 @@ a { color: var(--accent-strong); }
     <figcaption>v3 ensemble predictions vs. observed SDD on the fixed holdout (n=2,394). The familiar shape from every earlier report in this project is still visible - tight tracking of the 1:1 line through the well-populated low/mid range, widening scatter and a downward pull away from it above roughly 6-8m - consistent with a physical retrieval limit, not something feature selection alone should be expected to remove.</figcaption>
   </figure>
 
+  <figure>
+    <img src="{{timeseries_examples}}" alt="Example time series, v3 5-seed ensemble average, longer-record holdout sites">
+    <figcaption>Observed vs. predicted Secchi depth over time for a handful of longer-record holdout sites, 5-seed ensemble average.</figcaption>
+  </figure>
+
   <h3>Does the compression bias itself improve?</h3>
   <p>The outlier-HUC investigation identified a universal high-clarity compression bias - every architecture over-predicts the clearest water and under-predicts it at the extreme end, a signature of the optical retrieval problem running out of signal, not a fixable modeling defect. Under this workflow's adopted (unweighted) configuration, that bias narrows in the well-populated low range and widens slightly at the sparse high-SDD tail relative to v1's weighted config - a pattern that has a specific, identifiable cause, covered in the weighting comparison below.</p>
 

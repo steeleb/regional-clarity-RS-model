@@ -185,6 +185,16 @@ a { color: var(--accent-strong); }
   <h2>Model diagnostics, then direct basin evidence</h2>
   <p>Fold diagnostics established the pattern from the model side: partition 3's train-val gap (0.85&ndash;1.01 RMSE, depending on architecture) has been the largest of any partition at every stage of this project, including after gap-aware tuning aimed squarely at closing it. Partition 5, held out entirely as the test set, showed a larger-than-CV error jump at final evaluation that the most feature-reduced, most regularized model widened rather than closed. Neither pattern had been explained by a modeling choice - every architecture and every hyperparameter search reproduced both.</p>
   <p>This investigation goes to the basins directly: LakeCat catchment characteristics (imperviousness, land cover, catchment area), waterbody identity (NHD comid, GNIS name, fcode), and the SDD distribution itself, joined against the exact row-level predictions of the final production models (regenerated for CV with the same intersection-16 features and gap-aware hyperparameters used throughout, since the CV predictions saved earlier in the pipeline predate backward elimination and no longer reflect the final feature set).</p>
+
+  <figure>
+    <img src="{{overview_pred_vs_obs}}" alt="Predicted vs observed SDD, all basins, CV and test combined, 3-model average">
+    <figcaption>Predicted vs. observed SDD across every basin, CV (partitions 1-4) and test (partition 5) combined, 3-model average - the general baseline this investigation's basin-specific findings sit against.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="{{overview_timeseries_examples}}" alt="Example time series, prioritizing Lake Powell and HUC4 1701 sites">
+    <figcaption>Example observed vs. predicted time series, prioritizing sites in Lake Powell (HUC4 1407) and the HUC4 1701 cluster - this report's own focus - alongside a few other longer-record sites for context.</figcaption>
+  </figure>
 </section>
 
 <section id="compression">
