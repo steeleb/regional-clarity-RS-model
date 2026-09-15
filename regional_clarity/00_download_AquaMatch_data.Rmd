@@ -1,0 +1,104 @@
+---
+title: "Download AquaMatch Data"
+author: "B Steele, Colorado State University, ROSSyndicate"
+date: "last updated Sept 14, 2026"
+---
+
+# Background
+
+This step downloads the AquaSat SDD and siteSR data and applies the Gardner-style
+handoff coefficeints for use in a modeling workflow to estimate SDD across the 
+intermountain west. Only run this script if there have been upstream changes
+to the AquaMatch dataset, since downloading files takes some time to complete.
+
+Knitting this file will not result in any download, as all chunks are set to
+`eval = FALSE`.
+
+## Setup
+
+```{r libraries, eval=FALSE}
+# load libraries
+library(AquaMatchr) # if install needed: remotes::install_github(repo = "AquaSat/AquaMatchr")
+library(data.table)
+library(arrow)
+library(tidyverse)
+```
+
+```{r edi-login, eval=FALSE}
+# login to EDI - this is a work around for error popping up in AquaMatchr
+# requires EDIutils, which is required by AquaMatchr so no need to import
+EDIutils::login(key = Sys.getenv('EDI_API_key'))
+```
+
+# Download AquaMatch data
+
+Set a download location for the files. 
+
+```{r aquamatch-dir, eval=FALSE}
+# note location for file storage when downloading via AquaMatchr
+aquamatch_dir <- "regional_clarity/aquamatch_files/downloads"
+dir.create(aquamatch_dir, recursive = T)
+```
+
+Use the downlaod_parameters funciton to download the latest SDD files and cache
+the file for later use.
+
+```{r download-data, eval=FALSE}
+# use AquaMatchr for data gathering
+sdd <- download_parameters(parameters = "sdd", 
+                           version = "newest")
+# get it out of a list
+sdd <- sdd[["sdd"]]
+write_dataset(dataset = sdd, 
+              path = file.path(aquamatch_dir, "sdd_cache.parquet"), 
+              format = "parquet")
+rm(sdd)
+```
+
+And now download the siteSR data.
+
+```{r download-siteSR, eval=FALSE}
+download_siteSR(save_location = aquamatch_dir, 
+                version = "newest", 
+                algal_mask = FALSE)
+```
+
+And build the stacked dataset.
+
+```{r siteSR-stack, eval=FALSE}
+build_sr(which_sr = "siteSR",
+         sr_location = aquamatch_dir,
+         algal_mask = FALSE,
+         save = TRUE, 
+         save_location = file.path(aquamatch_dir, "siteSR_DSWE1_full_concatenation.feather")
+)
+
+```
+
+And also apply the Gardner-style handoff coefficients relative to Landsat 7.
+
+```{r apply-handsoff, eval=FALSE}
+# workaround for feather/parquet issue
+open_dataset(file.path(aquamatch_dir, "siteSR_DSWE1_full_concatenation.feather"), 
+             format = "feather") %>% 
+  write_dataset(dataset = .,  
+                path = file.path(aquamatch_dir, "siteSR_DSWE1_full_concatenation.parquet"),
+                format = "parquet")
+
+# and apply handoffs
+apply_handoffs(
+  input_path = file.path(aquamatch_dir, "siteSR_DSWE1_full_concatenation.parquet"),
+  handoff_path = list.files(aquamatch_dir, full.names = T)[grepl("handoff", list.files(aquamatch_dir))],
+  correction_method = "Gardner_poly",
+  sat_target = "LS7",
+  algal_mask = "FALSE",
+  save_location = "regional_clarity/aquamatch_files/downloads/siteSR_DSWE1_LS7corr.parquet"
+)
+```
+
+Also download the scene-level metadata
+
+```{r sitesr-scene, eval=FALSE}
+download_sceneMetadata(save_location = aquamatch_dir, product = "siteSR")
+```
+

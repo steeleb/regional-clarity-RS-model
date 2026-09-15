@@ -1,40 +1,74 @@
 ---
-title: "Subset to Region"
+title: "Make Matchups"
 author: "B Steele, Colorado State University, ROSSyndicate"
 date: "last updated Sept 10, 2026"
-output: html_document
+output:
+  html_document:
+    fig_retina: 1
 ---
 
-This code reduces the 5-day matchups to those in the HUC4's of a 6-state region
-including Colorado, Wyoming, Utah, Idaho, Monana and New Mexico and
-applies some QA filters to the data to create a machine learning dataset.
+This code creates matchups between the AquaMatch SDD files and the siteSR
+files. We use a generous 5-day window to work from for future steps. Because
+we complete some RANSAC-style filtering in this script, we do reduce the AOI
+to the HUC02's we care about for the regional model.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Data prep
+## Setup
 
-```{r libraries, message = FALSE, warning=FALSE}
+```{r libraries, , message = FALSE, warning=FALSE}
 # load libraries
-library(tidyverse)
-library(sf)
+library(AquaMatchr) # if install needed: remotes::install_github(repo = "AquaSat/AquaMatchr")
+library(data.table)
 library(arrow)
-library(tigris)
+library(sf)
 library(tmap)
-library(hydrogeofetch)
-
-# read in 5-day match
-sdd_5d <- read_parquet("aquamatch_files/sdd_regional_siteSR_matchups_5d.parquet")
+library(tigris)
+library(tidyverse)
+library(nhdplusTools)
+library(hydrogefetch)
 ```
 
-### Reduce AOI to Mountain West HUC4's
+## Make matches with the filtered data
+
+Use the regionally band-filtered siteSR data (rather than the full
+nationwide `unified_data`) as the input to matching, so a site flagged above
+simply isn't a match candidate.
+
+```{r run-siteSR-wqp-match, message = FALSE, warning=FALSE}
+# Define paths to downloaded and stacked data
+sr_sites <- siteSR[grepl("collated_WQP_NWIS_sites", siteSR)]
+out_file <- file.path(filtered_aquamatch_dir, "sdd_regional_siteSR_matchups_5d.parquet")
+
+if (file.exists(out_file)) {
+  sdd_match <- open_dataset(out_file)
+} else {
+  # # Work around a duckdb bug where it fails to create its temp directory
+  # # because the parent "duckdb" folder under tempdir() doesn't exist yet
+  # dir.create(file.path(tempdir(), "duckdb"), recursive = TRUE, showWarnings = FALSE)
+  
+  # Run the matchups with a 5-day window
+  match_siteSR_to_WQP(
+    wqp_path = sdd_filtered,
+    siteSR_path = siteSR_regional_filtered,
+    site_list_path = sr_sites,
+    save_location = out_file,
+    time_window = "5 days"
+  )
+  
+  # Read file
+  sdd_match <- open_dataset(out_file)
+}
+
+```
+
+## Summary Figures
 
 Get site info.
 
 ```{r unique-sites}
-sites <- read_csv("aquamatch_files/siteSR_collated_WQP_NWIS_sites_with_NHD_info_2025-06-04.csv")
-
 sites_filtered <- sites %>%
   filter(siteSR_id %in% unique(sdd_5d$siteSR_id)) %>%
   st_as_sf(., coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = "EPSG:4326")
@@ -51,14 +85,15 @@ states_union <- states %>% st_union()
 Grab all the HUC4's from NHD and validate them
 
 ```{r huc4}
-# get_huc() kept timing out (HTTP 504) against the USGS pygeoapi service, even
-# retried state-by-state, so instead download the national WBD geodatabase
-# once (cached in aquamatch_files/) and filter to our HUC4's locally.
-wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
+# # get_huc() kept timing out (HTTP 504) against the USGS pygeoapi service, even
+# # retried state-by-state, so instead download the national WBD geodatabase
+# # once (cached in aquamatch_files/) and filter to our HUC4's locally.
+# wbd_gdb <- download_wbd(outdir = "aquamatch_files/wbd_national")
+# 
+# huc4_layer <- st_layers(wbd_gdb)$name %>%
+#   keep(~ grepl("HU4$", ., ignore.case = TRUE))
 
-huc4_layer <- st_layers(wbd_gdb)$name %>%
-  keep(~ grepl("HU4$", ., ignore.case = TRUE))
-
+get_huc()
 HUC4_national <- st_read(wbd_gdb, layer = huc4_layer, quiet = TRUE) %>%
   rename_with(tolower) %>%
   # WBD ships with Z values and a compound CRS (NAD83 + NAVD88 height);
@@ -141,7 +176,9 @@ reg_sdd_closest <- regional_sdd %>%
 # additional validation dataset to play with.
 reg_sdd_additional <- anti_join(regional_sdd, reg_sdd_closest)
 
-write_feather(reg_sdd_additional, "aquamatch_files/regional_sdd_not_closest.feather")
+write_dataset(reg_sdd_additional, 
+              file.path(filtered_aquamatch_dir, 
+                                            "regional_sdd_not_closest.parquet"))
 ```
 
 ## Visualize data
