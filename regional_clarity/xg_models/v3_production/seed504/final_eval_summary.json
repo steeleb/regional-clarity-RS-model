@@ -1,0 +1,120 @@
+{
+  "xgboost": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_urban_2006",
+      "pct_wetland_2006",
+      "shore_flag",
+      "srad_Wm2_prev1",
+      "srad_Wm2_prev30",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30",
+      "tmean_degC_prev30",
+      "tmin_degC_prev30",
+      "tmin_degC_prev7"
+    ],
+    "params": {
+      "eta": 0.01,
+      "max_depth": 3,
+      "min_child_weight": 7,
+      "subsample": 0.7,
+      "colsample_bytree": 0.5,
+      "reg_alpha": 0.1,
+      "reg_lambda": 10
+    },
+    "cv_metrics": {
+      "rmse": 1.4664361362185916,
+      "mae": 1.0166078919697026,
+      "mape": 0.6535068926623672,
+      "bias": 0.08507201182681674,
+      "p_bias": 2.6464400768528935,
+      "smape": 0.38633409475244007,
+      "r2": 0.6604240326029628,
+      "n": 8992
+    },
+    "test_metrics": {
+      "rmse": 1.2875162610600404,
+      "mae": 0.98615099181212,
+      "mape": 0.5042151650782518,
+      "bias": 0.378771906706586,
+      "p_bias": 10.700602705543645,
+      "smape": 0.30118739682062073,
+      "r2": 0.5741301681910502,
+      "n": 2218
+    }
+  },
+  "lightgbm": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_urban_2006",
+      "pct_wetland_2006",
+      "shore_flag",
+      "srad_Wm2_prev1",
+      "srad_Wm2_prev30",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30",
+      "tmean_degC_prev30",
+      "tmin_degC_prev30",
+      "tmin_degC_prev7"
+    ],
+    "params": {
+      "learning_rate": 0.01,
+      "num_leaves": 7,
+      "min_child_samples": 50,
+      "subsample": 0.7,
+      "colsample_bytree": 0.7,
+      "reg_alpha": 1,
+      "reg_lambda": 10
+    },
+    "cv_metrics": {
+      "rmse": 1.4547005758804954,
+      "mae": 0.9953183480432756,
+      "mape": 0.5887906874923391,
+      "bias": 0.061066081349170194,
+      "p_bias": 1.8996579668033706,
+      "smape": 0.37656413158475116,
+      "r2": 0.6653096906925371,
+      "n": 8992
+    },
+    "test_metrics": {
+      "rmse": 1.3001547961017075,
+      "mae": 0.996794137459634,
+      "mape": 0.5070215105485527,
+      "bias": 0.4065327447375451,
+      "p_bias": 11.484868099260805,
+      "smape": 0.3006958657615256,
+      "r2": 0.5730063020970013,
+      "n": 2218
+    }
+  }
+}

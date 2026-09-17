@@ -1,0 +1,118 @@
+{
+  "xgboost": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "elevation_m",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_wetland_2006",
+      "shore_flag",
+      "srad_Wm2_prev1",
+      "srad_Wm2_prev30",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30",
+      "tmean_degC_prev30",
+      "tmin_degC_prev30"
+    ],
+    "params": {
+      "eta": 0.01,
+      "max_depth": 3,
+      "min_child_weight": 7,
+      "subsample": 0.6,
+      "colsample_bytree": 0.5,
+      "reg_alpha": 0,
+      "reg_lambda": 1
+    },
+    "cv_metrics": {
+      "rmse": 1.4585749468026714,
+      "mae": 1.0057165694990329,
+      "mape": 0.600493451076884,
+      "bias": 0.08709983691302405,
+      "p_bias": 2.7095221347676803,
+      "smape": 0.3803729558419341,
+      "r2": 0.6641272318993442,
+      "n": 8992
+    },
+    "test_metrics": {
+      "rmse": 1.2801699963365236,
+      "mae": 0.9823957213450382,
+      "mape": 0.4984503485556691,
+      "bias": 0.423819520869053,
+      "p_bias": 11.973233049690545,
+      "smape": 0.2978557347788585,
+      "r2": 0.5930064319688819,
+      "n": 2218
+    }
+  },
+  "lightgbm": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NDWI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "elevation_m",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_wetland_2006",
+      "shore_flag",
+      "srad_Wm2_prev1",
+      "srad_Wm2_prev30",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30",
+      "tmean_degC_prev30",
+      "tmin_degC_prev30"
+    ],
+    "params": {
+      "learning_rate": 0.03,
+      "num_leaves": 7,
+      "min_child_samples": 30,
+      "subsample": 0.8,
+      "colsample_bytree": 0.5,
+      "reg_alpha": 5,
+      "reg_lambda": 20
+    },
+    "cv_metrics": {
+      "rmse": 1.4505764351449588,
+      "mae": 1.0036593782432646,
+      "mape": 0.646133976648473,
+      "bias": 0.08151739792258327,
+      "p_bias": 2.5358623146500645,
+      "smape": 0.38509847585040863,
+      "r2": 0.6676692731707854,
+      "n": 8992
+    },
+    "test_metrics": {
+      "rmse": 1.2755447169471175,
+      "mae": 0.980046633207565,
+      "mape": 0.49144699634424555,
+      "bias": 0.42422159600741893,
+      "p_bias": 11.984591986922297,
+      "smape": 0.29608483938410457,
+      "r2": 0.596528379532393,
+      "n": 2218
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "xgboost": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "elevation_m",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_wetland_2006",
+      "srad_Wm2_prev1",
+      "srad_Wm2_prev30",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30",
+      "tmean_degC_prev30",
+      "tmin_degC_prev30"
+    ],
+    "params": {
+      "eta": 0.01,
+      "max_depth": 3,
+      "min_child_weight": 10,
+      "subsample": 0.6,
+      "colsample_bytree": 0.7,
+      "reg_alpha": 0,
+      "reg_lambda": 20
+    },
+    "cv_metrics": {
+      "rmse": 1.4521164251279706,
+      "mae": 1.0045525998528415,
+      "mape": 0.5889865173043949,
+      "bias": 0.0872534882218556,
+      "p_bias": 2.714301955684346,
+      "smape": 0.38235122562219614,
+      "r2": 0.6671028788369,
+      "n": 8992
+    },
+    "test_metrics": {
+      "rmse": 1.2902332177140508,
+      "mae": 0.9909325199897381,
+      "mape": 0.5027866677061625,
+      "bias": 0.43080845617597663,
+      "p_bias": 12.170675940068552,
+      "smape": 0.29878108469927106,
+      "r2": 0.5854969548990271,
+      "n": 2218
+    }
+  },
+  "lightgbm": {
+    "features": [
+      "BG",
+      "BR",
+      "MNDWI",
+      "NDSSI",
+      "NDVI",
+      "NR",
+      "atm_corr_LaSRC",
+      "catchment_area_sqkm",
+      "elevation_m",
+      "fai",
+      "green_corr7",
+      "nir_corr7",
+      "pct_cropland_2006",
+      "pct_forest_2006",
+      "pct_impervious_2006",
+      "pct_wetland_2006",
+      "srad_Wm2_prev1",
+      "srad_Wm2_prev30",
+      "swir1_corr7",
+      "temp_corr7",
+      "tmax_degC_prev30",
+      "tmean_degC_prev30",
+      "tmin_degC_prev30"
+    ],
+    "params": {
+      "learning_rate": 0.01,
+      "num_leaves": 7,
+      "min_child_samples": 50,
+      "subsample": 0.8,
+      "colsample_bytree": 0.4,
+      "reg_alpha": 0,
+      "reg_lambda": 10
+    },
+    "cv_metrics": {
+      "rmse": 1.4582878592778674,
+      "mae": 1.0076833722549199,
+      "mape": 0.6030518611455769,
+      "bias": 0.10778300890264729,
+      "p_bias": 3.3529390952271227,
+      "smape": 0.37298337468975207,
+      "r2": 0.6649947339758789,
+      "n": 8992
+    },
+    "test_metrics": {
+      "rmse": 1.307288549399324,
+      "mae": 1.0087475996471167,
+      "mape": 0.5104611258810127,
+      "bias": 0.472372646627287,
+      "p_bias": 13.34489683903706,
+      "smape": 0.3032804594479351,
+      "r2": 0.5845606099314232,
+      "n": 2218
+    }
+  }
+}
