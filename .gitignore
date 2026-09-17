@@ -19,3 +19,5 @@ regional_clarity/xg_models/hypertune/
 **.parquet
 **.rds
 **/__pycache__/
+/.quarto/
+**/*.quarto_ipynb

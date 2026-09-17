@@ -36,7 +36,7 @@ Set a download location for the files.
 
 ```{r aquamatch-dir, eval=FALSE}
 # note location for file storage when downloading via AquaMatchr
-aquamatch_dir <- "regional_clarity/aquamatch_files/downloads"
+aquamatch_dir <- "aquamatch_files/downloads"
 dir.create(aquamatch_dir, recursive = T)
 ```
 
@@ -92,7 +92,7 @@ apply_handoffs(
   correction_method = "Gardner_poly",
   sat_target = "LS7",
   algal_mask = "FALSE",
-  save_location = "regional_clarity/aquamatch_files/downloads/siteSR_DSWE1_LS7corr.parquet"
+  save_location = "aquamatch_files/downloads/siteSR_DSWE1_LS7corr.parquet"
 )
 ```
 
