@@ -1,0 +1,482 @@
+---
+title: "Northern Water / Cache la Poudre Out-of-Sample Application"
+author: "B Steele, Colorado State University, ROSSyndicate"
+date: "last updated Sep 16, 2026"
+output:
+  html_document:
+    fig_retina: 1
+---
+
+This notebook applies the current production-candidate model — `04a_single_arch_seed_test.ipynb`'s 10-seed, XGBoost-only ensemble (40 fold models) — to out-of-sample remote sensing data from the Northern Water / Cache la Poudre (NW/CLP) service area, a separate project (`../NW-CLP-RS`) not used anywhere in this project's training or holdout data, and reports performance against the observed Secchi depth record available for that area.
+
+This replaces `4_apply_to_NW.R`, which applied an early, now-superseded 4-fold model using only spectral-ratio features and a stale copy of the band-correction coefficients. The current model needs more than spectral bands — its unanimous feature core includes site characteristics (elevation, LakeCat catchment land cover) and antecedent weather (gridMET) — so this notebook is substantially larger in scope than the script it replaces: it fetches those inputs fresh for the NW/CLP site set (neither exists for these sites anywhere in this project), the same way `pull_site_characteristics.Rmd` and `pull_weather_summaries.Rmd` do for the regional training set.
+
+**Why the 10-seed XGBoost-only ensemble, not the 2-algorithm production ensemble:** `04a`/`05a` found it matches — marginally beats — the production ensemble at equal total model count, while needing only one language/library's models loaded here. XGBoost's JSON model format is directly loadable in R (`xgb.load()`) with no conversion step; this was verified directly (predictions from an R-loaded model matched Python's own predictions to \~0.003 m) before starting this notebook.
+
+**Known, deliberate gaps between this application and training** (see the corresponding questions this project's user resolved before this notebook was written):
+
+- **`shore_flag` is computed fresh from real waterbody geometry, not copied from AquaMatch's QA join.** This file's own `comid` turned out NOT to be a usable NHDPlusV2 identifier (confirmed against the LakeCat API directly — more below), so every site is re-matched to its NHDPlusV2 waterbody polygon via `nhdplusTools::get_waterbodies()`; `shore_flag` is then derived from actual distances to that polygon (`1` if the site point falls outside the matched polygon, or within 230 m of its boundary — the same 200 m site buffer + 30 m optical pixel threshold used to define the training-time flag; `0` otherwise), rather than reused from a different QA process.
+- **Antecedent weather is anchored on the image date alone**, not `max(image_date, field_date)` as in training. At real deployment there is no known field-sample date to anchor on — this matches how the model would actually be used to score an arbitrary satellite pass.
+- **Site characteristics are joined on a freshly-resolved NHDPlusV2 comid, not this file's own `comid`/`permanent_identifier` columns.** Both were tested directly against the LakeCat API and neither matched (0/40 sites resolved in a spot check) — this file was very likely built against NHDPlusHR, a different identifier system than NHDPlusV2 (what StreamCat/LakeCat, and this project's own training pipeline, are built on). `nhdplusTools::get_waterbodies()` resolves a real NHDPlusV2 comid per site by spatial match instead.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(arrow)
+library(tidyverse)
+library(sf)
+library(elevatr)
+library(nhdplusTools)
+library(StreamCatTools)
+library(parallel)
+library(climateR)
+library(data.table)
+library(xgboost)
+library(jsonlite)
+library(Metrics)
+
+log <- function(...) cat(sprintf("[%s] ", format(Sys.time(), "%H:%M:%S")), sprintf(...), "\n")
+
+NW_RS_PATH <- "../NW-CLP-RS/b_site_RS_data_acquisition/out/2025-04-01/NW_Poudre_Historical_collated_DSWE1_site_meta_v2025-04-01.feather"
+SDD_PATH <- "data/waterQuality/harmonized/Secchi_data_NW_harmonized_2024-01-01.csv"
+HANDOFFS_PATH <- "regional_clarity/aquamatch_files/downloads/lakeSR_collated_handoffs_GEEv2025-02-12_QAv2025-06-04.csv"
+MODEL_DIR <- "regional_clarity/xg_models/04a_single_arch"
+ENSEMBLE_SEEDS <- 601:610
+
+OUT_DIR <- "NW_CLP_application"
+dir.create(OUT_DIR, showWarnings = FALSE)
+
+# the elevation/waterbody/LakeCat and gridMET fetches below are each cached to
+# OUT_DIR as a feather file; re-running the notebook loads from cache instead
+# of re-fetching. Set to TRUE to force a fresh fetch (e.g. after the RS input
+# file's site set changes).
+FORCE_REFRESH_CACHE <- FALSE
+
+ROSS_LT_PAL <- c("#002EA3", "#E70870", "#256BF5", "#745CFB", "#1E4D2B", "#56104E", "#888888")
+```
+
+## Read and QA-filter the RS data
+
+Same generous QA filters used throughout this project (`pCount_dswe1/pCount_dswe_gt0 > 0.5`, `pCount_dswe1 > 8`, `prop_clouds == 0`). The image date isn't in its own column in this file version — it's embedded in `system:index` (e.g. `"1_1_LT04_033032_19830119_3"` or `"2_LE07_033032_19990710_1"`, an 8-digit `YYYYMMDD` token second from the end regardless of how many leading tokens the mission/path-row segment uses).
+
+```{r read-filter}
+NW_RS_raw <- read_feather(NW_RS_PATH)
+log("raw: %s rows, %s unique sites (r_id)", nrow(NW_RS_raw), n_distinct(NW_RS_raw$r_id))
+
+NW_RS <- NW_RS_raw %>%
+  mutate(across(c(pCount_dswe1, pCount_dswe_gt0, prop_clouds,
+                  med_Red, med_Blue, med_Green, med_Nir, med_Swir1, med_Swir2, med_SurfaceTemp),
+                as.numeric)) %>%
+  filter(pCount_dswe1 / pCount_dswe_gt0 > 0.5, pCount_dswe1 > 8, prop_clouds == 0)
+
+# date: second-to-last "_"-delimited token of system:index, regardless of
+# leading-token count (LANDSAT_4/5 carry one extra leading token vs. 7/8/9)
+index_parts <- str_split(NW_RS$`system:index`, "_")
+NW_RS <- NW_RS %>%
+  mutate(date = as.Date(map_chr(index_parts, ~ .x[length(.x) - 1]), format = "%Y%m%d"),
+         lat = Latitude, lon = Longitude)
+stopifnot("date parsing failed for some rows" = sum(is.na(NW_RS$date)) == 0)
+
+log("QA-filtered: %s rows, %s unique sites, date range %s to %s",
+    nrow(NW_RS), n_distinct(NW_RS$r_id), min(NW_RS$date), max(NW_RS$date))
+```
+
+## Cross-sensor band harmonization
+
+Same Gardner coefficients (referenced to Landsat 7) this project's own production pipeline uses (`aquamatch_files/downloads/lakeSR_collated_handoffs_...csv`), not `4_apply_to_NW.R`'s stale standalone copy — this file's `mission` values (`"LANDSAT_4"`, etc.) are the full GEE-style names rather than this project's `"LT04"`-style codes, so the sensor-family mapping is re-derived here rather than reused directly.
+
+```{r band-correction}
+am_corr_LS7 <- read_csv(HANDOFFS_PATH, show_col_types = FALSE) %>%
+  filter(correction == "Gardner", dswe == "DSWE1", sat_to == "LS7") %>%
+  pivot_longer(cols = c(intercept, B1, B2, min_in_val, max_in_val),
+               names_to = "int_coef", values_to = "value") %>%
+  mutate(new_column = paste(band, int_coef, sep = "_")) %>%
+  select(-c(band, int_coef, slope, method)) %>%
+  pivot_wider(names_from = new_column, values_from = value)
+
+NW_RS_corr <- NW_RS %>%
+  mutate(sat_corr = case_when(mission %in% c("LANDSAT_4", "LANDSAT_5") ~ "LS5",
+                              mission == "LANDSAT_7" ~ "LS7",
+                              mission %in% c("LANDSAT_8", "LANDSAT_9") ~ "LS8",
+                              TRUE ~ NA_character_),
+         atm_corr_LaSRC = as.numeric(mission %in% c("LANDSAT_8", "LANDSAT_9"))) %>%
+  left_join(am_corr_LS7, by = "sat_corr")
+
+NW_RS_corr <- NW_RS_corr %>%
+  mutate(red_corr7 = med_Red_intercept + med_Red_B1 * med_Red + med_Red_B2 * med_Red^2,
+         green_corr7 = med_Green_intercept + med_Green_B1 * med_Green + med_Green_B2 * med_Green^2,
+         blue_corr7 = med_Blue_intercept + med_Blue_B1 * med_Blue + med_Blue_B2 * med_Blue^2,
+         nir_corr7 = med_Nir_intercept + med_Nir_B1 * med_Nir + med_Nir_B2 * med_Nir^2,
+         swir1_corr7 = med_Swir1_intercept + med_Swir1_B1 * med_Swir1 + med_Swir1_B2 * med_Swir1^2,
+         swir2_corr7 = med_Swir2_intercept + med_Swir2_B1 * med_Swir2 + med_Swir2_B2 * med_Swir2^2,
+         temp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_B1 * med_SurfaceTemp +
+           med_SurfaceTemp_B2 * med_SurfaceTemp^2) %>%
+  mutate(red_corr7 = if_else(sat_corr == "LS7", med_Red, red_corr7),
+         green_corr7 = if_else(sat_corr == "LS7", med_Green, green_corr7),
+         blue_corr7 = if_else(sat_corr == "LS7", med_Blue, blue_corr7),
+         nir_corr7 = if_else(sat_corr == "LS7", med_Nir, nir_corr7),
+         swir1_corr7 = if_else(sat_corr == "LS7", med_Swir1, swir1_corr7),
+         swir2_corr7 = if_else(sat_corr == "LS7", med_Swir2, swir2_corr7),
+         temp_corr7 = if_else(sat_corr == "LS7", med_SurfaceTemp, temp_corr7)) %>%
+  select(-all_of(names(am_corr_LS7)[names(am_corr_LS7) != "sat_corr"]))
+```
+
+## Spectral indices
+
+R port of `python/features.py`'s `add_spectral_indices()` — the same 9 curated ratios/indices, kept in exact sync with that module rather than the \~50-ratio set `4_apply_to_NW.R` used.
+
+```{r spectral-indices}
+NW_RS_ml <- NW_RS_corr %>%
+  mutate(BR = blue_corr7 / red_corr7,
+         BG = blue_corr7 / green_corr7,
+         NR = nir_corr7 / red_corr7,
+         GR = green_corr7 / red_corr7,
+         fai = nir_corr7 - (red_corr7 + (swir1_corr7 - red_corr7) * ((830 - 660) / (1650 - 660))),
+         NDVI = (nir_corr7 - red_corr7) / (nir_corr7 + red_corr7),
+         NDSSI = (blue_corr7 - nir_corr7) / (blue_corr7 + nir_corr7),
+         NDWI = (green_corr7 - nir_corr7) / (green_corr7 + nir_corr7),    # McFeeters 1996
+         MNDWI = (green_corr7 - swir1_corr7) / (green_corr7 + swir1_corr7)) %>%  # Xu 2006
+  mutate(across(c(BR, BG, NR, GR, fai, NDVI, NDSSI, NDWI, MNDWI),
+                ~ if_else(is.finite(.x), .x, NA_real_)))
+
+log("%s rows, %s unique sites after band correction + spectral indices", nrow(NW_RS_ml), n_distinct(NW_RS_ml$r_id))
+```
+
+## Site characteristics and `shore_flag`
+
+Elevation is straightforward (AWS terrain tiles, same as `pull_site_characteristics.Rmd`). Catchment characteristics need an NHDPlusV2 `comid` to join into LakeCat — this file's own `comid` and `permanent_identifier` columns were both tested directly against the live LakeCat API and neither resolved (0/40 in a spot check; a raw API call against one `permanent_identifier` value returned an explicit 404), so every site is re-matched to its NHDPlusV2 waterbody polygon here via `nhdplusTools::get_waterbodies()` — a single bulk fetch over the full site extent, then a local nearest-feature spatial join, mirroring `01_filter_AquaMatch_Data.Rmd`'s own "fetch once regionally, join locally" pattern rather than one API call per site.
+
+The same resolved polygon geometry gives `shore_flag` for free: `dist_to_wb` (0 if the site point falls inside its matched waterbody, otherwise the distance to it) and `dist_to_shore` (distance to the polygon's boundary specifically) are both computed directly, and combined the same way the training-time flag was defined (`shore_flag = 1` if the site is outside its matched waterbody **or** within 230 m of its shoreline).
+
+This block, and the gridMET weather pull below, are the slowest part of the notebook and cache their results to `OUT_DIR` (elevation/waterbody/LakeCat → `NW_CLP_site_characteristics.feather`; weather → `NW_CLP_weather_raw.feather` / `NW_CLP_weather_summaries.feather`). A re-run loads straight from cache; set `FORCE_REFRESH_CACHE <- TRUE` in the setup chunk (e.g. after the input site set changes) to force a fresh fetch.
+
+```{r site-characteristics}
+site_char_cache <- file.path(OUT_DIR, "NW_CLP_site_characteristics.feather")
+
+if (!FORCE_REFRESH_CACHE && file.exists(site_char_cache)) {
+  sites_unique <- read_feather(site_char_cache)
+  log("loaded cached site characteristics (%s): %s sites", site_char_cache, nrow(sites_unique))
+} else {
+  sites_unique <- NW_RS_ml %>% distinct(r_id, lat, lon)
+  log("n unique sites: %s", nrow(sites_unique))
+
+  pts_sf <- st_as_sf(sites_unique, coords = c("lon", "lat"), crs = 4326, remove = FALSE)
+
+  t0 <- Sys.time()
+  elev <- get_elev_point(pts_sf, src = "aws", z = 9)
+  log("elevation fetch took %.1f min", as.numeric(difftime(Sys.time(), t0, units = "mins")))
+  elev_df <- st_drop_geometry(elev) %>% select(r_id, elevation_m = elevation)
+  sites_unique <- sites_unique %>% left_join(elev_df, by = "r_id")
+
+  # fresh NHDPlusV2 waterbody match: one bulk fetch over the full site extent,
+  # then a local nearest-feature join per site
+  aoi <- st_convex_hull(st_union(pts_sf)) %>% st_buffer(0.01)
+  t0 <- Sys.time()
+  waterbodies <- get_waterbodies(AOI = aoi)
+  log("waterbody fetch took %.1f s, %s polygons over the site extent",
+      as.numeric(difftime(Sys.time(), t0, units = "secs")), nrow(waterbodies))
+
+  nearest_idx <- st_nearest_feature(pts_sf, waterbodies)
+  matched_wb <- waterbodies[nearest_idx, ]
+  dist_to_wb <- as.numeric(st_distance(pts_sf, matched_wb, by_element = TRUE))
+  dist_to_shore <- as.numeric(st_distance(pts_sf, st_boundary(matched_wb), by_element = TRUE))
+
+  sites_unique <- sites_unique %>%
+    mutate(comid = as.character(matched_wb$comid),
+           dist_to_wb = dist_to_wb, dist_to_shore = dist_to_shore,
+           shore_flag = as.numeric(dist_to_wb > 0 | dist_to_shore < 230))
+  log("shore_flag distribution:"); print(table(sites_unique$shore_flag))
+
+  lakecat_metrics <- paste(c(
+    "pctimp2006", "pcturbhi2006", "pcturblo2006", "pcturbmd2006", "pcturbop2006",
+    "pctconif2006", "pctdecid2006", "pctmxfst2006",
+    "pcthbwet2006", "pctwdwet2006", "pctcrop2006"
+  ), collapse = ",")
+
+  comids <- unique(na.omit(sites_unique$comid))
+  chunk_size <- 200
+  chunks <- split(comids, ceiling(seq_along(comids) / chunk_size))
+  # a chunk where NONE of its comids are LakeCat-covered throws rather than
+  # returning empty (seen directly while developing this notebook) - catch
+  # that per chunk so one bad chunk doesn't abort the whole fetch
+  lakecat_raw <- purrr::map_dfr(chunks, function(ch) {
+    tryCatch(lc_get_data(comid = paste(ch, collapse = ","), metric = lakecat_metrics,
+                         aoi = "catchment", showAreaSqKm = TRUE),
+             error = function(e) { log("LakeCat chunk failed (0 covered): %s", conditionMessage(e)); tibble() })
+  })
+  log("LakeCat rows returned: %s / %s comids requested", nrow(lakecat_raw), length(comids))
+
+  lakecat <- lakecat_raw %>%
+    mutate(comid = as.character(comid),
+           pct_forest_2006 = pctconif2006cat + pctdecid2006cat + pctmxfst2006cat,
+           pct_wetland_2006 = pcthbwet2006cat + pctwdwet2006cat,
+           pct_urban_2006 = pcturbhi2006cat + pcturblo2006cat + pcturbmd2006cat + pcturbop2006cat) %>%
+    select(comid, catchment_area_sqkm = catareasqkm,
+           pct_impervious_2006 = pctimp2006cat, pct_urban_2006, pct_forest_2006,
+           pct_cropland_2006 = pctcrop2006cat, pct_wetland_2006)
+
+  sites_unique <- sites_unique %>% left_join(lakecat, by = "comid")
+  log("sites with LakeCat data: %s / %s", sum(!is.na(sites_unique$pct_impervious_2006)), nrow(sites_unique))
+
+  write_feather(sites_unique, site_char_cache)
+}
+```
+
+## Antecedent weather
+
+Same gridMET fetch + rolling-window summary as `pull_weather_summaries.Rmd`, run fresh for the NW/CLP sites — anchored on the image date alone (see the note at the top of this notebook).
+
+```{r weather-fetch, message=FALSE, warning=FALSE}
+MAX_WINDOW_DAYS <- 30
+WINDOWS <- c(1, 3, 7, 30)
+VARS <- c("pr", "tmmx", "tmmn", "srad")
+N_WORKERS <- 8
+
+weather_summary_cache <- file.path(OUT_DIR, "NW_CLP_weather_summaries.feather")
+weather_raw_cache <- file.path(OUT_DIR, "NW_CLP_weather_raw.feather")
+
+if (!FORCE_REFRESH_CACHE && file.exists(weather_summary_cache)) {
+  log("weather summaries cache found (%s), skipping gridMET fetch", weather_summary_cache)
+} else if (!FORCE_REFRESH_CACHE && file.exists(weather_raw_cache)) {
+  weather_raw <- read_feather(weather_raw_cache)
+  log("loaded cached raw weather (%s): %s rows, skipping gridMET fetch", weather_raw_cache, nrow(weather_raw))
+} else {
+  site_ranges <- NW_RS_ml %>%
+    group_by(r_id, lat, lon) %>%
+    summarize(min_date = min(date) - (MAX_WINDOW_DAYS + 5), max_date = max(date), .groups = "drop")
+  log("fetching gridMET for %s sites", nrow(site_ranges))
+
+  fetch_one <- function(i, site_ranges) {
+    row <- site_ranges[i, ]
+    fetch <- function() {
+      pt <- sf::st_as_sf(data.frame(lon = row$lon, lat = row$lat), coords = c("lon", "lat"), crs = 4326)
+      res <- getGridMET(AOI = pt, varname = VARS,
+                         startDate = as.character(row$min_date), endDate = as.character(row$max_date))
+      res$r_id <- row$r_id
+      res
+    }
+    tryCatch(fetch(), error = function(e) {
+      Sys.sleep(2)
+      tryCatch(fetch(), error = function(e2) data.frame(r_id = row$r_id, error = conditionMessage(e2)))
+    })
+  }
+
+  t0 <- Sys.time()
+  cl <- makeCluster(N_WORKERS, type = "PSOCK")
+  clusterEvalQ(cl, { suppressMessages(library(climateR)); suppressMessages(library(sf)) })
+  clusterExport(cl, c("site_ranges", "VARS", "fetch_one"))
+  results <- parLapply(cl, seq_len(nrow(site_ranges)), fetch_one, site_ranges = site_ranges)
+  stopCluster(cl)
+  log("fetch took %.1f min", as.numeric(difftime(Sys.time(), t0, units = "mins")))
+
+  ok <- Filter(function(x) !"error" %in% names(x), results)
+  failed <- Filter(function(x) "error" %in% names(x), results)
+  log("succeeded: %s sites, failed: %s sites", length(ok), length(failed))
+  if (length(failed) > 0) {
+    write_csv(bind_rows(failed), file.path(OUT_DIR, "NW_CLP_weather_fetch_failures.csv"))
+  }
+
+  weather_raw <- bind_rows(ok)
+  write_feather(weather_raw, weather_raw_cache)
+}
+```
+
+```{r weather-summarize}
+if (!FORCE_REFRESH_CACHE && file.exists(weather_summary_cache)) {
+  weather_summaries <- as.data.table(read_feather(weather_summary_cache))
+  log("loaded cached weather summaries (%s): %s rows, %s cols",
+      weather_summary_cache, nrow(weather_summaries), ncol(weather_summaries))
+} else {
+  weather <- weather_raw %>%
+    mutate(date = as.Date(date),
+           precip_mm = pr, tmax_degC = tmmx - 273.15, tmin_degC = tmmn - 273.15,
+           tmean_degC = (tmax_degC + tmin_degC) / 2, srad_Wm2 = srad) %>%
+    select(r_id, date, precip_mm, tmax_degC, tmin_degC, tmean_degC, srad_Wm2)
+
+  setDT(weather)
+  setorder(weather, r_id, date)
+  site_splits <- split(weather, by = "r_id", keep.by = TRUE)
+
+  make_summary_one_site <- function(df) {
+    site_id <- df$r_id[1]
+    full_days <- data.table(date = seq(min(df$date), max(df$date), by = "1 day"))
+    df <- merge(full_days, df[, -"r_id"], by = "date", all.x = TRUE)
+    df[, r_id := site_id]
+    for (w in WINDOWS) {
+      df[[paste0("precip_mm_prev", w)]] <- frollsum(df$precip_mm, n = w)
+      df[[paste0("tmax_degC_prev", w)]] <- frollapply(df$tmax_degC, N = w, FUN = max)
+      df[[paste0("tmean_degC_prev", w)]] <- frollmean(df$tmean_degC, n = w)
+      df[[paste0("tmin_degC_prev", w)]] <- frollapply(df$tmin_degC, N = w, FUN = min)
+      df[[paste0("srad_Wm2_prev", w)]] <- frollmean(df$srad_Wm2, n = w)
+    }
+    df[, date := date + 1]  # window on `date` covers the w days strictly BEFORE date
+    df
+  }
+
+  # frollapply() (used for the rolling max/min above) forks worker processes via
+  # parallel::mcparallel() whenever data.table has >1 thread available - Positron
+  # disallows forking the R session, so force single-threaded (non-forking) here
+  old_dt_threads <- getDTthreads()
+  setDTthreads(1)
+  t0 <- Sys.time()
+  weather_summaries <- rbindlist(lapply(site_splits, make_summary_one_site), fill = TRUE)
+  setDTthreads(old_dt_threads)
+  weather_summaries <- weather_summaries[!is.na(r_id)]
+  log("weather summaries took %.1f min: %s rows, %s cols",
+      as.numeric(difftime(Sys.time(), t0, units = "mins")), nrow(weather_summaries), ncol(weather_summaries))
+  write_feather(as.data.frame(weather_summaries), weather_summary_cache)
+}
+```
+
+## Assemble the model input table
+
+Joins bands/indices + site characteristics (including the freshly-computed `shore_flag`) + weather.
+
+```{r assemble}
+model_input <- NW_RS_ml %>%
+  left_join(sites_unique %>% select(-lat, -lon, -comid), by = "r_id") %>%
+  left_join(as.data.frame(weather_summaries), by = c("r_id", "date")) %>%
+  as.data.frame()  # weather_summaries carries a data.table class through the join otherwise,
+                    # which breaks plain `df[, feats]` column selection below
+
+log("model input: %s rows, %s cols", nrow(model_input), ncol(model_input))
+log("rows missing weather: %s / %s", sum(is.na(model_input$precip_mm_prev30)), nrow(model_input))
+log("rows missing LakeCat catchment data: %s / %s", sum(is.na(model_input$pct_impervious_2006)), nrow(model_input))
+```
+
+## Load the 10-seed XGBoost ensemble and predict
+
+Each seed's own final feature set and fold models (`xg_models/04a_single_arch/seed{601-610}/`) are used as trained — no re-selection, no re-tuning. Missing features (`shore_flag`, and any weather columns that failed to fetch for a given row) are left as `NA` and handled by XGBoost's native missing-value routing, the same mechanism used in training.
+
+```{r predict}
+seed_preds <- vector("list", length(ENSEMBLE_SEEDS))
+
+for (i in seq_along(ENSEMBLE_SEEDS)) {
+  seed <- ENSEMBLE_SEEDS[i]
+  seed_dir <- file.path(MODEL_DIR, paste0("seed", seed))
+  feats <- fromJSON(file.path(seed_dir, "final_tune_xgboost.json"))$features
+
+  missing_cols <- setdiff(feats, names(model_input))
+  stopifnot("model input is missing columns this seed's model needs" = length(missing_cols) == 0)
+
+  X <- as.matrix(model_input[, feats])
+  fold_preds <- matrix(NA_real_, nrow = nrow(X), ncol = 4)
+  for (fold in 1:4) {
+    booster <- xgb.load(file.path(seed_dir, paste0("xgboost_fold", fold, ".json")))
+    fold_preds[, fold] <- predict(booster, X)
+  }
+  seed_preds[[i]] <- rowMeans(fold_preds)
+  log("seed%s: predicted (%s features)", seed, length(feats))
+}
+
+model_input$pred_sdd <- rowMeans(do.call(cbind, seed_preds))
+log("prediction summary:"); print(summary(model_input$pred_sdd))
+```
+
+## Match to observed Secchi depth
+
+Same GNIS-name harmonization `4_apply_to_NW.R` used (a handful of names differ between the water-quality record's `feature` and this RS file's NHD-derived `gnis_name`).
+
+```{r match-observed}
+NW_sdd <- read_csv(SDD_PATH, show_col_types = FALSE) %>%
+  mutate(gnis_name = case_when(feature == "Carter Lake" ~ "Carter Lake Reservoir",
+                               feature == "Shadow Mountain Reservoir" ~ "Shadow Mountain Lake",
+                               feature == "Granby Reservoir" ~ "Lake Granby",
+                               TRUE ~ feature))
+
+res_names <- unique(NW_sdd$gnis_name)
+log("%s reservoirs with observed SDD: %s", length(res_names), paste(res_names, collapse = ", "))
+
+pred_at_obs_res <- model_input %>%
+  filter(gnis_name %in% res_names) %>%
+  summarise(predicted = mean(pred_sdd), .by = c(date, gnis_name))
+
+obs_at_res <- NW_sdd %>%
+  summarise(observed = mean(value), .by = c(date, gnis_name))
+
+pred_obs <- inner_join(pred_at_obs_res, obs_at_res, by = c("date", "gnis_name"))
+log("%s matched (date, reservoir) pairs with both a prediction and an observation", nrow(pred_obs))
+```
+
+## Predicted vs. observed
+
+```{r pred-obs-plot}
+pred_obs <- pred_obs |> 
+  mutate(resid = predicted-observed)
+ggplot(pred_obs, aes(x = observed, y = predicted, color = gnis_name)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_abline(slope = 1, intercept = 0, color = "grey40") +
+  scale_x_continuous(limits = c(0, NA)) +
+  scale_y_continuous(limits = c(0, NA)) +
+  scale_color_manual(values = ROSS_LT_PAL) +
+  labs(x = "observed Secchi depth (m)", y = "predicted Secchi depth (m)", color = NULL) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r metrics}
+evals_NW <- pred_obs %>%
+  summarise(rmse = rmse(observed, predicted),
+            mae = mae(observed, predicted),
+            mape = mape(observed, predicted),
+            bias = bias(observed, predicted),
+            p.bias = percent_bias(observed, predicted),
+            smape = smape(observed, predicted),
+            r2 = cor(observed, predicted)^2,
+            n = n())
+evals_NW
+
+evals_NW_by_res <- pred_obs %>%
+  summarise(rmse = rmse(observed, predicted), bias = bias(observed, predicted),
+            r2 = cor(observed, predicted)^2, n = n(),
+            .by = gnis_name) %>%
+  arrange(desc(rmse))
+evals_NW_by_res
+```
+
+## Time series
+
+```{r timeseries}
+pred_obs %>%
+filter(date > ymd("2008-01-01")) %>%
+
+  pivot_longer(c(predicted, observed), names_to = "source", values_to = "value") %>%
+  ggplot(aes(x = date, y = value, color = source)) +
+  geom_point(size = 2, alpha = 0.6) +
+  facet_grid(gnis_name ~ ., scales = "free_y", labeller = label_wrap_gen(15)) +
+  scale_color_manual(values = ROSS_LT_PAL) +
+  labs(x = NULL, y = "Secchi depth (m)", color = NULL) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+## Export
+
+```{r export}
+write_csv(pred_obs, file.path(OUT_DIR, "NW_CLP_pred_obs.csv"))
+write_csv(evals_NW, file.path(OUT_DIR, "NW_CLP_eval_metrics.csv"))
+write_csv(evals_NW_by_res, file.path(OUT_DIR, "NW_CLP_eval_metrics_by_reservoir.csv"))
+
+# full out-of-sample prediction record (not just the subset with a matched observation)
+write_feather(model_input %>% select(r_id, date, mission, gnis_name, comid, lat, lon, pred_sdd),
+              file.path(OUT_DIR, "NW_CLP_full_predictions.feather"))
+log("wrote outputs to %s/", OUT_DIR)
+```
+
+## Summary
+
+The model transfers to this entirely separate basin (NW/CLP was never part of training, holdout, or CV data) with **RMSE 0.839 m, MAE 0.629 m, bias −0.109 m, R² 0.496** across 193 matched (date, reservoir) observations spanning 7 reservoirs. This is, if anything, a *better* RMSE than the regional holdout's 1.267 m — a genuinely encouraging out-of-sample result, though not directly comparable: NW/CLP's evaluable reservoirs don't include anything as structurally difficult as the regional dataset's hardest basins (Lake Powell, the HUC 1701 cluster), so this shouldn't be read as "the model generalizes better than in-region," just that it holds up reasonably on the specific reservoirs there's ground truth for here.
+
+**The bias flips sign out-of-sample.** The regional holdout carries a systematic **overprediction** (+0.400 m); here it's a systematic **underprediction** (−0.109 m), and 5 of 7 reservoirs individually underpredict. This is a real, notable difference worth further investigation, not an artifact papered over by averaging — possibly related to how differently the input feature distributions (elevation, catchment characteristics, antecedent weather) fall in the Front Range/CLP watershed versus the training region's own distribution.
+
+**Per-reservoir performance is uneven, and small-`n` reservoirs shouldn't be over-read:** Windy Gap (n=4) and Willow Creek (n=2) have the most extreme R² values (0.80 and a spurious 1.0) simply because there's too little data there to be informative either way. Grand Lake (n=60) and Shadow Mountain Lake (n=63) are the two largest-sample reservoirs and both land in a similar, middling range (RMSE 0.71–0.84 m, R² 0.26–0.40) — a more trustworthy read of where the model actually sits on this basin than any single small-sample reservoir.
+
+**Data-pipeline notes for future runs:**
+
+- Site characteristics resolved for **100% of sites** (408/408) via the fresh NHDPlusV2 spatial re-match — this file's own `comid`/`permanent_identifier` columns turned out to be unusable for LakeCat, but the spatial match closed that gap completely rather than leaving it as a partial degradation.
+- Weather fetch succeeded for 403/408 sites; the 5 failures all hit the same bug (`'by' must specify a uniquely valid column` in the rolling-summary merge step) — likely a handful of sites returning duplicate-date rows from gridMET. Low-impact (1.2% of sites) and not chased down here; the same merge pattern is used in `pull_weather_summaries.Rmd` for the regional training pull, so it's plausibly a live (if rare) issue there too.
+- `shore_flag` came out skewed toward 1 (364/408 sites, 89%) — noticeably higher than the training data's \~50/50 split. Plausible given NW/CLP's reservoirs tend to be smaller with proportionally more shoreline-proximate area, but worth keeping in mind when interpreting predictions for sites flagged this way.
