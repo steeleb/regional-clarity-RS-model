@@ -7,11 +7,11 @@ output:
     fig_retina: 1
 ---
 
-This notebook applies the current production-candidate model — `04a_single_arch_seed_test.ipynb`'s 10-seed, XGBoost-only ensemble (40 fold models) — to out-of-sample remote sensing data from the Northern Water / Cache la Poudre (NW/CLP) service area, a separate project (`../NW-CLP-RS`) not used anywhere in this project's training or holdout data, and reports performance against the observed Secchi depth record available for that area.
+This notebook applies the current production model — `04_make_models.ipynb`'s 10-seed, XGBoost-only ensemble (40 fold models) — to out-of-sample remote sensing data from the Northern Water / Cache la Poudre (NW/CLP) service area, a separate project (`../NW-CLP-RS`) not used anywhere in this project's training or holdout data, and reports performance against the observed Secchi depth record available for that area.
 
 This replaces `4_apply_to_NW.R`, which applied an early, now-superseded 4-fold model using only spectral-ratio features and a stale copy of the band-correction coefficients. The current model needs more than spectral bands — its unanimous feature core includes site characteristics (elevation, LakeCat catchment land cover) and antecedent weather (gridMET) — so this notebook is substantially larger in scope than the script it replaces: it fetches those inputs fresh for the NW/CLP site set (neither exists for these sites anywhere in this project), the same way `pull_site_characteristics.Rmd` and `pull_weather_summaries.Rmd` do for the regional training set.
 
-**Why the 10-seed XGBoost-only ensemble, not the 2-algorithm production ensemble:** `04a`/`05a` found it matches — marginally beats — the production ensemble at equal total model count, while needing only one language/library's models loaded here. XGBoost's JSON model format is directly loadable in R (`xgb.load()`) with no conversion step; this was verified directly (predictions from an R-loaded model matched Python's own predictions to \~0.003 m) before starting this notebook.
+**Why XGBoost in R:** XGBoost's JSON model format is directly loadable in R (`xgb.load()`) with no conversion step; this was verified directly (predictions from an R-loaded model matched Python's own predictions to \~0.003 m) before starting this notebook.
 
 **Known, deliberate gaps between this application and training** (see the corresponding questions this project's user resolved before this notebook was written):
 
@@ -44,7 +44,7 @@ log <- function(...) cat(sprintf("[%s] ", format(Sys.time(), "%H:%M:%S")), sprin
 NW_RS_PATH <- "../NW-CLP-RS/b_site_RS_data_acquisition/out/2025-04-01/NW_Poudre_Historical_collated_DSWE1_site_meta_v2025-04-01.feather"
 SDD_PATH <- "data/waterQuality/harmonized/Secchi_data_NW_harmonized_2024-01-01.csv"
 HANDOFFS_PATH <- "regional_clarity/aquamatch_files/downloads/lakeSR_collated_handoffs_GEEv2025-02-12_QAv2025-06-04.csv"
-MODEL_DIR <- "regional_clarity/xg_models/04a_single_arch"
+MODEL_DIR <- "regional_clarity/xg_models/v3_production"
 ENSEMBLE_SEEDS <- 601:610
 
 OUT_DIR <- "NW_CLP_application"
@@ -346,11 +346,23 @@ model_input <- NW_RS_ml %>%
 log("model input: %s rows, %s cols", nrow(model_input), ncol(model_input))
 log("rows missing weather: %s / %s", sum(is.na(model_input$precip_mm_prev30)), nrow(model_input))
 log("rows missing LakeCat catchment data: %s / %s", sum(is.na(model_input$pct_impervious_2006)), nrow(model_input))
+
+# training now applies python/features.py's coarsen_site_features() (log-scale
+# binning for catchment_area_sqkm, nearest-percentage-point rounding for the
+# pct_*_2006 land-cover fractions) to keep a heavily-resampled waterbody's
+# static per-comid LakeCat values from acting as a de facto waterbody ID a
+# tree can key a memorized SDD value off of - the trained models expect that
+# same resolution at inference time, so it's replicated here rather than
+# passing full-precision LakeCat values into a model that never saw them
+model_input <- model_input %>%
+  mutate(catchment_area_sqkm = 10^round(log10(catchment_area_sqkm), 1),
+         across(c(pct_impervious_2006, pct_urban_2006, pct_forest_2006,
+                  pct_cropland_2006, pct_wetland_2006), ~round(.x, 0)))
 ```
 
 ## Load the 10-seed XGBoost ensemble and predict
 
-Each seed's own final feature set and fold models (`xg_models/04a_single_arch/seed{601-610}/`) are used as trained — no re-selection, no re-tuning. Missing features (`shore_flag`, and any weather columns that failed to fetch for a given row) are left as `NA` and handled by XGBoost's native missing-value routing, the same mechanism used in training.
+Each seed's own final feature set and fold models (`xg_models/v3_production/seed{601-610}/`) are used as trained — no re-selection, no re-tuning. Missing features (`shore_flag`, and any weather columns that failed to fetch for a given row) are left as `NA` and handled by XGBoost's native missing-value routing, the same mechanism used in training.
 
 ```{r predict}
 seed_preds <- vector("list", length(ENSEMBLE_SEEDS))
@@ -381,7 +393,14 @@ log("prediction summary:"); print(summary(model_input$pred_sdd))
 
 Same GNIS-name harmonization `4_apply_to_NW.R` used (a handful of names differ between the water-quality record's `feature` and this RS file's NHD-derived `gnis_name`).
 
+Matched with the same ±5-day window `02_make_matches.Rmd` uses for the regional training data, rather than requiring an exact same-day match — an exact-date join silently drops any in-situ observation that doesn't happen to fall on a satellite overpass date, which is most of them, and undercounts the evaluable pairs relative to every other evaluation in this project. Unlike training (where the same image legitimately pairs with more than one nearby SDD measurement as separate rows), evaluation de-duplicates by **image**, not by observation: each unique overpass keeps only the single SDD measurement closest in time to it, so a dense field-sampling week landing inside one overpass's window doesn't score that one static prediction against several different observed values as if it were several independent tests of the model. `time_diff` (predicted image date minus observed sample date, in days) is kept for the same match-quality check `05_evaluate_ensemble.ipynb` runs on the regional holdout.
+
+Candidate pairs are also screened for a heavy single-day rain event between the image date and the field date — mirroring the gap-based rain filter (`24_gap_period_rain_check.R` / `25_apply_gap_rain_filter.R`) built on the `outlier-removal-rework` branch but never merged into the production `02_make_matches.Rmd` pipeline, so the regional training data isn't screened for this. Applied here as a deliberate, higher bar for the out-of-sample evaluation specifically. Screening happens on **candidates**, before the closest-in-time selection above, not after: a heavy rain event during an observation's single nearest candidate image would otherwise drop that observation outright even when a perfectly good, only slightly-further-away, uncontaminated image is also available in the window. Direction-agnostic (checked over `[min(image date, field date), max(image date, field date)]`), matching the original filter.
+
 ```{r match-observed}
+MATCH_WINDOW_DAYS <- 5
+HEAVY_RAIN_MM <- 25.4  # NOAA/EPA "heavy precipitation day" threshold (1 inch/24hr)
+
 NW_sdd <- read_csv(SDD_PATH, show_col_types = FALSE) %>%
   mutate(gnis_name = case_when(feature == "Carter Lake" ~ "Carter Lake Reservoir",
                                feature == "Shadow Mountain Reservoir" ~ "Shadow Mountain Lake",
@@ -393,13 +412,92 @@ log("%s reservoirs with observed SDD: %s", length(res_names), paste(res_names, c
 
 pred_at_obs_res <- model_input %>%
   filter(gnis_name %in% res_names) %>%
-  summarise(predicted = mean(pred_sdd), .by = c(date, gnis_name))
+  summarise(predicted = mean(pred_sdd), .by = c(date, gnis_name)) %>%
+  rename(date_pred = date)
 
 obs_at_res <- NW_sdd %>%
-  summarise(observed = mean(value), .by = c(date, gnis_name))
+  summarise(observed = mean(value), .by = c(date, gnis_name)) %>%
+  rename(date_obs = date)
 
-pred_obs <- inner_join(pred_at_obs_res, obs_at_res, by = c("date", "gnis_name"))
-log("%s matched (date, reservoir) pairs with both a prediction and an observation", nrow(pred_obs))
+# every (obs, pred) candidate pair per reservoir within the window
+candidates <- obs_at_res %>%
+  inner_join(pred_at_obs_res, by = "gnis_name") %>%
+  mutate(time_diff = as.numeric(date_pred - date_obs)) %>%
+  filter(abs(time_diff) <= MATCH_WINDOW_DAYS)
+
+# raw daily gridMET precip isn't kept in scope once weather_summaries loads
+# from cache (see weather-fetch above), so read it back explicitly here
+weather_raw_rain <- read_feather(weather_raw_cache) %>% mutate(date = as.Date(date))
+site_res_lookup <- model_input %>% distinct(r_id, gnis_name)
+weather_raw_res <- weather_raw_rain %>%
+  inner_join(site_res_lookup, by = "r_id") %>%
+  select(gnis_name, date, pr)
+
+# peak single-day precip at ANY site in the reservoir, strictly between the
+# earlier and later of the image date and the field date - a data.table
+# non-equi (interval) join, the same approach 24_gap_period_rain_check.R
+# uses at the individual-site level in the regional pipeline
+candidates <- candidates %>%
+  mutate(gap_start = pmin(date_obs, date_pred), gap_end = pmax(date_obs, date_pred),
+         cand_id = row_number())
+
+candidates_dt <- as.data.table(candidates)
+wx_dt <- as.data.table(weather_raw_res)
+setkey(wx_dt, gnis_name, date)
+
+joined <- wx_dt[candidates_dt, on = .(gnis_name, date > gap_start, date <= gap_end),
+                nomatch = NA, allow.cartesian = TRUE]
+gap_max <- joined[, .(gap_max_precip_mm = max(pr, na.rm = TRUE)), by = cand_id]
+gap_max[!is.finite(gap_max_precip_mm), gap_max_precip_mm := 0]
+
+candidates <- candidates %>%
+  left_join(as.data.frame(gap_max), by = "cand_id") %>%
+  mutate(gap_max_precip_mm = coalesce(gap_max_precip_mm, 0))
+
+n_flagged <- sum(candidates$gap_max_precip_mm >= HEAVY_RAIN_MM)
+log("%s / %s candidate (obs, image) pairs flagged for a heavy single-day rain event (>= %.1f mm) in their gap - excluded before closest-match selection",
+    n_flagged, nrow(candidates), HEAVY_RAIN_MM)
+
+candidates <- candidates %>%
+  filter(gap_max_precip_mm < HEAVY_RAIN_MM) %>%
+  select(-gap_start, -gap_end, -cand_id, -gap_max_precip_mm)
+
+# only now, among the rain-screened candidates, keep the single SDD
+# observation closest in time to each image - de-duplicating by observation
+# instead would still let the same image be the nearest available match for
+# several different field visits (e.g. a dense sampling week landing inside
+# one overpass's window), which scores that one static prediction against
+# each of those visits separately and counts it multiple times in the
+# evaluation metrics. De-duplicating by image instead keeps each unique
+# overpass contributing exactly one (prediction, observation) pair.
+pred_obs <- candidates %>%
+  arrange(gnis_name, date_pred, abs(time_diff)) %>%
+  distinct(gnis_name, date_pred, .keep_all = TRUE) %>%
+  rename(date = date_obs) %>%
+  select(-date_pred)
+
+n_obs_reused <- nrow(pred_obs) - n_distinct(pred_obs %>% select(gnis_name, date))
+log("%s matched (image, reservoir) pairs within +/- %s days, one SDD measurement kept per image",
+    nrow(pred_obs), MATCH_WINDOW_DAYS)
+log("%s of those SDD measurements were the closest available observation for more than one image",
+    n_obs_reused)
+log("time_diff (pred image date - obs sample date): mean=%.2f, median=%.1f, range=[%s, %s] days",
+    mean(pred_obs$time_diff), median(pred_obs$time_diff), min(pred_obs$time_diff), max(pred_obs$time_diff))
+```
+
+```{r match-quality-check}
+# same diagnostic 05_evaluate_ensemble.ipynb runs on the regional holdout: does
+# looser match-ups (larger |time_diff|) correlate with worse prediction error?
+pred_obs <- pred_obs %>% mutate(abs_error = abs(predicted - observed))
+gap_corr <- cor(abs(pred_obs$time_diff), pred_obs$abs_error)
+log("Pearson r(|time_diff|, abs_error) = %.3f (n=%s)", gap_corr, nrow(pred_obs))
+
+ggplot(pred_obs, aes(x = time_diff, y = abs_error)) +
+  geom_point(size = 2, alpha = 0.6, color = ROSS_LT_PAL[1]) +
+  labs(x = "time gap: predicted image date minus observed sample date (days)",
+       y = "absolute prediction error (m)",
+       title = sprintf("match-up time gap vs. error (Pearson r=%.2f)", gap_corr)) +
+  theme_bw()
 ```
 
 ## Predicted vs. observed
@@ -469,11 +567,11 @@ log("wrote outputs to %s/", OUT_DIR)
 
 ## Summary
 
-The model transfers to this entirely separate basin (NW/CLP was never part of training, holdout, or CV data) with **RMSE 0.839 m, MAE 0.629 m, bias −0.109 m, R² 0.496** across 193 matched (date, reservoir) observations spanning 7 reservoirs. This is, if anything, a *better* RMSE than the regional holdout's 1.267 m — a genuinely encouraging out-of-sample result, though not directly comparable: NW/CLP's evaluable reservoirs don't include anything as structurally difficult as the regional dataset's hardest basins (Lake Powell, the HUC 1701 cluster), so this shouldn't be read as "the model generalizes better than in-region," just that it holds up reasonably on the specific reservoirs there's ground truth for here.
+The model transfers to this entirely separate basin (NW/CLP was never part of training, holdout, or CV data) with **RMSE 0.998 m, MAE 0.738 m, bias −0.130 m, R² 0.436** across 1,171 matched (image, reservoir) observations spanning 7 reservoirs, matched with the same ±5-day window used for the regional training data and then de-duplicated by **image** (each unique overpass keeps only the single SDD measurement closest in time to it). An earlier pass of this evaluation matched ±5 days but de-duplicated by *observation* instead, which let one static prediction get scored against every field visit that happened to fall in its window — 61.5% of those 1,682 pairs shared a prediction with at least one other observation, in one case a single image scored against 9 different field-sampling dates over 10 days. That inflated apparent scatter without adding real information: de-duplicating by image instead drops the pseudo-replication and, despite a slightly higher RMSE, raises R² from 0.370 to 0.436. (170 SDD measurements are still each the closest match for more than one image — the reverse relationship, and a more defensible one, since each of those images remains an independent remote-sensing observation on its own date; not corrected here.) `time_diff` (predicted image date minus observed sample date) ranges ±5 days by construction (mean +0.04, std 2.77) and does not correlate with prediction error (Pearson r = 0.08) — match quality isn't driving the result.
 
-**The bias flips sign out-of-sample.** The regional holdout carries a systematic **overprediction** (+0.400 m); here it's a systematic **underprediction** (−0.109 m), and 5 of 7 reservoirs individually underpredict. This is a real, notable difference worth further investigation, not an artifact papered over by averaging — possibly related to how differently the input feature distributions (elevation, catchment characteristics, antecedent weather) fall in the Front Range/CLP watershed versus the training region's own distribution.
+**The bias flips sign out-of-sample**: the regional holdout carries a systematic **overprediction** (+0.446 m); here it's a systematic **underprediction** (−0.130 m). This is a real, notable difference worth further investigation, not an artifact papered over by averaging — possibly related to how differently the input feature distributions (elevation, catchment characteristics, antecedent weather) fall in the Front Range/CLP watershed versus the training region's own distribution.
 
-**Per-reservoir performance is uneven, and small-`n` reservoirs shouldn't be over-read:** Windy Gap (n=4) and Willow Creek (n=2) have the most extreme R² values (0.80 and a spurious 1.0) simply because there's too little data there to be informative either way. Grand Lake (n=60) and Shadow Mountain Lake (n=63) are the two largest-sample reservoirs and both land in a similar, middling range (RMSE 0.71–0.84 m, R² 0.26–0.40) — a more trustworthy read of where the model actually sits on this basin than any single small-sample reservoir.
+**Per-reservoir performance**, now on de-duplicated, non-pseudo-replicated samples ranging n=29 to n=251: Windy Gap Reservoir is the worst performer (RMSE 1.72 m, R² 0.17, n=29). Horsetooth Reservoir is the best performer (RMSE 0.80 m, R² 0.34, n=234). Grand Lake (n=216) and Shadow Mountain Lake (n=251) remain the two largest-sample reservoirs and land in the middle of the pack (RMSE 0.89–0.90 m, R² 0.26–0.29) — the most trustworthy single read of where the model sits on this basin.
 
 **Data-pipeline notes for future runs:**
 

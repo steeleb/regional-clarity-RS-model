@@ -30,6 +30,8 @@ library(sf)
 library(tmap)
 library(tigris)
 library(tidyverse)
+library(climateR) # gap-period rain check's own gridMET fetch
+library(parallel)
 
 aquamatch_raw_data_dir <- "regional_clarity/aquamatch_files/downloads"
 filtered_aquamatch_dir <- "regional_clarity/aquamatch_files"
@@ -272,6 +274,119 @@ regional_sdd <- sdd_match %>%
   )
 ```
 
+## Screen for heavy rain events between image and field dates
+
+For each candidate match (every SDD/siteSR pair within the 5-day window,
+before any closest-in-time selection), was there a heavy single-day rain
+event between the image date and the field (SDD) date - in either order? If
+so, the reflectance and the target describe genuinely different water
+states, and the matchup shouldn't be trusted regardless of which one came
+first. NOAA/EPA's "heavy precipitation day" cut of 1 inch (25.4 mm) in 24
+hours, peak single-day intensity within the gap (not cumulative gap-total,
+which would conflate a genuine storm with a longer gap simply having more
+days to accumulate ordinary rain).
+
+This screens **candidates**, before the closest-in-time selection below, not
+after: filtering the already-deduped closest-match dataset would drop an
+observation outright whenever its single nearest candidate image happened to
+be rain-contaminated, even when a perfectly good, only slightly-further-away,
+uncontaminated image was also available in the window. Screening first lets
+closest-in-time selection fall back to that next-best candidate instead.
+
+Needs raw daily gridMET precipitation for every candidate site, over each
+site's full candidate-date range - a broader, coarser need than
+`pull_weather_summaries.Rmd`'s antecedent-window feature fetch (which only
+needs narrow 1-30 day windows ending at each *already-matched* row's date),
+so this is its own fetch rather than a reuse of that cache. Also breaks a
+real circularity: `pull_weather_summaries.Rmd` fetches weather for the
+*output* of this script, so it isn't available yet at this point in the
+pipeline.
+
+```{r rain-check-weather-fetch, message=FALSE, warning=FALSE}
+HEAVY_RAIN_MM <- 25.4  # NOAA/EPA "heavy precipitation day" threshold (1 inch/24hr)
+
+regional_sdd <- regional_sdd %>%
+  mutate(date = as.Date(date),
+         field_date = as.Date(harmonized_local_time),
+         gap_start = pmin(date, field_date),
+         gap_end = pmax(date, field_date))
+
+rain_check_weather_raw_path <- file.path(filtered_aquamatch_dir, "match_gap_precip_raw.feather")
+
+if (file.exists(rain_check_weather_raw_path)) {
+  gap_precip_raw <- read_feather(rain_check_weather_raw_path)
+} else {
+  site_ranges <- regional_sdd %>%
+    left_join(sites %>% select(siteSR_id, WGS84_Latitude, WGS84_Longitude), by = "siteSR_id") %>%
+    summarize(min_date = min(gap_start) - 1, max_date = max(gap_end),
+              lat = first(WGS84_Latitude), lon = first(WGS84_Longitude), .by = siteSR_id)
+  cat(sprintf("[%s] fetching gridMET precip for %s sites\n", format(Sys.time(), "%H:%M:%S"), nrow(site_ranges)))
+
+  fetch_one <- function(i, site_ranges) {
+    row <- site_ranges[i, ]
+    fetch <- function() {
+      pt <- sf::st_as_sf(data.frame(lon = row$lon, lat = row$lat), coords = c("lon", "lat"), crs = 4326)
+      res <- getGridMET(AOI = pt, varname = "pr",
+                        startDate = as.character(row$min_date), endDate = as.character(row$max_date))
+      res$siteSR_id <- row$siteSR_id
+      res
+    }
+    tryCatch(fetch(), error = function(e) {
+      Sys.sleep(2)
+      tryCatch(fetch(), error = function(e2) data.frame(siteSR_id = row$siteSR_id, error = conditionMessage(e2)))
+    })
+  }
+
+  t0 <- Sys.time()
+  cl <- makeCluster(8, type = "PSOCK")
+  clusterEvalQ(cl, { suppressMessages(library(climateR)); suppressMessages(library(sf)) })
+  clusterExport(cl, c("site_ranges", "fetch_one"))
+  results <- parLapply(cl, seq_len(nrow(site_ranges)), fetch_one, site_ranges = site_ranges)
+  stopCluster(cl)
+  cat(sprintf("[%s] fetch took %.1f min\n", format(Sys.time(), "%H:%M:%S"),
+              as.numeric(difftime(Sys.time(), t0, units = "mins"))))
+
+  ok <- Filter(function(x) !"error" %in% names(x), results)
+  failed <- Filter(function(x) "error" %in% names(x), results)
+  cat(sprintf("[%s] succeeded: %s sites, failed: %s sites\n", format(Sys.time(), "%H:%M:%S"), length(ok), length(failed)))
+  if (length(failed) > 0) {
+    write_csv(bind_rows(failed), file.path(filtered_aquamatch_dir, "match_gap_precip_fetch_failures.csv"))
+  }
+
+  gap_precip_raw <- bind_rows(ok) %>% mutate(date = as.Date(date))
+  write_feather(gap_precip_raw, rain_check_weather_raw_path)
+}
+```
+
+```{r rain-check-apply}
+# peak single-day precip strictly BETWEEN gap_start and gap_end (exclusive of
+# gap_start itself, the "day of" whichever event is earlier) - a data.table
+# non-equi (interval) join, not a row-by-row filter (the latter would be an
+# O(n_candidates x n_weather_rows) scan)
+regional_sdd <- regional_sdd %>% mutate(cand_id = row_number())
+candidates_dt <- as.data.table(regional_sdd %>%
+                                 select(cand_id, siteSR_id, gap_start, gap_end))
+wx_dt <- as.data.table(gap_precip_raw %>% select(siteSR_id, date, pr))
+setkey(wx_dt, siteSR_id, date)
+
+joined <- wx_dt[candidates_dt, on = .(siteSR_id, date > gap_start, date <= gap_end),
+                nomatch = NA, allow.cartesian = TRUE]
+gap_max <- joined[, .(gap_max_precip_mm = max(pr, na.rm = TRUE)), by = cand_id]
+gap_max[!is.finite(gap_max_precip_mm), gap_max_precip_mm := 0]
+
+regional_sdd <- regional_sdd %>%
+  left_join(as.data.frame(gap_max), by = "cand_id") %>%
+  mutate(gap_max_precip_mm = coalesce(gap_max_precip_mm, 0))
+
+n_flagged <- sum(regional_sdd$gap_max_precip_mm >= HEAVY_RAIN_MM)
+cat(sprintf("[%s] %s / %s candidate matches flagged for a heavy single-day rain event (>= %.1f mm) between image and field dates - excluded before closest-match selection\n",
+            format(Sys.time(), "%H:%M:%S"), n_flagged, nrow(regional_sdd), HEAVY_RAIN_MM))
+
+regional_sdd <- regional_sdd %>%
+  filter(gap_max_precip_mm < HEAVY_RAIN_MM) %>%
+  select(-field_date, -gap_start, -gap_end, -cand_id, -gap_max_precip_mm)
+```
+
 ## QA the data
 
 Make sure we're using the observation closest in time to the measurement.
@@ -280,7 +395,8 @@ training dataset. We will also export those that are not included as a possible
 additional test set.
 
 ```{r closest-obs}
-# grab the observation closes in date to a satellite flyover
+# grab the observation closes in date to a satellite flyover, from the
+# rain-screened candidate pool built above
 reg_sdd_closest <- regional_sdd %>%
   arrange(abs(time_diff), mission) %>%
   slice(1, .by = c("subgroup_id"))

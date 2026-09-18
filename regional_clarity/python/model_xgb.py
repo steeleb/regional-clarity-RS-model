@@ -35,24 +35,6 @@ def _fit_fold(train_X, train_y, val_X, val_y, params, nrounds=3000, early_stop=1
     return booster, booster.best_score
 
 
-def tune(folds: list, feats: list, target: str, n_trials: int = 25, seed: int = 47) -> dict:
-    rng = random.Random(seed)
-    best_params, best_score = None, np.inf
-    trials = []
-    for _ in range(n_trials):
-        params = _sample_params(rng)
-        fold_scores = []
-        for fold in folds:
-            _, val_rmse = _fit_fold(fold.train[feats], fold.train[target],
-                                     fold.val[feats], fold.val[target], params)
-            fold_scores.append(val_rmse)
-        mean_score = float(np.mean(fold_scores))
-        trials.append({**params, "mean_val_rmse": mean_score})
-        if mean_score < best_score:
-            best_score, best_params = mean_score, params
-    return {"best_params": best_params, "best_score": best_score, "trials": trials}
-
-
 def train_fold_models(folds: list, feats: list, target: str, params: dict, weight_fn=None) -> list:
     models = []
     for fold in folds:

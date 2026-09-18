@@ -575,15 +575,25 @@ siteSR_regional_filtered_path <- file.path(filtered_aquamatch_dir, "siteSR_DSWE1
 siteSR_regional_corr_diag_path <- file.path(filtered_aquamatch_dir, "siteSR_DSWE1_regional_band_ransac_diagnostics.parquet")
 
 # store the ransac funciton
+#
+# Majority-vote across iterations (vote_frac >= cutoff), the same design as
+# ransac_site() above - not winner-take-all (picking whichever single random
+# iteration produced the most inliers), which this function used until it
+# was redesigned to match: winner-take-all is far more sensitive to one
+# lucky/unlucky random draw, and with only a 5-day match window and
+# Landsat's sparse revisit, aggressively flagging scenes on that kind of
+# noisy basis can zero out the *only* available candidate image for a field
+# sample rather than just degrading match quality.
 ransac_site_multiband <- function(date, band_mat,
-                                  n_iter = 100,
-                                  n_mad = 2,
+                                  n_iter = 150,
+                                  n_mad = 2.5,
                                   # per-band sensor-noise floor
                                   min_diff = c(red_corr_7 = 0.01, green_corr_7 = 0.01,
                                                blue_corr_7 = 0.01, nir_corr_7 = 0.01,
                                                swir1_corr_7 = 0.01, swir2_corr_7 = 0.01,
                                                surfacetemp_corr_7 = 1),
-                                  min_sample = 10) {
+                                  min_sample = 10,
+                                  vote_frac_cutoff = 0.5) {
   n <- nrow(band_mat)
   nb <- ncol(band_mat)
   if (n < min_sample + 1) return(rep(NA, n))  # too few points to run ransac
@@ -606,8 +616,9 @@ ransac_site_multiband <- function(date, band_mat,
     s
   }, numeric(1))
 
-  best_inliers <- rep(FALSE, n)
-  best_count <- 0
+  # tally, per point, how many valid iterations called it an inlier
+  inlier_votes <- rep(0L, n)
+  n_valid_iter <- 0L
 
   for (i in 1:n_iter) {
     idx <- sample(n, min_sample)
@@ -636,16 +647,18 @@ ransac_site_multiband <- function(date, band_mat,
     combined_z <- rowMeans(z, na.rm = TRUE)
     inliers <- !is.na(combined_z) & combined_z < n_mad
 
-    if (sum(inliers) > best_count) {
-      best_count <- sum(inliers)
-      best_inliers <- inliers
-    }
+    inlier_votes <- inlier_votes + as.integer(inliers)
+    n_valid_iter <- n_valid_iter + 1L
   }
 
   # no iteration ever produced a usable fit - we haven't determined
   # anything about this site, so say so rather than leaving every point
-  # flagged by the rep(FALSE, n) initialization
-  if (best_count == 0) return(rep(NA, n))
+  # flagged by the rep(0L, n) initialization
+  if (n_valid_iter == 0) return(rep(NA, n))
+
+  # a point is an inlier if at least vote_frac_cutoff of the valid
+  # iterations agreed
+  best_inliers <- (inlier_votes / n_valid_iter) >= vote_frac_cutoff
 
   # a flagged point can't be implausible for this site if every one of its
   # band values falls within the range other accepted (inlier) points
@@ -805,8 +818,8 @@ if (any(!file.exists(c(siteSR_regional_filtered_path, siteSR_regional_corr_diag_
   # decision. A duplicate site's sat_id that never appeared for its
   # representative (or vice versa - e.g. one site's buffer had more
   # cloud/fewer clear pixels that scene) has no match here and comes through
-  # as NA, which - like a ransac fit that never resolved - is dropped below
-  # rather than assumed innocent.
+  # as NA, which - like a ransac fit that never resolved - is kept below
+  # rather than assumed guilty (see the filter() just below: NA passes).
   siteSR_regional_filtered_df <- siteSR_regional_raw %>%
     filter(siteSR_id %in% sites$siteSR_id) %>%
     left_join(location_lookup, by = "siteSR_id") %>%
