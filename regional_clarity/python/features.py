@@ -65,35 +65,52 @@ def add_spectral_indices(df: pd.DataFrame) -> pd.DataFrame:
 SITE_COARSEN_PCT_COLS = ["pct_impervious_2006", "pct_urban_2006", "pct_forest_2006",
                          "pct_cropland_2006", "pct_wetland_2006"]
 
+# 99th percentile of catchment_area_sqkm across the ~564 distinct waterbodies
+# in the training data (fixed constant, not recomputed per call - a
+# winsorization threshold has to be fit once on the reference distribution
+# and applied identically everywhere, training and any later out-of-sample
+# application alike, the same way a fitted scaler would be). At this cutoff,
+# Lake Powell (2,667 km2) collapses to the same capped value as 5 other real,
+# well-known large lakes (Great Salt Lake, Lake Fort Peck, Flathead Lake,
+# Utah Lake, and one unnamed waterbody at 20,188 km2) - only 6 of 564
+# waterbodies are touched at all.
+CATCHMENT_WINSORIZE_CAP_SQKM = 617.1
+
 
 def coarsen_site_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Reduce catchment/land-cover feature precision so a heavily-resampled
-    waterbody's static LakeCat values - identical for every site and every
-    date on that waterbody, since they're joined once per NHDPlusV2 comid
-    (see pull_site_characteristics.Rmd) - can't act as a de facto waterbody
-    ID for the model to key a memorized SDD value off of ("this is
-    Pathfinder, therefore SDD = X").
+    """Reduce catchment/land-cover feature precision and extremity so a
+    heavily-resampled or catchment-outlier waterbody's static LakeCat
+    values - identical for every site and every date on that waterbody,
+    since they're joined once per NHDPlusV2 comid (see
+    pull_site_characteristics.Rmd) - can't act as a de facto waterbody ID
+    for the model to key a memorized SDD value off of ("this is Pathfinder,
+    therefore SDD = X"; "this is Lake Powell, therefore SDD = Y").
 
-    This is a general overfitting guard for the ~560 single-HUC8
-    waterbodies, not a leakage fix: the handful of waterbodies that span
-    more than one HUC8 and therefore straddle a CV/holdout boundary (Lake
-    Powell chief among them - project memory partition-sensitivity-findings)
-    stay just as distinguishable after coarsening as before, by design,
-    since they're large enough that no reasonable resolution reduction
-    collides them with anything else. That's intentional - we keep them in
-    train/val (project decision: report test metrics with and without the
-    overlapping reservoirs, rather than drop the data) and coarsening
-    doesn't need to (and can't) paper over that separately-documented
-    leakage.
+    catchment_area_sqkm: winsorized at CATCHMENT_WINSORIZE_CAP_SQKM (the
+    training-data 99th percentile), *then* log-scale binned (round log10 to
+    1 decimal, ~26% multiplicative bands). These fix two different problems
+    and one doesn't substitute for the other. Log-binning alone reduces
+    precision but preserves relative distance - it does nothing for a
+    waterbody with no real neighbors in the distribution, which is exactly
+    Lake Powell's situation: at 2,667 km2 (99.5th percentile by waterbody)
+    it remains cleanly separated from every other large reservoir even
+    after log-binning, still usable as a near-unique fingerprint, and SHAP
+    analysis on a 10-seed ensemble confirmed the model was leaning on it
+    there specifically (r=0.49 between per-HUC8 catchment-SHAP and
+    per-HUC8 RMSE across the holdout; Lake Powell's own HUC8 was the single
+    largest outlier in both). Winsorizing first removes the isolation
+    itself, forcing Powell to collide with its nearest real peers, before
+    log-binning further reduces precision on top of that. Chosen over
+    dropping the feature outright: catchment_area_sqkm is unanimously
+    selected by every seed across every re-run of this pipeline, and has
+    independent literature support (Martinsen & Sand-Jensen 2022; Al-Shaibah
+    et al. 2026) for carrying real signal beyond what the spectral bands
+    capture - the isolation, not the feature, was the problem.
 
-    catchment_area_sqkm: log-scale binning (round log10 to 1 decimal, i.e.
-    ~26% multiplicative bands) rather than a fixed-km2 grid, because the
-    underlying distribution spans ~5 orders of magnitude (0.16-20,188 km2,
-    median 6.7 km2 across the 564 waterbodies in this dataset) - a flat
-    absolute rounding grid either guts resolution at the small end (where
-    most of the data lives) or does nothing at the large end depending
-    which grid size you pick, whereas log-scale gives uniform relative
-    resolution loss across the whole range.
+    Multi-HUC8 waterbodies more broadly (Lake Powell included) still
+    straddle CV/holdout boundaries the same as before - that's a
+    partitioning question (project memory partition-sensitivity-findings),
+    not something this function addresses or is meant to.
 
     pct_*_2006 land-cover fractions: rounded to the nearest percentage
     point.
@@ -101,7 +118,8 @@ def coarsen_site_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     valid = df["catchment_area_sqkm"].notna() & (df["catchment_area_sqkm"] > 0)
-    df.loc[valid, "catchment_area_sqkm"] = 10 ** np.log10(df.loc[valid, "catchment_area_sqkm"]).round(1)
+    capped = df.loc[valid, "catchment_area_sqkm"].clip(upper=CATCHMENT_WINSORIZE_CAP_SQKM)
+    df.loc[valid, "catchment_area_sqkm"] = 10 ** np.log10(capped).round(1)
 
     df[SITE_COARSEN_PCT_COLS] = df[SITE_COARSEN_PCT_COLS].round(0)
 

@@ -2,18 +2,15 @@
   "xgboost": {
     "features": [
       "atm_corr_LaSRC",
-      "red_corr7",
+      "green_corr7",
       "nir_corr7",
       "temp_corr7",
       "precip_mm_prev1",
-      "tmean_degC_prev7",
       "srad_Wm2_prev1",
       "srad_Wm2_prev7",
-      "precip_mm_prev7",
-      "tmax_degC_prev7",
-      "tmin_degC_prev7",
       "tmean_degC_prev30",
       "tmin_degC_prev30",
+      "srad_Wm2_prev30",
       "BR",
       "BG",
       "NR",
@@ -22,7 +19,6 @@
       "NDSSI",
       "NDWI",
       "MNDWI",
-      "elevation_m",
       "catchment_area_sqkm",
       "pct_impervious_2006",
       "pct_urban_2006",
@@ -34,32 +30,32 @@
     ],
     "params": {
       "eta": 0.01,
-      "max_depth": 4,
-      "min_child_weight": 3,
+      "max_depth": 3,
+      "min_child_weight": 7,
       "subsample": 0.6,
-      "colsample_bytree": 0.4,
-      "reg_alpha": 5,
+      "colsample_bytree": 0.7,
+      "reg_alpha": 0,
       "reg_lambda": 20
     },
     "cv_metrics": {
-      "rmse": 1.3728842110623998,
-      "mae": 0.9344777994986443,
-      "mape": 0.5545927888855658,
-      "bias": -0.008775316672009521,
-      "p_bias": -0.2831989709954157,
-      "smape": 0.3600570583883784,
-      "r2": 0.6470502578659088,
-      "n": 8809
+      "rmse": 1.4386438336425875,
+      "mae": 0.9849388172452093,
+      "mape": 0.5761170639168605,
+      "bias": 0.02479851244350797,
+      "p_bias": 0.7578422797732698,
+      "smape": 0.3700395718795548,
+      "r2": 0.664023912804435,
+      "n": 8937
     },
     "test_metrics": {
-      "rmse": 1.8210346262753299,
-      "mae": 1.3228437406590787,
-      "mape": 0.707716900300846,
-      "bias": 0.2331646327693542,
-      "p_bias": 5.932198571401645,
-      "smape": 0.37911778178574645,
-      "r2": 0.5206744205959984,
-      "n": 2334
+      "rmse": 1.2712443851733528,
+      "mae": 0.9519866162284546,
+      "mape": 0.41210312366474444,
+      "bias": 0.19205376073218214,
+      "p_bias": 5.863490301459868,
+      "smape": 0.3146392897725843,
+      "r2": 0.6139286857785696,
+      "n": 2206
     }
   }
 }

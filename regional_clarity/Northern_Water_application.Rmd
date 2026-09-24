@@ -1,7 +1,7 @@
 ---
 title: "Northern Water / Cache la Poudre Out-of-Sample Application"
 author: "B Steele, Colorado State University, ROSSyndicate"
-date: "last updated Sep 16, 2026"
+date: "last updated Sep 19, 2026"
 output:
   html_document:
     fig_retina: 1
@@ -347,15 +347,23 @@ log("model input: %s rows, %s cols", nrow(model_input), ncol(model_input))
 log("rows missing weather: %s / %s", sum(is.na(model_input$precip_mm_prev30)), nrow(model_input))
 log("rows missing LakeCat catchment data: %s / %s", sum(is.na(model_input$pct_impervious_2006)), nrow(model_input))
 
-# training now applies python/features.py's coarsen_site_features() (log-scale
-# binning for catchment_area_sqkm, nearest-percentage-point rounding for the
-# pct_*_2006 land-cover fractions) to keep a heavily-resampled waterbody's
-# static per-comid LakeCat values from acting as a de facto waterbody ID a
-# tree can key a memorized SDD value off of - the trained models expect that
-# same resolution at inference time, so it's replicated here rather than
-# passing full-precision LakeCat values into a model that never saw them
+# training now applies python/features.py's coarsen_site_features() -
+# catchment_area_sqkm winsorized at the training data's 99th percentile
+# (617.1 km2) then log-scale binned, pct_*_2006 land-cover fractions rounded
+# to the nearest percentage point - to keep a heavily-resampled or
+# catchment-outlier waterbody's static per-comid LakeCat values from acting
+# as a de facto waterbody ID a tree can key a memorized SDD value off of.
+# The winsorization cap is a fixed constant fit once on the training
+# distribution (see features.py's CATCHMENT_WINSORIZE_CAP_SQKM docstring),
+# not recomputed here, so any NW/CLP reservoir above it gets pulled down to
+# the same capped value production training used - the trained models
+# expect that same resolution at inference time, so it's replicated here
+# rather than passing full-precision LakeCat values into a model that never
+# saw them
+CATCHMENT_WINSORIZE_CAP_SQKM <- 617.1
+
 model_input <- model_input %>%
-  mutate(catchment_area_sqkm = 10^round(log10(catchment_area_sqkm), 1),
+  mutate(catchment_area_sqkm = 10^round(log10(pmin(catchment_area_sqkm, CATCHMENT_WINSORIZE_CAP_SQKM)), 1),
          across(c(pct_impervious_2006, pct_urban_2006, pct_forest_2006,
                   pct_cropland_2006, pct_wetland_2006), ~round(.x, 0)))
 ```
@@ -567,11 +575,13 @@ log("wrote outputs to %s/", OUT_DIR)
 
 ## Summary
 
-The model transfers to this entirely separate basin (NW/CLP was never part of training, holdout, or CV data) with **RMSE 0.998 m, MAE 0.738 m, bias −0.130 m, R² 0.436** across 1,171 matched (image, reservoir) observations spanning 7 reservoirs, matched with the same ±5-day window used for the regional training data and then de-duplicated by **image** (each unique overpass keeps only the single SDD measurement closest in time to it). An earlier pass of this evaluation matched ±5 days but de-duplicated by *observation* instead, which let one static prediction get scored against every field visit that happened to fall in its window — 61.5% of those 1,682 pairs shared a prediction with at least one other observation, in one case a single image scored against 9 different field-sampling dates over 10 days. That inflated apparent scatter without adding real information: de-duplicating by image instead drops the pseudo-replication and, despite a slightly higher RMSE, raises R² from 0.370 to 0.436. (170 SDD measurements are still each the closest match for more than one image — the reverse relationship, and a more defensible one, since each of those images remains an independent remote-sensing observation on its own date; not corrected here.) `time_diff` (predicted image date minus observed sample date) ranges ±5 days by construction (mean +0.04, std 2.77) and does not correlate with prediction error (Pearson r = 0.08) — match quality isn't driving the result.
+The model transfers to this entirely separate basin (NW/CLP was never part of training, holdout, or CV data) with **RMSE 1.128 m, MAE 0.863 m, bias −0.321 m, R² 0.389** across 1,165 matched (image, reservoir) observations spanning 7 reservoirs — matched with the same ±5-day window used for the regional training data, de-duplicated by **image** (each unique overpass keeps only the single SDD measurement closest in time to it, avoiding the pseudo-replication an earlier pass of this evaluation found when de-duplicating by observation instead), and screened for heavy single-day rain events between image and field dates the same way the regional training data now is. `time_diff` (predicted image date minus observed sample date) ranges ±5 days by construction and does not correlate with prediction error — match quality isn't driving the result.
 
-**The bias flips sign out-of-sample**: the regional holdout carries a systematic **overprediction** (+0.446 m); here it's a systematic **underprediction** (−0.130 m). This is a real, notable difference worth further investigation, not an artifact papered over by averaging — possibly related to how differently the input feature distributions (elevation, catchment characteristics, antecedent weather) fall in the Front Range/CLP watershed versus the training region's own distribution.
+**Out-of-sample transfer got worse on the current production model, even though in-region performance got substantially better.** The regional holdout (now `holdout_seed=12`, band RANSAC redesigned to majority-vote, rain-filtered matchups, catchment-area winsorized) improved to RMSE 1.259 m / R² 0.626 / bias +0.148 m — better on every metric than any earlier configuration. This NW/CLP evaluation moved the opposite direction over the same changes: RMSE rose from 0.998 m to 1.128 m and R² fell from 0.436 to 0.389. That's a real, unresolved tension worth keeping visible rather than averaging away: whatever changed about the model to help it generalize better *within* the training region's HUC8 structure did not carry over to this specific out-of-region transfer, and may have made it modestly worse. Plausible contributors not yet investigated: catchment-area winsorization changes the model's relationship to catchment size specifically in a range NW/CLP's reservoirs may or may not fall into similarly to the training region's; a different holdout seed trains on a different subset of hard basins, which could shift what the model has learned to generalize from in ways that don't track equally across every downstream application.
 
-**Per-reservoir performance**, now on de-duplicated, non-pseudo-replicated samples ranging n=29 to n=251: Windy Gap Reservoir is the worst performer (RMSE 1.72 m, R² 0.17, n=29). Horsetooth Reservoir is the best performer (RMSE 0.80 m, R² 0.34, n=234). Grand Lake (n=216) and Shadow Mountain Lake (n=251) remain the two largest-sample reservoirs and land in the middle of the pack (RMSE 0.89–0.90 m, R² 0.26–0.29) — the most trustworthy single read of where the model sits on this basin.
+**The bias also got more negative** (underprediction deepened from −0.130 m to −0.321 m), the same direction as the R²/RMSE degradation, consistent with a genuine shift in how the model transfers to this basin rather than two unrelated effects. The regional holdout's own bias moved the other way (+0.400 m or worse in every earlier configuration, down to +0.148 m now) — the two directions moving apart is itself part of the same open question above.
+
+**Per-reservoir performance**, on de-duplicated, rain-screened samples ranging n=29 to n=251: Windy Gap Reservoir remains the worst performer (RMSE 1.86 m, R² 0.16, n=29). Horsetooth Reservoir remains the best performer (RMSE 0.80 m, R² 0.34, n=231). Grand Lake (n=216) and Shadow Mountain Lake (n=251) remain the two largest-sample reservoirs; Shadow Mountain's RMSE rose more than most (0.89→1.27 m) while Grand Lake moved less (0.90→1.03 m) — the per-reservoir picture isn't uniform, another reason to treat the aggregate transfer-degradation finding as something to investigate rather than a single simple cause.
 
 **Data-pipeline notes for future runs:**
 

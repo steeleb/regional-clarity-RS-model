@@ -2,13 +2,14 @@
   "model": "xgboost",
   "features": [
     "atm_corr_LaSRC",
-    "red_corr7",
+    "green_corr7",
     "nir_corr7",
     "swir1_corr7",
     "temp_corr7",
     "precip_mm_prev1",
     "tmean_degC_prev7",
     "srad_Wm2_prev1",
+    "precip_mm_prev3",
     "srad_Wm2_prev7",
     "precip_mm_prev7",
     "tmax_degC_prev7",
@@ -24,7 +25,6 @@
     "NDSSI",
     "NDWI",
     "MNDWI",
-    "elevation_m",
     "catchment_area_sqkm",
     "pct_impervious_2006",
     "pct_urban_2006",
@@ -32,6 +32,7 @@
     "pct_cropland_2006",
     "pct_wetland_2006",
     "shore_flag",
+    "precip_mm_prev30",
     "tmax_degC_prev30"
   ],
   "best_params": {
@@ -43,10 +44,10 @@
     "reg_alpha": 5,
     "reg_lambda": 1
   },
-  "best_score": 1.344317248647349,
-  "best_gap": 0.45032669936903946,
-  "best_train_rmse": 0.8939905492783095,
-  "pure_best_val_rmse": 1.326276563482982,
-  "band_size": 15,
+  "best_score": 1.4682873095425344,
+  "best_gap": 0.4516190024994975,
+  "best_train_rmse": 1.016668307043037,
+  "pure_best_val_rmse": 1.4471033545068104,
+  "band_size": 18,
   "n_trials": 40
 }
