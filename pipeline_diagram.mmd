@@ -34,3 +34,13 @@ flowchart TD
   S05 -->|"ensemble_mean_abs_shap.csv"| S07
   S04 -->|"40 fold models"| S07
   S04 -->|"40 fold models"| NW
+
+  classDef src fill:#eeeeee,stroke:#555555,color:#111111
+  classDef rstep fill:#ffffff,stroke:#1f5fa8,stroke-width:2px,color:#111111
+  classDef pystep fill:#ffffff,stroke:#a85a00,stroke-width:2px,color:#111111
+  class AM src
+  class S00,S01,S02,SC,WX,S07,NW rstep
+  class S03,S04,S05,S06 pystep
+  style PREP fill:#e3eefb,stroke:#1f5fa8,color:#0b2e55
+  style MODEL fill:#fdf0e0,stroke:#a85a00,color:#4a2800
+  style APPLY fill:#e3eefb,stroke:#1f5fa8,color:#0b2e55

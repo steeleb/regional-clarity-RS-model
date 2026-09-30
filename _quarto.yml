@@ -71,3 +71,5 @@ format:
     toc-depth: 3
     code-fold: true
     code-tools: true
+    mermaid:
+      theme: neutral
