@@ -490,7 +490,10 @@ row_log <- read_csv(file.path(filtered_aquamatch_dir, "row_loss_log_01.csv"),
   bind_rows(
     tibble(pipeline = "matched", step = "0_5day_window_match",
            n_rows = nrow(sdd_match), n_sites = n_distinct(sdd_match$siteSR_id)),
-    tibble(pipeline = "matched", step = "1_closest_observation_final",
+    # regional_sdd was reassigned to the rain-screened candidate pool above
+    tibble(pipeline = "matched", step = "1_heavy_rain_screen",
+           n_rows = nrow(regional_sdd), n_sites = n_distinct(regional_sdd$siteSR_id)),
+    tibble(pipeline = "matched", step = "2_closest_observation_final",
            n_rows = nrow(reg_sdd_closest), n_sites = n_distinct(reg_sdd_closest$siteSR_id))
   )
 

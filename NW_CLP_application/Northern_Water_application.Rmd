@@ -47,7 +47,7 @@ HANDOFFS_PATH <- "regional_clarity/aquamatch_files/downloads/lakeSR_collated_han
 MODEL_DIR <- "regional_clarity/xg_models/v3_production"
 ENSEMBLE_SEEDS <- 601:610
 
-OUT_DIR <- "NW_CLP_application"
+OUT_DIR <- "NW_CLP_application/output"
 dir.create(OUT_DIR, showWarnings = FALSE)
 
 # the elevation/waterbody/LakeCat and gridMET fetches below are each cached to
