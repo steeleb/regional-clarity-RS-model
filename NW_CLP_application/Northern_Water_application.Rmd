@@ -7,6 +7,13 @@ output:
     fig_retina: 1
 ---
 
+**Out-of-sample application · R · run from the repository root**
+
+- **Purpose:** Apply the production ensemble to Northern Water / Cache la Poudre remote sensing data and score it against the NW/CLP Secchi record.
+- **Inputs:** `../NW-CLP-RS/` collated siteSR feather; NW harmonized Secchi CSV (`SDD_PATH`); lakeSR handoff CSV; `regional_clarity/xg_models/v3_production/`; elevation, LakeCat and gridMET (cached).
+- **Outputs:** `NW_CLP_application/output/`: predicted-vs-observed and evaluation CSVs, `NW_CLP_full_predictions.feather`, cached fetches.
+- **Depends on:** [04 · Make models](../regional_clarity/04_make_models.ipynb)
+
 This notebook applies the current production model — `04_make_models.ipynb`'s 10-seed, XGBoost-only ensemble (40 fold models) — to out-of-sample remote sensing data from the Northern Water / Cache la Poudre (NW/CLP) service area, a separate project (`../NW-CLP-RS`) not used anywhere in this project's training or holdout data, and reports performance against the observed Secchi depth record available for that area.
 
 This replaces `4_apply_to_NW.R`, which applied an early, now-superseded 4-fold model using only spectral-ratio features and a stale copy of the band-correction coefficients. The current model needs more than spectral bands — its unanimous feature core includes site characteristics (elevation, LakeCat catchment land cover) and antecedent weather (gridMET) — so this notebook is substantially larger in scope than the script it replaces: it fetches those inputs fresh for the NW/CLP site set (neither exists for these sites anywhere in this project), the same way `pull_site_characteristics.Rmd` and `pull_weather_summaries.Rmd` do for the regional training set.
@@ -403,7 +410,7 @@ Same GNIS-name harmonization `4_apply_to_NW.R` used (a handful of names differ b
 
 Matched with the same ±5-day window `02_make_matches.Rmd` uses for the regional training data, rather than requiring an exact same-day match — an exact-date join silently drops any in-situ observation that doesn't happen to fall on a satellite overpass date, which is most of them, and undercounts the evaluable pairs relative to every other evaluation in this project. Unlike training (where the same image legitimately pairs with more than one nearby SDD measurement as separate rows), evaluation de-duplicates by **image**, not by observation: each unique overpass keeps only the single SDD measurement closest in time to it, so a dense field-sampling week landing inside one overpass's window doesn't score that one static prediction against several different observed values as if it were several independent tests of the model. `time_diff` (predicted image date minus observed sample date, in days) is kept for the same match-quality check `05_evaluate_ensemble.ipynb` runs on the regional holdout.
 
-Candidate pairs are also screened for a heavy single-day rain event between the image date and the field date — mirroring the gap-based rain filter (`24_gap_period_rain_check.R` / `25_apply_gap_rain_filter.R`) built on the `outlier-removal-rework` branch but never merged into the production `02_make_matches.Rmd` pipeline, so the regional training data isn't screened for this. Applied here as a deliberate, higher bar for the out-of-sample evaluation specifically. Screening happens on **candidates**, before the closest-in-time selection above, not after: a heavy rain event during an observation's single nearest candidate image would otherwise drop that observation outright even when a perfectly good, only slightly-further-away, uncontaminated image is also available in the window. Direction-agnostic (checked over `[min(image date, field date), max(image date, field date)]`), matching the original filter.
+Candidate pairs are also screened for a heavy single-day rain event between the image date and the field date, the same screen `02_make_matches.Rmd` applies to the regional training matchups, so the out-of-sample evaluation is held to the same bar as training. Screening happens on **candidates**, before the closest-in-time selection above, not after: a heavy rain event during an observation's single nearest candidate image would otherwise drop that observation outright even when a perfectly good, only slightly-further-away, uncontaminated image is also available in the window. Direction-agnostic (checked over `[min(image date, field date), max(image date, field date)]`), matching the original filter.
 
 ```{r match-observed}
 MATCH_WINDOW_DAYS <- 5

@@ -7,6 +7,13 @@ output:
     fig_retina: 1
 ---
 
+**Manuscript · R · run from the repository root**
+
+- **Purpose:** Build the manuscript tables and figures from the workflow outputs.
+- **Inputs:** `aquamatch_files/application/`, `aquamatch_files/` matchup files and row-loss logs, `xg_models/v3_production/`.
+- **Outputs:** `asv2_manuscript/output/`: table CSVs and figure PNGs.
+- **Previous:** [07 · Regional application](../07_regional_application.Rmd)
+
 Tables and figures for the regional Secchi disc depth manuscript, built from
 the outputs of the numbered workflow scripts. Each table is also written as a
 .csv to `regional_clarity/asv2_manuscript/` for pasting into the manuscript.

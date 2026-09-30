@@ -5,6 +5,13 @@ date: "last updated Sep 25, 2026"
 output: html_document
 ---
 
+**Pipeline step 07 · R · run from the repository root**
+
+- **Purpose:** Apply the production ensemble to every Landsat observation at in situ SDD locations, apply the training-domain and area-of-applicability checks, and validate on the superseded matchups.
+- **Inputs:** `aquamatch_files/`: `sdd_quality_filter.parquet`, `siteSR_DSWE1_regional_band_filtered.parquet`, `base_with_splits.parquet`, `regional_sdd_not_closest.parquet`, `site_characteristics.feather`, `downloads/siteSR_DSWE1_LS7corr.parquet`; `xg_models/v3_production/` (fold models, `ensemble_mean_abs_shap.csv`).
+- **Outputs:** `aquamatch_files/application/`: `application_rs_estimates.parquet`, `application_filter_steps.csv`, `aoa_parameters.json`, `superseded_validation.csv`, and cached fetches.
+- **Previous:** [06 · Test-set sensitivity](06_test_set_sensitivity.ipynb) · **Used by:** `asv2_manuscript/manuscript_tables_figures.Rmd`
+
 This script applies the production 10-seed XGBoost ensemble
 (`04_make_models.ipynb`) to every Landsat observation at every location in the
 region with quality-controlled in situ Secchi disc depth (SDD) data. It asks

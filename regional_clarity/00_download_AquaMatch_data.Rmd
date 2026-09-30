@@ -4,6 +4,13 @@ author: "B Steele, Colorado State University, ROSSyndicate"
 date: "last updated Sept 14, 2026"
 ---
 
+**Pipeline step 00 · R · run from `regional_clarity/` · chunks are `eval = FALSE`; run by hand only when AquaMatch changes upstream**
+
+- **Purpose:** Download the AquaMatch Secchi disc depth (SDD) and siteSR data, stack siteSR across Landsat missions, and apply the Gardner handoff coefficients referenced to Landsat 7.
+- **Inputs:** AquaMatch via `AquaMatchr` (needs `EDI_API_key` in `.Renviron`).
+- **Outputs:** `aquamatch_files/downloads/`: `sdd_cache.parquet`, `siteSR_DSWE1_LS7corr.parquet`, `sceneMetadata_Landsat*.csv`, site metadata and handoff CSVs.
+- **Next:** [01 · Filter AquaMatch data](01_filter_AquaMatch_Data.Rmd)
+
 # Background
 
 This step downloads the AquaSat SDD and siteSR data and applies the Gardner-style

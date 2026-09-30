@@ -22,3 +22,15 @@ regional_clarity/xg_models/hypertune/
 **/__pycache__/
 /.quarto/
 **/*.quarto_ipynb
+
+# ...except Quarto's frozen Rmd results, which the site build needs
+!_freeze/**/*.png
+
+# rendered Quarto site (published to the gh-pages branch, not tracked on main)
+/_site/
+
+# local symlink to the NASA_NW OneDrive data folder (Northern Water application input)
+/data
+
+# Python virtual environment (see README: Python environment)
+/.venv/

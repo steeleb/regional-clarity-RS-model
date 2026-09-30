@@ -6,6 +6,13 @@ output:
   html_document
 ---
 
+**Pipeline step 01 · R · run from the repository root**
+
+- **Purpose:** Define the 6-state HUC4 area of interest, then quality-filter SDD (tier/flag QC, per-site RANSAC) and siteSR (scene metadata QA, majority-vote band RANSAC) within it.
+- **Inputs:** `aquamatch_files/downloads/`: `sdd_cache.parquet`, `siteSR_DSWE1_LS7corr.parquet`, `sceneMetadata_Landsat*.csv`, site metadata CSV; national WBD geodatabase.
+- **Outputs:** `aquamatch_files/`: `sdd_quality_filter.parquet`, `siteSR_DSWE1_regional_band_filtered.parquet`, `siteSR_DSWE1_regional_band_ransac_diagnostics.parquet`, `huc4_filtered.gdb`, `states.gdb`, `row_loss_log_01.csv`.
+- **Previous:** [00 · Download AquaMatch data](00_download_AquaMatch_data.Rmd) · **Next:** [02 · Make matchups](02_make_matches.Rmd)
+
 This step applies some filters to the SDD and siteSR data.
 
 ```{r setup, include=FALSE}

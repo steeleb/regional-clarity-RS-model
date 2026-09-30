@@ -3,14 +3,24 @@ title: "Pull Site Characteristics"
 author: "B Steele, Colorado State University, ROSSyndicate"
 date: "last updated Sep 16, 2026"
 output: html_document
+# Quarto site build: show code only, don't re-run the fetches
+execute:
+  eval: false
 ---
+
+**Supporting step · R · run from `regional_clarity/` · re-run only when the site set changes; not executed when the site is built**
+
+- **Purpose:** Fetch static per-site features: point elevation and LakeCat catchment land-cover metrics.
+- **Inputs:** `aquamatch_files/filtered_regional_sdd.parquet`; site metadata CSV; elevation and LakeCat APIs.
+- **Outputs:** `aquamatch_files/site_characteristics.feather`.
+- **Runs after:** [02 · Make matchups](02_make_matches.Rmd) · **Used by:** [03 · Split data](03_split_data.ipynb)
 
 This script pulls static site/catchment characteristics — point elevation and
 LakeCat catchment land-cover metrics — for a set of AquaMatch sites, and
 writes a small per-site lookup table for use as model features (joined in
 `03_split_data.ipynb`).
 
-It is **not** part of the numbered `00`–`05` pipeline: it doesn't need to be
+It is **not** part of the numbered `00`–`07` pipeline: it doesn't need to be
 re-run every time the pipeline runs, only when the active site set changes
 enough to be worth refreshing the cached lookup table it writes. It started
 as `outlier_rework/20_site_characteristics.R` on the `outlier-removal-rework`

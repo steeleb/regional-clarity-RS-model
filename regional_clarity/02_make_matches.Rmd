@@ -7,6 +7,13 @@ output:
     fig_retina: 1
 ---
 
+**Pipeline step 02 · R · run from the repository root**
+
+- **Purpose:** Match filtered SDD to siteSR within a 5-day window, drop matchups with a rain event in the gap, and keep the closest image per in situ sample.
+- **Inputs:** `aquamatch_files/`: `sdd_quality_filter.parquet`, `siteSR_DSWE1_regional_band_filtered.parquet`, `huc4_filtered.gdb`, `states.gdb`, `row_loss_log_01.csv`; site metadata CSV; gridMET (cached).
+- **Outputs:** `aquamatch_files/`: `filtered_regional_sdd.parquet` (modeling matchups), `regional_sdd_not_closest.parquet`, `sdd_regional_siteSR_matchups_5d.parquet`, `match_gap_precip_raw.feather`, `row_loss_log.csv`.
+- **Previous:** [01 · Filter AquaMatch data](01_filter_AquaMatch_Data.Rmd) · **Next:** [site characteristics](pull_site_characteristics.Rmd) and [weather summaries](pull_weather_summaries.Rmd) (when the site set changes), then [03 · Split data](03_split_data.ipynb)
+
 This code creates matchups between the filtered AquaMatch SDD and siteSR
 files (from `01_filter_AquaMatch_Data.Rmd`) using a generous 5-day window.
 Both inputs are already scoped to the HUC4 basins that make up this
