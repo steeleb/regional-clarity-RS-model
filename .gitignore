@@ -18,6 +18,7 @@ regional_clarity/xg_models/hypertune/
 **.feather
 **.parquet
 **.rds
+**.png
 **/__pycache__/
 /.quarto/
 **/*.quarto_ipynb
