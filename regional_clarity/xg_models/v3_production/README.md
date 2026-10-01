@@ -17,7 +17,7 @@ metrics:
   - mae
   - r_squared
 model-index:
-  - name: regional-clarity-sdd-v3
+  - name: intermountain-west-regional-clarity-sdd-landsat
     results:
       - task:
           type: tabular-regression
@@ -67,7 +67,7 @@ The full workflow, with code and outputs for every step, is published at <https:
 
 **Appropriate inputs.** Inputs must be prepared the same way as the training data:
 
-- Landsat Collection 2 surface reflectance from AquaSat v2 siteSR, using DSWE1 (high-confidence water) pixels;
+- Landsat Collection 2 surface reflectance from AquaMatch siteSR, using DSWE1 (high-confidence water) pixels;
 - bands harmonized across sensors to the Landsat 7 reference using the AquaMatch handoff coefficients;
 - the same scene QA as the training data;
 - open-water-season scenes only;
@@ -79,13 +79,13 @@ The [Applicability checks](#applicability-checks) section gives the exact criter
 
 - Waterbodies outside the six-state region. The model has not been evaluated there, and the area-of-applicability check does not account for geographic distance.
 - Ice-season scenes (outside day of year 70–320).
-- Reflectance products other than AquaSat v2 siteSR with LS7-referenced harmonization, such as un-harmonized surface reflectance, other atmospheric corrections, or other sensors such as Sentinel-2.
+- Reflectance products other than AquaMatch siteSR with LS7-referenced harmonization, such as un-harmonized surface reflectance, other atmospheric corrections, or other sensors such as Sentinel-2.
 - Regulatory or compliance decisions for a single waterbody on a single date. Individual estimates carry about ±1.3 m of typical error. The model is better suited to patterns aggregated across dates or sites.
 - Rivers and streams. Training locations are lakes and reservoirs.
 
 ## How to use
 
-This folder contains the full ensemble:
+The model is published on the Hugging Face Hub as [`bgsteele/intermountain-west-regional-clarity-sdd-landsat`](https://huggingface.co/bgsteele/intermountain-west-regional-clarity-sdd-landsat). It contains the full ensemble:
 
 ```
 seed601/ … seed610/
@@ -96,6 +96,8 @@ seed601/ … seed610/
 ensemble_mean_abs_shap.csv     # ensemble SHAP ranking (also used to weight the AOA check)
 ```
 
+The seed folders are also tracked in the source repository under [`regional_clarity/xg_models/v3_production/`](https://github.com/rossyndicate/regional-clarity-RS-model/tree/main/regional_clarity/xg_models/v3_production). `ensemble_mean_abs_shap.csv` is not, but [step 05](https://rossyndicate.github.io/regional-clarity-RS-model/regional_clarity/05_evaluate_ensemble.html) regenerates it.
+
 Each seed has its own feature set, so every booster has to be given its seed's features, in order. The code below loads all 40 members and returns the ensemble mean. `X` is a pandas DataFrame with one row per observation and columns named as in [Features](#features). Spectral indices and coarsened site features must be computed first, using `add_spectral_indices()` and `coarsen_site_features()` from [`regional_clarity/python/features.py`](https://github.com/rossyndicate/regional-clarity-RS-model/blob/main/regional_clarity/python/features.py) in the source repository.
 
 ```python
@@ -104,6 +106,7 @@ from pathlib import Path
 
 import numpy as np
 import xgboost as xgb
+from huggingface_hub import snapshot_download
 
 from features import add_spectral_indices, coarsen_site_features  # from the source repository
 
@@ -123,7 +126,8 @@ def predict_sdd(members, X):
     return np.mean([b.predict(xgb.DMatrix(X[feats])) for feats, b in members], axis=0)
 
 
-members = load_ensemble("path/to/v3_production")   # 40 members
+model_dir = snapshot_download("bgsteele/intermountain-west-regional-clarity-sdd-landsat")   # or a local copy of the folder
+members = load_ensemble(model_dir)   # 40 members
 X = coarsen_site_features(add_spectral_indices(X))
 sdd_m = predict_sdd(members, X)
 ```
@@ -134,7 +138,15 @@ On macOS, set `OMP_NUM_THREADS` and `KMP_DUPLICATE_LIB_OK=TRUE` before importing
 
 ## Training data
 
-The training data are matchups between in situ SDD from AquaMatch and same-location Landsat observations from AquaSat v2 siteSR ([steps 00–02a](https://rossyndicate.github.io/regional-clarity-RS-model/)):
+The training data are matchups between in situ SDD and same-location Landsat observations. Both come from AquaMatch data packages on the Environmental Data Initiative (EDI) repository, all at revision 1:
+
+| EDI package | Product | Used for |
+|---|---|---|
+| [`edi.1856.1`](https://doi.org/10.6073/pasta/542a305e8484ae5abc33881bd7761308) | AquaMatch Secchi disc depth | Target variable (in situ SDD) |
+| [`edi.2254.1`](https://doi.org/10.6073/pasta/f85622d6d32ef7fe6cff8d63c3b947c9) | siteSR | Landsat surface reflectance and temperature at sampling sites, scene-level metadata, and the site list |
+| [`edi.2114.1`](https://doi.org/10.6073/pasta/941f3cb046f5e7fbe04d5811989ed810) | lakeSR | Cross-sensor handoff coefficients used to harmonize all Landsat missions to Landsat 7 |
+
+The matchups were built from these packages in [steps 00–02a](https://rossyndicate.github.io/regional-clarity-RS-model/):
 
 - **SDD quality control.** SDD records were filtered for quality, including per-site RANSAC outlier screening.
 - **Scene QA.** Landsat observations passed scene QA (DSWE share and count, no clouds in the buffer, surface temperature 0–40 °C, scene cloud cover < 20%) and per-site band RANSAC.
@@ -272,12 +284,27 @@ Across the region, 88% of QA-passing location-days pass every check. Step 07 wri
 
 ## Citation
 
+Please cite the model by its Zenodo DOI, and cite the data products it was trained on.
+
+> Steele, B.G. (YYYY). *Intermountain West Regional Clarity Remote Sensing Model* (vX.Y.Z) [Software]. Zenodo. <https://doi.org/10.5281/zenodo.XXXXXXX>
+
 ```bibtex
 @software{steele_regional_clarity_rs_model,
-  author = {Steele, B.},
-  title  = {Intermountain West Regional Clarity Remote Sensing Model},
-  organization = {ROSSyndicate, Colorado State University},
-  url    = {https://github.com/rossyndicate/regional-clarity-RS-model},
-  note   = {Production ensemble v3 (seeds 601--610)}
+  author    = {Steele, B.G.},
+  title     = {Intermountain West Regional Clarity Remote Sensing Model},
+  version   = {vX.Y.Z},
+  year      = {YYYY},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.XXXXXXX},
+  url       = {https://github.com/rossyndicate/regional-clarity-RS-model},
+  note      = {Production ensemble v3 (seeds 601--610)}
 }
 ```
+
+The DOI above is the Zenodo concept DOI, which always resolves to the latest release. Zenodo also assigns a DOI to each release; cite that one to pin the exact version.
+
+**Data products** (recommended citations from EDI):
+
+- De La Torre, J., B.G. Steele, M.R. Brousil, M.F. Meyer, K. Willi, and M.R. Ross. 2025. AquaMatch Secchi Disk Depth Data from Water Quality Portal: ~1970-2024 ver 1. Environmental Data Initiative. <https://doi.org/10.6073/pasta/542a305e8484ae5abc33881bd7761308>
+- Steele, B.G., M.R. Brousil, K.R. Willi, M.F. Meyer, and M.R. Ross. 2026. SiteSR: AquaMatch Landsat Collection 2 surface reflectance and surface temperature datasets for remote-sensing visible Water Quality Portal and National Water Information System sites in the United States and Territories, 1983-2024 ver 1. Environmental Data Initiative. <https://doi.org/10.6073/pasta/f85622d6d32ef7fe6cff8d63c3b947c9>
+- Steele, B.G., M.R. Brousil, K.R. Willi, M.F. Meyer, and M.R. Ross. 2026. lakeSR: AquaMatch Landsat Collection 2 surface reflectance and surface temperature datasets for centrally-located points of water bodies greater than 1 hectare in the United States and territories, 1983-2024 ver 1. Environmental Data Initiative. <https://doi.org/10.6073/pasta/941f3cb046f5e7fbe04d5811989ed810>
