@@ -8,12 +8,12 @@ execute:
   eval: false
 ---
 
-**Supporting step · R · run from `regional_clarity/` · re-run only when the site set or date range changes; not executed when the site is built**
+**Pipeline step 02c · R · run from `regional_clarity/` · output is cached; re-run only when the site set or date range changes; not executed when the site is built**
 
 - **Purpose:** Fetch daily gridMET weather per site and summarize it into 1/3/7/30-day antecedent-weather features.
 - **Inputs:** `aquamatch_files/filtered_regional_sdd.parquet`; gridMET.
 - **Outputs:** `aquamatch_files/`: `weather_raw.feather`, `weather_summaries.feather`.
-- **Runs after:** [02 · Make matchups](02_make_matches.Rmd) · **Used by:** [03 · Split data](03_split_data.ipynb)
+- **Previous:** [02b · Pull site characteristics](02b_pull_site_characteristics.Rmd) · **Next:** [03 · Split data](03_split_data.ipynb)
 
 This script pulls daily gridMET weather (precipitation, max/min/mean
 temperature, solar radiation) for a set of AquaMatch sites over each site's
@@ -21,15 +21,13 @@ own observed date range, then summarizes it into "previous N days" rolling
 antecedent-weather features for use as model features (joined in
 `03_split_data.ipynb`).
 
-It is **not** part of the numbered `00`–`07` pipeline: it doesn't need to be
-re-run every time the pipeline runs, only when the active site set or date
-range changes enough to be worth refreshing the cached lookup table it
-writes. It started as `outlier_rework/21_gather_weather.R` +
-`outlier_rework/22_weather_summaries.R` on the `outlier-removal-rework`
-branch (a one-off research pull against that branch's own filtered dataset);
-this version merges both stages into one script, generalized to run against
-**this branch's** canonical AquaMatch outputs, so it's reproducible without
-depending on another branch's files.
+The summaries only depend on which sites are in the matchup set and the dates
+they cover, so they are cached. Run this step when building the pipeline
+from scratch, and again whenever changes in `01`/`02a` alter the site set or
+date range. Otherwise the cached tables can be reused. This step reads
+02a's output directly, so it does not need to run after
+[02b](02b_pull_site_characteristics.Rmd); the two are numbered in sequence
+only for convenience.
 
 Weather comes from gridMET via `climateR::getGridMET()` — public, no auth
 token needed (the alternative, NLDAS via Earthdata Login, needs a token this
@@ -54,6 +52,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Setup
 
+Load packages, define a timestamped logging helper, and set the run
+parameters: the input and output paths, the antecedent windows to summarize
+(1, 3, 7, and 30 days), the gridMET variables to fetch (precipitation, daily
+maximum and minimum temperature, and shortwave radiation), and the number of
+parallel workers.
+
 ```{r libraries, message=FALSE, warning=FALSE}
 library(arrow)
 library(dplyr)
@@ -67,7 +71,7 @@ log <- function(...) cat(sprintf("[%s] ", format(Sys.time(), "%H:%M:%S")), sprin
 
 # -- input (AquaMatch-shaped; see "Requirements" above) --
 # this branch's canonical filtered/matched site set (03_split_data.ipynb's
-# own input, from 02_make_matches.Rmd)
+# own input, from 02a_make_matches.Rmd)
 sites_input_path <- "aquamatch_files/filtered_regional_sdd.parquet"
 
 # -- outputs --
@@ -116,6 +120,11 @@ fork-safe ("may have been in progress in another thread when fork() was
 called ... Crashing instead"). PSOCK workers (genuinely separate processes,
 not forks) avoid that.
 
+`fetch_one()` requests the gridMET time series for a single site over its
+date range and tags the result with the site ID. A failed request is retried
+once after a two-second pause; a site that fails twice returns a one-row
+record of the error message rather than stopping the whole run.
+
 ```{r fetch-function}
 fetch_one <- function(i, site_ranges) {
   row <- site_ranges[i, ]
@@ -136,6 +145,11 @@ fetch_one <- function(i, site_ranges) {
   })
 }
 ```
+
+Run `fetch_one()` for every site across a PSOCK cluster. Successful fetches
+are stacked and saved as the raw daily weather table. Any sites that failed
+both attempts are written to `weather_fetch_failures.csv` so they can be
+re-requested later.
 
 ```{r fetch-run}
 t0 <- Sys.time()
@@ -162,9 +176,13 @@ write_feather(weather_raw, output_raw_path)
 
 ## Summarize into rolling antecedent-weather features
 
-Total precip, max/mean/min temp, and total solar radiation over rolling
-windows ending the day *before* each observation (`data.table::froll*` for
-efficiency).
+Each day is summarized over rolling windows that end the day *before* that
+date: total precipitation, maximum of daily highs, mean of daily means,
+minimum of daily lows, and mean solar radiation. gridMET units are first
+converted (temperature from Kelvin to °C). Each site's series is padded to
+one row per calendar day so the fixed-width `data.table::froll*` windows are
+always measured in days. The dates are then shifted forward by one so that
+the value on a given date describes only the days before it.
 
 ```{r summarize}
 weather <- read_feather(output_raw_path)
@@ -214,6 +232,11 @@ summaries <- summaries[!is.na(siteSR_id)]
 ```
 
 ## Export
+
+Write the summary table: one row per site per day, with a column for each
+variable and window (e.g., `precip_mm_prev7`, `tmax_degC_prev30`).
+[03 · Split data](03_split_data.ipynb) joins it to the matchups on site and
+anchor date.
 
 ```{r export}
 write_feather(as.data.frame(summaries), output_summary_path)

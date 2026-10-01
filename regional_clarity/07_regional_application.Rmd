@@ -54,7 +54,7 @@ cached to `aquamatch_files/application/`. Re-running loads from cache. Set
 `aquamatch_files/application/`.
 
 Before counting estimates, the ensemble is assessed on the matchups
-`02_make_matches.Rmd` set aside because a closer-in-time image existed for
+`02a_make_matches.Rmd` set aside because a closer-in-time image existed for
 the same in situ sample (see "Model performance on superseded matchups"). These are
 image–field pairs from the same filtered record the model was built from,
 passed through the same checks as the application.
@@ -64,6 +64,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Setup
+
+Load packages and define the run constants: input paths, the production
+model directory and its 10 ensemble seeds (601–610), the output and cache
+directory, the cache-refresh switch, and the catchment-area winsorizing cap,
+which is shared with the Python feature code.
 
 ```{r libraries, message=FALSE, warning=FALSE}
 library(arrow)
@@ -217,7 +222,7 @@ log("post-QA: %s rows, %s location-days at %s locations", nrow(sitesr_qa),
 ## Site characteristics
 
 Elevation and LakeCat catchment metrics per `siteSR_id`, following
-`pull_site_characteristics.Rmd`. Sites already in that script's output
+`02b_pull_site_characteristics.Rmd`. Sites already in that script's output
 (`site_characteristics.feather`, the training sites) are reused, and only the
 remaining sites are fetched. `shore_flag` uses the definition from
 `03_split_data.ipynb`.
@@ -289,7 +294,7 @@ log("sites with LakeCat data: %s / %s", sum(!is.na(site_char$pct_impervious_2006
 gridMET is a 1/24° grid, and many sites share a cell. Weather is therefore
 fetched once per cell (at the cell center) over the full date range needed by
 that cell's siteSR observations, then assigned back to every site in the cell.
-Rolling summaries follow `pull_weather_summaries.Rmd` and cover the *w* days
+Rolling summaries follow `02c_pull_weather_summaries.Rmd` and cover the *w* days
 strictly before the image date.
 
 ```{r gridmet-cells}
@@ -316,6 +321,11 @@ cell_ranges <- sitesr_qa %>%
 
 log("%s sites fall in %s gridMET cells", nrow(site_cells), nrow(cell_ranges))
 ```
+
+Fetch daily gridMET weather at each cell center in parallel (PSOCK workers,
+see `02c_pull_weather_summaries.Rmd`). A failed cell is retried once, and cells
+that still fail are written to `gridmet_fetch_failures.csv`. The raw daily
+series are cached.
 
 ```{r gridmet-fetch}
 weather_raw_cache <- file.path(OUT_DIR, "application_weather_raw.feather")
@@ -356,6 +366,12 @@ if (!FORCE_REFRESH_CACHE && file.exists(weather_raw_cache)) {
   write_feather(weather_raw, weather_raw_cache)
 }
 ```
+
+Convert units and pad each cell's series to one row per calendar day. Then
+compute the 1-, 3-, 7-, and 30-day rolling summaries: total precipitation,
+maximum daily high, mean temperature, minimum daily low, and mean solar
+radiation. Dates are shifted by one day so that each window ends the day
+before the image date.
 
 ```{r gridmet-summarize}
 weather_summary_cache <- file.path(OUT_DIR, "application_weather_summaries.feather")
@@ -421,6 +437,12 @@ add_features <- function(df) {
 }
 ```
 
+Build one model-input row per QA'd siteSR observation. Each row combines
+the harmonized bands, a flag for Landsat 8/9 atmospheric correction
+(LaSRC), site characteristics, and the antecedent weather for that site's
+gridMET cell on the image date. Spectral indices and coarsened site
+features are then added.
+
 ```{r assemble}
 model_input <- sitesr_qa %>%
   select(siteSR_id, location_id, date, mission,
@@ -445,6 +467,9 @@ Each seed's saved feature set and four fold models are used as trained. The
 prediction for a row is the mean over all 40 models, and the spread across
 the 10 seed means is kept as a measure of ensemble disagreement.
 
+First, read the feature list each seed selected during tuning. Seeds can
+differ slightly in their final features.
+
 ```{r model-features}
 seed_feats <- map(ENSEMBLE_SEEDS, \(s) {
   fromJSON(file.path(MODEL_DIR, paste0("seed", s), "final_tune_xgboost.json"))$features
@@ -452,6 +477,11 @@ seed_feats <- map(ENSEMBLE_SEEDS, \(s) {
   set_names(ENSEMBLE_SEEDS)
 model_feats <- sort(unique(unlist(seed_feats)))
 ```
+
+For each seed, predict with its four fold models on that seed's features and
+average them to give the seed's prediction. Across seeds, record the mean
+(`pred_sdd`) and the standard deviation (`pred_seed_sd`). Predictions are
+cached.
 
 ```{r predict}
 pred_cache <- file.path(OUT_DIR, "application_predictions.parquet")
@@ -597,17 +627,93 @@ compute_di <- function(df) {
 log("AOA threshold (DI): %.3f", aoa_threshold)
 ```
 
+## Apply the filters
+
+Each step is counted in location-days: the number of distinct
+(location, date) pairs with at least one observation remaining. When more than
+one scene passes at a location on the same day (overlapping paths, or several
+`siteSR_id`s at one location), the day's estimate is their mean.
+
+```{r filter-steps}
+model_input <- model_input %>%
+  mutate(pass_mission = mission %in% TRAINING_MISSIONS,
+         pass_season = pass_mission & in_season(.),
+         pass_complete = pass_season & feature_complete(.),
+         pass_range = pass_complete & in_range(.),
+         di = compute_di(.),
+         pass_aoa = pass_range & !is.na(di) & di <= aoa_threshold,
+         pass_plausible = pass_aoa & pred_sdd >= min(train_pool$harmonized_value))
+
+count_step <- function(df, step) {
+  tibble(step = step, location_days = nrow(distinct(df, location_id, date)),
+         locations = n_distinct(df$location_id))
+}
+
+filter_steps <- bind_rows(
+  count_step(sitesr_raw_location_days, "siteSR observations (before QA)"),
+  count_step(model_input, "After siteSR QA"),
+  count_step(filter(model_input, pass_mission), "Landsat mission represented in training"),
+  count_step(filter(model_input, pass_season), "Within seasonal window of training matchups"),
+  count_step(filter(model_input, pass_complete), "All model inputs available"),
+  count_step(filter(model_input, pass_range), "Within training range of every input"),
+  count_step(filter(model_input, pass_aoa), "Inside area of applicability"),
+  count_step(filter(model_input, pass_plausible), "Estimate no shallower than training minimum")
+)
+filter_steps
+
+rs_estimates <- model_input %>%
+  filter(pass_plausible) %>%
+  summarise(pred_sdd = mean(pred_sdd),
+            pred_seed_sd = mean(pred_seed_sd),
+            di = max(di),
+            n_scenes = n(),
+            .by = c(location_id, date))
+```
+
+## Export
+
+Write the application outputs:
+
+- the step-by-step filter counts;
+- the per-location-day remote sensing estimates;
+- the in situ location-days for comparison;
+- location coordinates;
+- per-row pass/fail flags for every check;
+- the AOA threshold, mean training distance, AOA features, and seasonal
+  window, saved as JSON so the same checks can be reproduced elsewhere.
+
+```{r export}
+locations <- station_sites %>%
+  summarise(lat = mean(WGS84_Latitude), lon = mean(WGS84_Longitude), .by = location_id)
+
+write_csv(filter_steps, file.path(OUT_DIR, "application_filter_steps.csv"))
+write_parquet(rs_estimates, file.path(OUT_DIR, "application_rs_estimates.parquet"))
+write_parquet(insitu_location_days, file.path(OUT_DIR, "application_insitu_location_days.parquet"))
+write_parquet(locations, file.path(OUT_DIR, "application_locations.parquet"))
+write_parquet(model_input %>%
+                select(location_id, date, mission, pass_mission, pass_season, pass_complete, pass_range, pass_aoa, pass_plausible, di),
+              file.path(OUT_DIR, "application_row_flags.parquet"))
+write_json(list(aoa_threshold = aoa_threshold, d_bar = d_bar, aoa_features = aoa_feats,
+                season_window_doy = unname(season_window)),
+           file.path(OUT_DIR, "aoa_parameters.json"), auto_unbox = TRUE, digits = NA)
+log("wrote application outputs to %s", OUT_DIR)
+```
+
 ## Model performance on superseded matchups
 
-`02_make_matches.Rmd` pairs each in situ SDD sample with every rain-screened
+This is a true side-quest: `02a_make_matches.Rmd` pairs each in situ SDD sample with every rain-screened
 siteSR observation within ±5 days, keeps the one closest in time for
 training, and sets the rest aside (`regional_sdd_not_closest.parquet`). Those
 superseded matchups are real image–field pairs that passed every upstream
 filter but never entered model training as rows, which makes them a direct
-test of the application setting: an image that is not the one the model was
+test of the application setting: an image reflectance sumamry that is not the one the model was
 trained on, at a monitored location. Each in situ sample behind them also has
 a closest-in-time match in the training data, so the field value itself is
-not new to the model at sites in the cross-validation pool; the images are.
+not new to the model at sites in the cross-validation pool, rather the reflectance
+summaries are new to the model. The performance of the model across these
+data represent something between a true hold out spatially and members of 
+other cross-validation groups - so it should land somewhere between the 
+cross-validation statisitcs and the test set statistics. 
 
 Features follow `03_split_data.ipynb` exactly: harmonized bands from the
 matchup, the same site characteristics, and antecedent weather anchored on the
@@ -682,6 +788,11 @@ write_parquet(superseded %>% select(siteSR_id, date, field_date, mission, obs, p
 superseded_validation %>% mutate(across(c(rmse, mae, bias, r2), ~ round(.x, 3)))
 ```
 
+Plot ensemble estimates against in situ SDD for the superseded matchups that
+pass every check. Panels show all sites, holdout sites, and
+cross-validation-pool sites, each annotated with its error metrics. The
+dashed line is 1:1.
+
 ```{r superseded-plot, fig.width=10, fig.height=4.5}
 superseded_passing <- superseded %>%
   filter(pass_plausible) %>%
@@ -709,64 +820,3 @@ ggplot(superseded_passing, aes(obs, pred)) +
   theme_bw()
 ```
 
-## Apply the filters
-
-Each step is counted in location-days: the number of distinct
-(location, date) pairs with at least one observation remaining. When more than
-one scene passes at a location on the same day (overlapping paths, or several
-`siteSR_id`s at one location), the day's estimate is their mean.
-
-```{r filter-steps}
-model_input <- model_input %>%
-  mutate(pass_mission = mission %in% TRAINING_MISSIONS,
-         pass_season = pass_mission & in_season(.),
-         pass_complete = pass_season & feature_complete(.),
-         pass_range = pass_complete & in_range(.),
-         di = compute_di(.),
-         pass_aoa = pass_range & !is.na(di) & di <= aoa_threshold,
-         pass_plausible = pass_aoa & pred_sdd >= min(train_pool$harmonized_value))
-
-count_step <- function(df, step) {
-  tibble(step = step, location_days = nrow(distinct(df, location_id, date)),
-         locations = n_distinct(df$location_id))
-}
-
-filter_steps <- bind_rows(
-  count_step(sitesr_raw_location_days, "siteSR observations (before QA)"),
-  count_step(model_input, "After siteSR QA"),
-  count_step(filter(model_input, pass_mission), "Landsat mission represented in training"),
-  count_step(filter(model_input, pass_season), "Within seasonal window of training matchups"),
-  count_step(filter(model_input, pass_complete), "All model inputs available"),
-  count_step(filter(model_input, pass_range), "Within training range of every input"),
-  count_step(filter(model_input, pass_aoa), "Inside area of applicability"),
-  count_step(filter(model_input, pass_plausible), "Estimate no shallower than training minimum")
-)
-filter_steps
-
-rs_estimates <- model_input %>%
-  filter(pass_plausible) %>%
-  summarise(pred_sdd = mean(pred_sdd),
-            pred_seed_sd = mean(pred_seed_sd),
-            di = max(di),
-            n_scenes = n(),
-            .by = c(location_id, date))
-```
-
-## Export
-
-```{r export}
-locations <- station_sites %>%
-  summarise(lat = mean(WGS84_Latitude), lon = mean(WGS84_Longitude), .by = location_id)
-
-write_csv(filter_steps, file.path(OUT_DIR, "application_filter_steps.csv"))
-write_parquet(rs_estimates, file.path(OUT_DIR, "application_rs_estimates.parquet"))
-write_parquet(insitu_location_days, file.path(OUT_DIR, "application_insitu_location_days.parquet"))
-write_parquet(locations, file.path(OUT_DIR, "application_locations.parquet"))
-write_parquet(model_input %>%
-                select(location_id, date, mission, pass_mission, pass_season, pass_complete, pass_range, pass_aoa, pass_plausible, di),
-              file.path(OUT_DIR, "application_row_flags.parquet"))
-write_json(list(aoa_threshold = aoa_threshold, d_bar = d_bar, aoa_features = aoa_feats,
-                season_window_doy = unname(season_window)),
-           file.path(OUT_DIR, "aoa_parameters.json"), auto_unbox = TRUE, digits = NA)
-log("wrote application outputs to %s", OUT_DIR)
-```

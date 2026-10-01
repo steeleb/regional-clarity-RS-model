@@ -9,14 +9,16 @@ output:
 
 **Out-of-sample application · R · run from the repository root**
 
-- **Purpose:** Apply the production ensemble to Northern Water / Cache la Poudre remote sensing data and score it against the NW/CLP Secchi record.
-- **Inputs:** `../NW-CLP-RS/` collated siteSR feather; NW harmonized Secchi CSV (`SDD_PATH`); lakeSR handoff CSV; `regional_clarity/xg_models/v3_production/`; elevation, LakeCat and gridMET (cached).
-- **Outputs:** `NW_CLP_application/output/`: predicted-vs-observed and evaluation CSVs, `NW_CLP_full_predictions.feather`, cached fetches.
-- **Depends on:** [04 · Make models](../regional_clarity/04_make_models.ipynb)
+- **Purpose:** Apply the production ensemble to Northern Water / Cache la Poudre remote sensing data under the same siteSR QA and applicability checks as the regional application, and score it against the NW/CLP Secchi record.
+- **Inputs:** `../NW-CLP-RS/` collated siteSR feather; NW harmonized Secchi CSV (`SDD_PATH`); lakeSR handoff CSV and Landsat scene metadata (`aquamatch_files/downloads/`); `aquamatch_files/base_with_splits.parquet`; `regional_clarity/xg_models/v3_production/` (fold models, `ensemble_mean_abs_shap.csv`); elevation, LakeCat and gridMET (cached).
+- **Outputs:** `NW_CLP_application/output/`: predicted-vs-observed, evaluation, and filter-step CSVs, `NW_CLP_full_predictions.feather` (with per-image pass/fail flags), cached fetches.
+- **Depends on:** [04 · Make models](../regional_clarity/04_make_models.ipynb), [05 · Evaluate ensemble](../regional_clarity/05_evaluate_ensemble.ipynb) (SHAP weights for the AOA); mirrors the checks in [07 · Regional application](../regional_clarity/07_regional_application.Rmd)
 
 This notebook applies the current production model — `04_make_models.ipynb`'s 10-seed, XGBoost-only ensemble (40 fold models) — to out-of-sample remote sensing data from the Northern Water / Cache la Poudre (NW/CLP) service area, a separate project (`../NW-CLP-RS`) not used anywhere in this project's training or holdout data, and reports performance against the observed Secchi depth record available for that area.
 
-This replaces `4_apply_to_NW.R`, which applied an early, now-superseded 4-fold model using only spectral-ratio features and a stale copy of the band-correction coefficients. The current model needs more than spectral bands — its unanimous feature core includes site characteristics (elevation, LakeCat catchment land cover) and antecedent weather (gridMET) — so this notebook is substantially larger in scope than the script it replaces: it fetches those inputs fresh for the NW/CLP site set (neither exists for these sites anywhere in this project), the same way `pull_site_characteristics.Rmd` and `pull_weather_summaries.Rmd` do for the regional training set.
+The application is held to the same standard as the regional application in `07_regional_application.Rmd`. Scenes pass the same siteSR QA used to build the training data (pixel QA, surface-temperature bounds, scene cloud cover, and band RANSAC). An estimate is evaluated only if it also passes every one of `07`'s applicability checks: training mission, seasonal window, complete inputs, training range, area of applicability, and the plausibility floor. The model is therefore scored only where it is being applied within its domain. For comparison, performance is also reported with the applicability checks ignored.
+
+This replaces `4_apply_to_NW.R`, which applied an early, now-superseded 4-fold model using only spectral-ratio features and a stale copy of the band-correction coefficients. The current model needs more than spectral bands — its unanimous feature core includes site characteristics (elevation, LakeCat catchment land cover) and antecedent weather (gridMET) — so this notebook is substantially larger in scope than the script it replaces: it fetches those inputs fresh for the NW/CLP site set (neither exists for these sites anywhere in this project), the same way `02b_pull_site_characteristics.Rmd` and `02c_pull_weather_summaries.Rmd` do for the regional training set.
 
 **Why XGBoost in R:** XGBoost's JSON model format is directly loadable in R (`xgb.load()`) with no conversion step; this was verified directly (predictions from an R-loaded model matched Python's own predictions to \~0.003 m) before starting this notebook.
 
@@ -32,6 +34,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Setup
 
+Load packages and set the inputs: the NW/CLP remote sensing file, the NW
+Secchi record, the lakeSR handoff coefficients, and the production model
+directory with its 10 ensemble seeds. Also set the output and cache
+directory, the cache-refresh switch, and the ROSSyndicate color palette
+used in the figures.
+
 ```{r libraries, message=FALSE, warning=FALSE}
 library(arrow)
 library(tidyverse)
@@ -45,12 +53,15 @@ library(data.table)
 library(xgboost)
 library(jsonlite)
 library(Metrics)
+library(RANN)
 
 log <- function(...) cat(sprintf("[%s] ", format(Sys.time(), "%H:%M:%S")), sprintf(...), "\n")
 
 NW_RS_PATH <- "../NW-CLP-RS/b_site_RS_data_acquisition/out/2025-04-01/NW_Poudre_Historical_collated_DSWE1_site_meta_v2025-04-01.feather"
 SDD_PATH <- "data/waterQuality/harmonized/Secchi_data_NW_harmonized_2024-01-01.csv"
 HANDOFFS_PATH <- "regional_clarity/aquamatch_files/downloads/lakeSR_collated_handoffs_GEEv2025-02-12_QAv2025-06-04.csv"
+SCENE_META_DIR <- "regional_clarity/aquamatch_files/downloads"
+TRAINING_PATH <- "regional_clarity/aquamatch_files/base_with_splits.parquet"
 MODEL_DIR <- "regional_clarity/xg_models/v3_production"
 ENSEMBLE_SEEDS <- 601:610
 
@@ -68,7 +79,15 @@ ROSS_LT_PAL <- c("#002EA3", "#E70870", "#256BF5", "#745CFB", "#1E4D2B", "#56104E
 
 ## Read and QA-filter the RS data
 
-Same generous QA filters used throughout this project (`pCount_dswe1/pCount_dswe_gt0 > 0.5`, `pCount_dswe1 > 8`, `prop_clouds == 0`). The image date isn't in its own column in this file version — it's embedded in `system:index` (e.g. `"1_1_LT04_033032_19830119_3"` or `"2_LE07_033032_19990710_1"`, an 8-digit `YYYYMMDD` token second from the end regardless of how many leading tokens the mission/path-row segment uses).
+The siteSR QA applied to the regional data in `01_filter_AquaMatch_Data.Rmd` is applied here too, so the model only sees scenes that would have passed QA in the training data:
+
+- **Pixel QA:** `pCount_dswe1/pCount_dswe_gt0 > 0.5`, `pCount_dswe1 > 8`, `prop_clouds == 0`.
+- **Surface temperature:** median surface temperature between 0 °C and 40 °C (273.15–313.15 K), the bounds behind AquaMatch's `flag_temp_min`/`flag_temp_max`. This file does not carry those flags, so the bounds are applied directly.
+- **Scene cloud cover < 20%:** this file's own `CLOUD_COVER` column is empty, so cloud cover is taken from AquaMatch's scene-level metadata (the same files `01` uses), matched on the Landsat scene identifier (mission, path/row, and date). A scene missing from that metadata cannot be confirmed as clear and is dropped, which matches the regional treatment.
+
+Band RANSAC, the last step of the regional siteSR QA, follows the band harmonization below. Each step's row and site counts are logged in `qa_log`.
+
+The image date isn't in its own column in this file version — it's embedded in `system:index` (e.g. `"1_1_LT04_033032_19830119_3"` or `"2_LE07_033032_19990710_1"`, an 8-digit `YYYYMMDD` token second from the end regardless of how many leading tokens the mission/path-row segment uses).
 
 ```{r read-filter}
 NW_RS_raw <- read_feather(NW_RS_PATH)
@@ -79,6 +98,32 @@ NW_RS <- NW_RS_raw %>%
                   med_Red, med_Blue, med_Green, med_Nir, med_Swir1, med_Swir2, med_SurfaceTemp),
                 as.numeric)) %>%
   filter(pCount_dswe1 / pCount_dswe_gt0 > 0.5, pCount_dswe1 > 8, prop_clouds == 0)
+
+log_qa <- function(qa_log, df, step) {
+  bind_rows(qa_log, tibble(step = step, n_rows = nrow(df), n_sites = n_distinct(df$r_id)))
+}
+qa_log <- tibble(step = "Raw NW/CLP siteSR rows", n_rows = nrow(NW_RS_raw), n_sites = n_distinct(NW_RS_raw$r_id))
+qa_log <- log_qa(qa_log, NW_RS, "Pixel QA (DSWE share/count, no clouds in buffer)")
+
+NW_RS <- NW_RS %>% filter(between(med_SurfaceTemp, 273.15, 313.15))
+qa_log <- log_qa(qa_log, NW_RS, "Median surface temperature 0-40 °C")
+
+# scene-level cloud cover from AquaMatch's scene metadata, keyed on the
+# mission_pathrow_date core of the GEE scene id (the leading merge-index
+# tokens differ between the two collections)
+SCENE_ID_PATTERN <- "L[CTE]0\\d_\\d{6}_\\d{8}"
+clear_scenes <- list.files(SCENE_META_DIR, pattern = "sceneMetadata_Landsat(457|89)\\.csv$", full.names = TRUE) %>%
+  map(~ read_csv(.x, show_col_types = FALSE, col_select = c(sat_id, CLOUD_COVER))) %>%
+  bind_rows() %>%
+  filter(CLOUD_COVER < 20) %>%
+  mutate(scene_id = str_extract(sat_id, SCENE_ID_PATTERN)) %>%
+  pull(scene_id) %>%
+  unique()
+
+NW_RS <- NW_RS %>%
+  mutate(scene_id = str_extract(`system:index`, SCENE_ID_PATTERN)) %>%
+  filter(scene_id %in% clear_scenes)
+qa_log <- log_qa(qa_log, NW_RS, "Scene cloud cover < 20%")
 
 # date: second-to-last "_"-delimited token of system:index, regardless of
 # leading-token count (LANDSAT_4/5 carry one extra leading token vs. 7/8/9)
@@ -132,12 +177,130 @@ NW_RS_corr <- NW_RS_corr %>%
   select(-all_of(names(am_corr_LS7)[names(am_corr_LS7) != "sat_corr"]))
 ```
 
+## Band RANSAC
+
+This is the per-site multiband RANSAC filter from `01_filter_AquaMatch_Data.Rmd`, run on the harmonized bands. For each site, it repeatedly fits a linear trend through time to each of the seven harmonized channels using random subsamples of 10 scenes. Each band's residuals are standardized by that band's MAD, and the bands are combined into one score per scene. A scene is kept if at least half of the iterations call it an inlier. A scene is also kept if every one of its band values falls within the range spanned by the site's inliers. Sites with 10 or fewer scenes, which RANSAC cannot evaluate (`NA`), are kept, as in `01`. The function and its parameters are identical to `01` (only the band column names differ: `*_corr7` here, `*_corr_7` there). The flags are cached to `OUT_DIR`.
+
+```{r band-ransac}
+# identical to ransac_site_multiband() / ols_fit() in 01_filter_AquaMatch_Data.Rmd
+ols_fit <- function(t, y) {
+  ok <- is.finite(t) & is.finite(y)
+  if (sum(ok) < 2 || length(unique(t[ok])) < 2) {
+    return(c(intercept = NA_real_, slope = NA_real_))
+  }
+  tt <- t[ok]; yy <- y[ok]
+  tm <- mean(tt); ym <- mean(yy)
+  slope <- sum((tt - tm) * (yy - ym)) / sum((tt - tm)^2)
+  c(intercept = ym - slope * tm, slope = slope)
+}
+
+ransac_site_multiband <- function(date, band_mat,
+                                  n_iter = 150,
+                                  n_mad = 2.5,
+                                  min_diff = c(red_corr7 = 0.01, green_corr7 = 0.01,
+                                               blue_corr7 = 0.01, nir_corr7 = 0.01,
+                                               swir1_corr7 = 0.01, swir2_corr7 = 0.01,
+                                               temp_corr7 = 1),
+                                  min_sample = 10,
+                                  vote_frac_cutoff = 0.5) {
+  n <- nrow(band_mat)
+  nb <- ncol(band_mat)
+  if (n < min_sample + 1) return(rep(NA, n))
+
+  min_diff_b <- min_diff[colnames(band_mat)]
+  t <- as.numeric(date)
+
+  band_scale <- vapply(seq_len(nb), function(b) {
+    y <- band_mat[, b]
+    cf <- ols_fit(t, y)
+    resid <- y - (cf["intercept"] + cf["slope"] * t)
+    s <- mad(resid, na.rm = TRUE)
+    if (is.na(s) || s == 0) s <- sd(resid, na.rm = TRUE)
+    s
+  }, numeric(1))
+
+  inlier_votes <- rep(0L, n)
+  n_valid_iter <- 0L
+
+  for (i in 1:n_iter) {
+    idx <- sample(n, min_sample)
+    if (length(unique(t[idx])) < 2) next
+
+    z <- matrix(NA_real_, nrow = n, ncol = nb)
+    for (b in seq_len(nb)) {
+      y <- band_mat[, b]
+      if (length(unique(y[idx])) < 2 || is.na(band_scale[b]) || band_scale[b] == 0) next
+      cf <- ols_fit(t[idx], y[idx])
+      if (anyNA(cf)) next
+      resid <- y - (cf["intercept"] + cf["slope"] * t)
+      z[, b] <- abs(resid) / band_scale[b]
+      z[abs(resid) < min_diff_b[b], b] <- 0
+    }
+
+    combined_z <- rowMeans(z, na.rm = TRUE)
+    inliers <- !is.na(combined_z) & combined_z < n_mad
+    inlier_votes <- inlier_votes + as.integer(inliers)
+    n_valid_iter <- n_valid_iter + 1L
+  }
+
+  if (n_valid_iter == 0) return(rep(NA, n))
+
+  best_inliers <- (inlier_votes / n_valid_iter) >= vote_frac_cutoff
+
+  if (any(best_inliers)) {
+    in_range <- vapply(seq_len(nb), function(b) {
+      y <- band_mat[, b]
+      accepted <- y[best_inliers]
+      if (length(accepted) == 0 || all(is.na(accepted))) return(rep(TRUE, n))
+      rng <- range(accepted, na.rm = TRUE)
+      y >= rng[1] & y <= rng[2]
+    }, logical(n))
+    best_inliers <- best_inliers | apply(in_range, 1, all)
+  }
+
+  best_inliers
+}
+
+ransac_band_cols <- c("red_corr7", "green_corr7", "blue_corr7",
+                      "nir_corr7", "swir1_corr7", "swir2_corr7", "temp_corr7")
+ransac_cache <- file.path(OUT_DIR, "NW_CLP_band_ransac_flags.feather")
+stopifnot("system:index is not unique per row" = !anyDuplicated(NW_RS_corr$`system:index`))
+
+if (!FORCE_REFRESH_CACHE && file.exists(ransac_cache)) {
+  ransac_flags <- read_feather(ransac_cache)
+} else {
+  # sequential rather than mclapply: Positron disallows forking the R session
+  set.seed(47)
+  t0 <- Sys.time()
+  ransac_flags <- NW_RS_corr %>%
+    arrange(r_id, date) %>%
+    group_by(r_id) %>%
+    group_split() %>%
+    map(\(site_df) site_df %>%
+          mutate(is_band_inlier = ransac_site_multiband(date, as.matrix(pick(all_of(ransac_band_cols))))) %>%
+          select(`system:index`, is_band_inlier)) %>%
+    bind_rows()
+  log("band RANSAC took %.1f min", as.numeric(difftime(Sys.time(), t0, units = "mins")))
+  write_feather(ransac_flags, ransac_cache)
+}
+
+NW_RS_corr <- NW_RS_corr %>%
+  left_join(ransac_flags, by = "system:index") %>%
+  filter(is_band_inlier | is.na(is_band_inlier)) %>%
+  select(-is_band_inlier)
+qa_log <- log_qa(qa_log, NW_RS_corr, "Band RANSAC")
+qa_log
+```
+
 ## Spectral indices
 
 R port of `python/features.py`'s `add_spectral_indices()` — the same 9 curated ratios/indices, kept in exact sync with that module rather than the \~50-ratio set `4_apply_to_NW.R` used.
 
+Written as a function so the identical computation can be applied to the training data in the applicability checks below.
+
 ```{r spectral-indices}
-NW_RS_ml <- NW_RS_corr %>%
+add_spectral_indices <- function(df) {
+  df %>%
   mutate(BR = blue_corr7 / red_corr7,
          BG = blue_corr7 / green_corr7,
          NR = nir_corr7 / red_corr7,
@@ -149,13 +312,16 @@ NW_RS_ml <- NW_RS_corr %>%
          MNDWI = (green_corr7 - swir1_corr7) / (green_corr7 + swir1_corr7)) %>%  # Xu 2006
   mutate(across(c(BR, BG, NR, GR, fai, NDVI, NDSSI, NDWI, MNDWI),
                 ~ if_else(is.finite(.x), .x, NA_real_)))
+}
+
+NW_RS_ml <- add_spectral_indices(NW_RS_corr)
 
 log("%s rows, %s unique sites after band correction + spectral indices", nrow(NW_RS_ml), n_distinct(NW_RS_ml$r_id))
 ```
 
 ## Site characteristics and `shore_flag`
 
-Elevation is straightforward (AWS terrain tiles, same as `pull_site_characteristics.Rmd`). Catchment characteristics need an NHDPlusV2 `comid` to join into LakeCat — this file's own `comid` and `permanent_identifier` columns were both tested directly against the live LakeCat API and neither resolved (0/40 in a spot check; a raw API call against one `permanent_identifier` value returned an explicit 404), so every site is re-matched to its NHDPlusV2 waterbody polygon here via `nhdplusTools::get_waterbodies()` — a single bulk fetch over the full site extent, then a local nearest-feature spatial join, mirroring `01_filter_AquaMatch_Data.Rmd`'s own "fetch once regionally, join locally" pattern rather than one API call per site.
+Elevation is straightforward (AWS terrain tiles, same as `02b_pull_site_characteristics.Rmd`). Catchment characteristics need an NHDPlusV2 `comid` to join into LakeCat — this file's own `comid` and `permanent_identifier` columns were both tested directly against the live LakeCat API and neither resolved (0/40 in a spot check; a raw API call against one `permanent_identifier` value returned an explicit 404), so every site is re-matched to its NHDPlusV2 waterbody polygon here via `nhdplusTools::get_waterbodies()` — a single bulk fetch over the full site extent, then a local nearest-feature spatial join, mirroring `01_filter_AquaMatch_Data.Rmd`'s own "fetch once regionally, join locally" pattern rather than one API call per site.
 
 The same resolved polygon geometry gives `shore_flag` for free: `dist_to_wb` (0 if the site point falls inside its matched waterbody, otherwise the distance to it) and `dist_to_shore` (distance to the polygon's boundary specifically) are both computed directly, and combined the same way the training-time flag was defined (`shore_flag = 1` if the site is outside its matched waterbody **or** within 230 m of its shoreline).
 
@@ -235,7 +401,7 @@ if (!FORCE_REFRESH_CACHE && file.exists(site_char_cache)) {
 
 ## Antecedent weather
 
-Same gridMET fetch + rolling-window summary as `pull_weather_summaries.Rmd`, run fresh for the NW/CLP sites — anchored on the image date alone (see the note at the top of this notebook).
+Same gridMET fetch + rolling-window summary as `02c_pull_weather_summaries.Rmd`, run fresh for the NW/CLP sites — anchored on the image date alone (see the note at the top of this notebook).
 
 ```{r weather-fetch, message=FALSE, warning=FALSE}
 MAX_WINDOW_DAYS <- 30
@@ -291,6 +457,10 @@ if (!FORCE_REFRESH_CACHE && file.exists(weather_summary_cache)) {
   write_feather(weather_raw, weather_raw_cache)
 }
 ```
+
+Summarize the daily weather into the same 1/3/7/30-day rolling antecedent
+features used in training, with each window ending the day before the
+image date. The summaries are cached.
 
 ```{r weather-summarize}
 if (!FORCE_REFRESH_CACHE && file.exists(weather_summary_cache)) {
@@ -369,15 +539,23 @@ log("rows missing LakeCat catchment data: %s / %s", sum(is.na(model_input$pct_im
 # saw them
 CATCHMENT_WINSORIZE_CAP_SQKM <- 617.1
 
-model_input <- model_input %>%
-  mutate(catchment_area_sqkm = 10^round(log10(pmin(catchment_area_sqkm, CATCHMENT_WINSORIZE_CAP_SQKM)), 1),
-         across(c(pct_impervious_2006, pct_urban_2006, pct_forest_2006,
-                  pct_cropland_2006, pct_wetland_2006), ~round(.x, 0)))
+# same form as 07_regional_application.Rmd, which also applies it to the
+# training reference for the applicability checks
+coarsen_site_features <- function(df) {
+  df %>%
+    mutate(catchment_area_sqkm = if_else(catchment_area_sqkm > 0,
+                                         10^round(log10(pmin(catchment_area_sqkm, CATCHMENT_WINSORIZE_CAP_SQKM)), 1),
+                                         catchment_area_sqkm),
+           across(c(pct_impervious_2006, pct_urban_2006, pct_forest_2006,
+                    pct_cropland_2006, pct_wetland_2006), ~ round(.x, 0)))
+}
+
+model_input <- coarsen_site_features(model_input)
 ```
 
 ## Load the 10-seed XGBoost ensemble and predict
 
-Each seed's own final feature set and fold models (`xg_models/v3_production/seed{601-610}/`) are used as trained — no re-selection, no re-tuning. Missing features (`shore_flag`, and any weather columns that failed to fetch for a given row) are left as `NA` and handled by XGBoost's native missing-value routing, the same mechanism used in training.
+Each seed's own final feature set and fold models (`xg_models/v3_production/seed{601-610}/`) are used as trained — no re-selection, no re-tuning. Every QA'd scene receives a prediction. Scenes with missing inputs (for example, weather for a site whose gridMET fetch failed) are still predicted, using XGBoost's native handling of `NA`, but they fail the completeness check below and are excluded from evaluation.
 
 ```{r predict}
 seed_preds <- vector("list", length(ENSEMBLE_SEEDS))
@@ -404,13 +582,159 @@ model_input$pred_sdd <- rowMeans(do.call(cbind, seed_preds))
 log("prediction summary:"); print(summary(model_input$pred_sdd))
 ```
 
+## Applicability checks
+
+These are the same checks `07_regional_application.Rmd` applies before counting an estimate. Each is computed against the same training reference, using the same definitions:
+
+1. the scene comes from a Landsat mission represented in training;
+2. it falls within the seasonal window of the training matchups (the central 98% of their day of year);
+3. every model input is available;
+4. every model input falls within the training range;
+5. the scene falls inside the area of applicability (AOA; Meyer & Pebesma 2021);
+6. the estimate is no shallower than the shallowest SDD in the training data.
+
+See `07` for the rationale behind each check. Because the reference, the features, and the threshold rule are shared, the seasonal window and AOA threshold computed here match `07`'s `aoa_parameters.json`, and the chunk below checks this when that file exists.
+
+### Training reference
+
+The reference is the cross-validation pool that trained the ensemble (every non-holdout row of `base_with_splits.parquet`), engineered with the same functions applied to the NW/CLP data above.
+
+```{r training-reference}
+TRAINING_MISSIONS <- c("LT04", "LT05", "LE07", "LC08", "LC09")
+
+model_feats <- map(ENSEMBLE_SEEDS, \(s) {
+  fromJSON(file.path(MODEL_DIR, paste0("seed", s), "final_tune_xgboost.json"))$features
+}) %>%
+  unlist() %>%
+  unique() %>%
+  sort()
+
+train_pool <- read_parquet(TRAINING_PATH) %>%
+  filter(!is_holdout) %>%
+  mutate(date = as.Date(date)) %>%
+  add_spectral_indices() %>%
+  coarsen_site_features()
+log("training reference: %s CV-pool rows", nrow(train_pool))
+```
+
+### Training range, seasonal window, and completeness
+
+```{r range-season}
+feature_ranges <- train_pool %>%
+  summarise(across(all_of(model_feats), list(min = ~ min(.x, na.rm = TRUE), max = ~ max(.x, na.rm = TRUE)))) %>%
+  pivot_longer(everything(), names_to = c("feature", ".value"), names_pattern = "(.*)_(min|max)$")
+
+in_range <- function(df) {
+  ok <- rep(TRUE, nrow(df))
+  for (i in seq_len(nrow(feature_ranges))) {
+    x <- df[[feature_ranges$feature[i]]]
+    ok <- ok & !is.na(x) & x >= feature_ranges$min[i] & x <= feature_ranges$max[i]
+  }
+  ok
+}
+
+feature_complete <- function(df) complete.cases(df[, model_feats])
+
+season_window <- round(quantile(yday(train_pool$date), c(0.01, 0.99)))
+in_season <- function(df) between(yday(df$date), season_window[1], season_window[2])
+log("seasonal window: day of year %s-%s", season_window[1], season_window[2])
+```
+
+### Area of applicability
+
+The dissimilarity index (DI) is calculated in the SHAP-weighted, standardized feature space of the unanimous-core features. The threshold is the upper whisker of the training pool's cross-fold nearest-neighbor DI.
+
+```{r aoa}
+shap_weights <- read_csv(file.path(MODEL_DIR, "ensemble_mean_abs_shap.csv"), show_col_types = FALSE)
+aoa_feats <- shap_weights$feature
+stopifnot(all(aoa_feats %in% model_feats))
+
+centers <- map_dbl(aoa_feats, \(f) mean(train_pool[[f]], na.rm = TRUE))
+scales <- map_dbl(aoa_feats, \(f) sd(train_pool[[f]], na.rm = TRUE))
+weights <- shap_weights$mean_abs_shap
+
+to_aoa_space <- function(df) {
+  X <- as.matrix(df[, aoa_feats])
+  X <- sweep(sweep(X, 2, centers), 2, scales, "/")
+  sweep(X, 2, weights, "*")
+}
+
+train_X <- to_aoa_space(train_pool)
+train_complete <- complete.cases(train_X)
+train_X <- train_X[train_complete, ]
+d_bar <- mean(dist(train_X))
+
+train_fold <- train_pool$holdout_part[train_complete]
+train_di <- numeric(nrow(train_X))
+for (k in unique(train_fold)) {
+  in_k <- train_fold == k
+  train_di[in_k] <- nn2(train_X[!in_k, ], train_X[in_k, ], k = 1)$nn.dists[, 1] / d_bar
+}
+aoa_threshold <- boxplot.stats(train_di)$stats[5]
+
+compute_di <- function(df) {
+  di <- rep(NA_real_, nrow(df))
+  X <- to_aoa_space(df)
+  ok <- complete.cases(X)
+  di[ok] <- nn2(train_X, X[ok, , drop = FALSE], k = 1)$nn.dists[, 1] / d_bar
+  di
+}
+log("AOA threshold (DI): %.3f", aoa_threshold)
+
+# consistency with the regional application, when its outputs are on hand
+regional_aoa_path <- "regional_clarity/aquamatch_files/application/aoa_parameters.json"
+if (file.exists(regional_aoa_path)) {
+  regional_aoa <- fromJSON(regional_aoa_path)
+  stopifnot("AOA threshold differs from 07_regional_application.Rmd" =
+              isTRUE(all.equal(aoa_threshold, regional_aoa$aoa_threshold)),
+            "seasonal window differs from 07_regional_application.Rmd" =
+              all(unname(season_window) == regional_aoa$season_window_doy))
+}
+```
+
+### Apply the checks
+
+Each check builds on the previous one. The table counts scenes (rows) and sites remaining after each step. It begins with the siteSR QA steps above, so it reads as one continuous filtering record.
+
+```{r apply-checks}
+mission_code <- c(LANDSAT_4 = "LT04", LANDSAT_5 = "LT05", LANDSAT_7 = "LE07",
+                  LANDSAT_8 = "LC08", LANDSAT_9 = "LC09")
+
+model_input <- model_input %>%
+  mutate(mission_code = unname(mission_code[mission]),
+         pass_mission = mission_code %in% TRAINING_MISSIONS,
+         pass_season = pass_mission & in_season(.),
+         pass_complete = pass_season & feature_complete(.),
+         pass_range = pass_complete & in_range(.),
+         di = compute_di(.),
+         pass_aoa = pass_range & !is.na(di) & di <= aoa_threshold,
+         pass_plausible = pass_aoa & pred_sdd >= min(train_pool$harmonized_value))
+
+filter_steps <- qa_log %>%
+  bind_rows(tibble(
+    step = c("Landsat mission represented in training",
+             "Within seasonal window of training matchups",
+             "All model inputs available",
+             "Within training range of every input",
+             "Inside area of applicability",
+             "Estimate no shallower than training minimum"),
+    n_rows = map_int(c("pass_mission", "pass_season", "pass_complete", "pass_range", "pass_aoa", "pass_plausible"),
+                     \(col) sum(model_input[[col]])),
+    n_sites = map_int(c("pass_mission", "pass_season", "pass_complete", "pass_range", "pass_aoa", "pass_plausible"),
+                      \(col) n_distinct(model_input$r_id[model_input[[col]]]))
+  ))
+filter_steps
+```
+
 ## Match to observed Secchi depth
 
 Same GNIS-name harmonization `4_apply_to_NW.R` used (a handful of names differ between the water-quality record's `feature` and this RS file's NHD-derived `gnis_name`).
 
-Matched with the same ±5-day window `02_make_matches.Rmd` uses for the regional training data, rather than requiring an exact same-day match — an exact-date join silently drops any in-situ observation that doesn't happen to fall on a satellite overpass date, which is most of them, and undercounts the evaluable pairs relative to every other evaluation in this project. Unlike training (where the same image legitimately pairs with more than one nearby SDD measurement as separate rows), evaluation de-duplicates by **image**, not by observation: each unique overpass keeps only the single SDD measurement closest in time to it, so a dense field-sampling week landing inside one overpass's window doesn't score that one static prediction against several different observed values as if it were several independent tests of the model. `time_diff` (predicted image date minus observed sample date, in days) is kept for the same match-quality check `05_evaluate_ensemble.ipynb` runs on the regional holdout.
+Matched with the same ±5-day window `02a_make_matches.Rmd` uses for the regional training data, rather than requiring an exact same-day match — an exact-date join silently drops any in-situ observation that doesn't happen to fall on a satellite overpass date, which is most of them, and undercounts the evaluable pairs relative to every other evaluation in this project. Unlike training (where the same image legitimately pairs with more than one nearby SDD measurement as separate rows), evaluation de-duplicates by **image**, not by observation: each unique overpass keeps only the single SDD measurement closest in time to it, so a dense field-sampling week landing inside one overpass's window doesn't score that one static prediction against several different observed values as if it were several independent tests of the model. `time_diff` (predicted image date minus observed sample date, in days) is kept for the same match-quality check `05_evaluate_ensemble.ipynb` runs on the regional holdout.
 
-Candidate pairs are also screened for a heavy single-day rain event between the image date and the field date, the same screen `02_make_matches.Rmd` applies to the regional training matchups, so the out-of-sample evaluation is held to the same bar as training. Screening happens on **candidates**, before the closest-in-time selection above, not after: a heavy rain event during an observation's single nearest candidate image would otherwise drop that observation outright even when a perfectly good, only slightly-further-away, uncontaminated image is also available in the window. Direction-agnostic (checked over `[min(image date, field date), max(image date, field date)]`), matching the original filter.
+Only scenes that pass every applicability check are matched for the primary evaluation. The same matching is also run on every QA'd scene, with the applicability checks ignored, so the effect of the checks on the reported performance can be seen directly (see the metrics below). Matching is therefore written as a function, `match_to_observed()`.
+
+Candidate pairs are also screened for a heavy single-day rain event between the image date and the field date, the same screen `02a_make_matches.Rmd` applies to the regional training matchups, so the out-of-sample evaluation is held to the same bar as training. Screening happens on **candidates**, before the closest-in-time selection above, not after: a heavy rain event during an observation's single nearest candidate image would otherwise drop that observation outright even when a perfectly good, only slightly-further-away, uncontaminated image is also available in the window. Direction-agnostic (checked over `[min(image date, field date), max(image date, field date)]`), matching the original filter.
 
 ```{r match-observed}
 MATCH_WINDOW_DAYS <- 5
@@ -425,21 +749,6 @@ NW_sdd <- read_csv(SDD_PATH, show_col_types = FALSE) %>%
 res_names <- unique(NW_sdd$gnis_name)
 log("%s reservoirs with observed SDD: %s", length(res_names), paste(res_names, collapse = ", "))
 
-pred_at_obs_res <- model_input %>%
-  filter(gnis_name %in% res_names) %>%
-  summarise(predicted = mean(pred_sdd), .by = c(date, gnis_name)) %>%
-  rename(date_pred = date)
-
-obs_at_res <- NW_sdd %>%
-  summarise(observed = mean(value), .by = c(date, gnis_name)) %>%
-  rename(date_obs = date)
-
-# every (obs, pred) candidate pair per reservoir within the window
-candidates <- obs_at_res %>%
-  inner_join(pred_at_obs_res, by = "gnis_name") %>%
-  mutate(time_diff = as.numeric(date_pred - date_obs)) %>%
-  filter(abs(time_diff) <= MATCH_WINDOW_DAYS)
-
 # raw daily gridMET precip isn't kept in scope once weather_summaries loads
 # from cache (see weather-fetch above), so read it back explicitly here
 weather_raw_rain <- read_feather(weather_raw_cache) %>% mutate(date = as.Date(date))
@@ -448,57 +757,85 @@ weather_raw_res <- weather_raw_rain %>%
   inner_join(site_res_lookup, by = "r_id") %>%
   select(gnis_name, date, pr)
 
-# peak single-day precip at ANY site in the reservoir, strictly between the
-# earlier and later of the image date and the field date - a data.table
-# non-equi (interval) join, the same approach 24_gap_period_rain_check.R
-# uses at the individual-site level in the regional pipeline
-candidates <- candidates %>%
-  mutate(gap_start = pmin(date_obs, date_pred), gap_end = pmax(date_obs, date_pred),
-         cand_id = row_number())
+match_to_observed <- function(preds) {
+  pred_at_obs_res <- preds %>%
+    filter(gnis_name %in% res_names) %>%
+    summarise(predicted = mean(pred_sdd), .by = c(date, gnis_name)) %>%
+    rename(date_pred = date)
 
-candidates_dt <- as.data.table(candidates)
-wx_dt <- as.data.table(weather_raw_res)
-setkey(wx_dt, gnis_name, date)
+  obs_at_res <- NW_sdd %>%
+    summarise(observed = mean(value), .by = c(date, gnis_name)) %>%
+    rename(date_obs = date)
 
-joined <- wx_dt[candidates_dt, on = .(gnis_name, date > gap_start, date <= gap_end),
-                nomatch = NA, allow.cartesian = TRUE]
-gap_max <- joined[, .(gap_max_precip_mm = max(pr, na.rm = TRUE)), by = cand_id]
-gap_max[!is.finite(gap_max_precip_mm), gap_max_precip_mm := 0]
+  # every (obs, pred) candidate pair per reservoir within the window
+  candidates <- obs_at_res %>%
+    # every observation pairs with every image at its reservoir before the
+    # window filter, so many-to-many is expected here
+    inner_join(pred_at_obs_res, by = "gnis_name", relationship = "many-to-many") %>%
+    mutate(time_diff = as.numeric(date_pred - date_obs)) %>%
+    filter(abs(time_diff) <= MATCH_WINDOW_DAYS)
 
-candidates <- candidates %>%
-  left_join(as.data.frame(gap_max), by = "cand_id") %>%
-  mutate(gap_max_precip_mm = coalesce(gap_max_precip_mm, 0))
+  # peak single-day precip at ANY site in the reservoir, strictly between the
+  # earlier and later of the image date and the field date - a data.table
+  # non-equi (interval) join, the same approach 02a_make_matches.Rmd
+  # uses at the individual-site level in the regional pipeline
+  candidates <- candidates %>%
+    mutate(gap_start = pmin(date_obs, date_pred), gap_end = pmax(date_obs, date_pred),
+           cand_id = row_number())
 
-n_flagged <- sum(candidates$gap_max_precip_mm >= HEAVY_RAIN_MM)
-log("%s / %s candidate (obs, image) pairs flagged for a heavy single-day rain event (>= %.1f mm) in their gap - excluded before closest-match selection",
-    n_flagged, nrow(candidates), HEAVY_RAIN_MM)
+  candidates_dt <- as.data.table(candidates)
+  wx_dt <- as.data.table(weather_raw_res)
+  setkey(wx_dt, gnis_name, date)
 
-candidates <- candidates %>%
-  filter(gap_max_precip_mm < HEAVY_RAIN_MM) %>%
-  select(-gap_start, -gap_end, -cand_id, -gap_max_precip_mm)
+  joined <- wx_dt[candidates_dt, on = .(gnis_name, date > gap_start, date <= gap_end),
+                  nomatch = NA, allow.cartesian = TRUE]
+  gap_max <- joined[, .(gap_max_precip_mm = max(pr, na.rm = TRUE)), by = cand_id]
+  gap_max[!is.finite(gap_max_precip_mm), gap_max_precip_mm := 0]
 
-# only now, among the rain-screened candidates, keep the single SDD
-# observation closest in time to each image - de-duplicating by observation
-# instead would still let the same image be the nearest available match for
-# several different field visits (e.g. a dense sampling week landing inside
-# one overpass's window), which scores that one static prediction against
-# each of those visits separately and counts it multiple times in the
-# evaluation metrics. De-duplicating by image instead keeps each unique
-# overpass contributing exactly one (prediction, observation) pair.
-pred_obs <- candidates %>%
-  arrange(gnis_name, date_pred, abs(time_diff)) %>%
-  distinct(gnis_name, date_pred, .keep_all = TRUE) %>%
-  rename(date = date_obs) %>%
-  select(-date_pred)
+  candidates <- candidates %>%
+    left_join(as.data.frame(gap_max), by = "cand_id") %>%
+    mutate(gap_max_precip_mm = coalesce(gap_max_precip_mm, 0))
 
-n_obs_reused <- nrow(pred_obs) - n_distinct(pred_obs %>% select(gnis_name, date))
-log("%s matched (image, reservoir) pairs within +/- %s days, one SDD measurement kept per image",
-    nrow(pred_obs), MATCH_WINDOW_DAYS)
-log("%s of those SDD measurements were the closest available observation for more than one image",
-    n_obs_reused)
-log("time_diff (pred image date - obs sample date): mean=%.2f, median=%.1f, range=[%s, %s] days",
-    mean(pred_obs$time_diff), median(pred_obs$time_diff), min(pred_obs$time_diff), max(pred_obs$time_diff))
+  n_flagged <- sum(candidates$gap_max_precip_mm >= HEAVY_RAIN_MM)
+  log("%s / %s candidate (obs, image) pairs flagged for a heavy single-day rain event (>= %.1f mm) in their gap - excluded before closest-match selection",
+      n_flagged, nrow(candidates), HEAVY_RAIN_MM)
+
+  candidates <- candidates %>%
+    filter(gap_max_precip_mm < HEAVY_RAIN_MM) %>%
+    select(-gap_start, -gap_end, -cand_id, -gap_max_precip_mm)
+
+  # only now, among the rain-screened candidates, keep the single SDD
+  # observation closest in time to each image - de-duplicating by observation
+  # instead would still let the same image be the nearest available match for
+  # several different field visits (e.g. a dense sampling week landing inside
+  # one overpass's window), which scores that one static prediction against
+  # each of those visits separately and counts it multiple times in the
+  # evaluation metrics. De-duplicating by image instead keeps each unique
+  # overpass contributing exactly one (prediction, observation) pair.
+  pred_obs <- candidates %>%
+    arrange(gnis_name, date_pred, abs(time_diff)) %>%
+    distinct(gnis_name, date_pred, .keep_all = TRUE) %>%
+    rename(date = date_obs) %>%
+    select(-date_pred)
+
+  n_obs_reused <- nrow(pred_obs) - n_distinct(pred_obs %>% select(gnis_name, date))
+  log("%s matched (image, reservoir) pairs within +/- %s days, one SDD measurement kept per image",
+      nrow(pred_obs), MATCH_WINDOW_DAYS)
+  log("%s of those SDD measurements were the closest available observation for more than one image",
+      n_obs_reused)
+  log("time_diff (pred image date - obs sample date): mean=%.2f, median=%.1f, range=[%s, %s] days",
+      mean(pred_obs$time_diff), median(pred_obs$time_diff), min(pred_obs$time_diff), max(pred_obs$time_diff))
+  pred_obs
+}
+
+pred_obs <- match_to_observed(filter(model_input, pass_plausible))
+log("-- comparison: same matching, applicability checks ignored --")
+pred_obs_all_qa <- match_to_observed(model_input)
 ```
+
+Check whether the time gap within a matchup relates to prediction error. A
+strong correlation would suggest that loosely timed pairs, rather than the
+model, are driving the error.
 
 ```{r match-quality-check}
 # same diagnostic 05_evaluate_ensemble.ipynb runs on the regional holdout: does
@@ -517,6 +854,9 @@ ggplot(pred_obs, aes(x = time_diff, y = abs_error)) +
 
 ## Predicted vs. observed
 
+Ensemble estimates against observed Secchi depth for every matched image,
+colored by reservoir. The grey line is 1:1.
+
 ```{r pred-obs-plot}
 pred_obs <- pred_obs |> 
   mutate(resid = predicted-observed)
@@ -530,6 +870,12 @@ ggplot(pred_obs, aes(x = observed, y = predicted, color = gnis_name)) +
   theme_bw() +
   theme(legend.position = "bottom")
 ```
+
+Compute error metrics across all matched observations: RMSE, MAE, MAPE,
+bias, percent bias, sMAPE, R², and n. Then compute RMSE, bias, R², and n
+for each reservoir, sorted from worst to best RMSE. Finally, compare the
+primary evaluation with the same matching run on every QA'd scene,
+ignoring the applicability checks.
 
 ```{r metrics}
 evals_NW <- pred_obs %>%
@@ -549,9 +895,22 @@ evals_NW_by_res <- pred_obs %>%
             .by = gnis_name) %>%
   arrange(desc(rmse))
 evals_NW_by_res
+
+evals_NW_checks <- bind_rows(
+  pred_obs %>% mutate(scenes = "passes every applicability check"),
+  pred_obs_all_qa %>% mutate(scenes = "all QA'd scenes (checks ignored)")
+) %>%
+  summarise(rmse = rmse(observed, predicted), mae = mae(observed, predicted),
+            bias = bias(observed, predicted), r2 = cor(observed, predicted)^2, n = n(),
+            .by = scenes)
+evals_NW_checks
 ```
 
 ## Time series
+
+Predicted and observed Secchi depth through time for each reservoir from
+2008 onward. This shows whether the model follows seasonal and interannual
+patterns, in addition to matching individual values.
 
 ```{r timeseries}
 pred_obs %>%
@@ -569,29 +928,37 @@ filter(date > ymd("2008-01-01")) %>%
 
 ## Export
 
+Write the matched predicted/observed pairs, the overall and per-reservoir
+metrics, the comparison with and without the applicability checks, the
+step-by-step filter counts, and the full prediction record for every QA'd
+NW/CLP image (including images with no matching field observation) with
+each image's pass/fail flags.
+
 ```{r export}
 write_csv(pred_obs, file.path(OUT_DIR, "NW_CLP_pred_obs.csv"))
 write_csv(evals_NW, file.path(OUT_DIR, "NW_CLP_eval_metrics.csv"))
 write_csv(evals_NW_by_res, file.path(OUT_DIR, "NW_CLP_eval_metrics_by_reservoir.csv"))
+write_csv(evals_NW_checks, file.path(OUT_DIR, "NW_CLP_eval_metrics_applicability.csv"))
+write_csv(filter_steps, file.path(OUT_DIR, "NW_CLP_filter_steps.csv"))
 
 # full out-of-sample prediction record (not just the subset with a matched observation)
-write_feather(model_input %>% select(r_id, date, mission, gnis_name, comid, lat, lon, pred_sdd),
+write_feather(model_input %>% select(r_id, date, mission, gnis_name, comid, lat, lon, pred_sdd, di, starts_with("pass_")),
               file.path(OUT_DIR, "NW_CLP_full_predictions.feather"))
 log("wrote outputs to %s/", OUT_DIR)
 ```
 
 ## Summary
 
-The model transfers to this entirely separate basin (NW/CLP was never part of training, holdout, or CV data) with **RMSE 1.128 m, MAE 0.863 m, bias −0.321 m, R² 0.389** across 1,165 matched (image, reservoir) observations spanning 7 reservoirs — matched with the same ±5-day window used for the regional training data, de-duplicated by **image** (each unique overpass keeps only the single SDD measurement closest in time to it, avoiding the pseudo-replication an earlier pass of this evaluation found when de-duplicating by observation instead), and screened for heavy single-day rain events between image and field dates the same way the regional training data now is. `time_diff` (predicted image date minus observed sample date) ranges ±5 days by construction and does not correlate with prediction error — match quality isn't driving the result.
+NW/CLP was never part of the training, holdout, or CV data. Under the same siteSR QA and applicability checks as the regional application, the ensemble scores **RMSE 1.105 m, MAE 0.845 m, bias −0.274 m, R² 0.387** on this out-of-sample basin. The evaluation covers 730 matched (image, reservoir) pairs across 7 reservoirs. Pairs are matched within the same ±5-day window used for the regional training data and screened for heavy single-day rain between image and field dates. Each pair is de-duplicated by **image**, so every overpass contributes exactly one (prediction, observation) pair. The time gap within a pair does not correlate with error (r = 0.05), so match quality is not driving the result.
 
-**Out-of-sample transfer got worse on the current production model, even though in-region performance got substantially better.** The regional holdout (now `holdout_seed=12`, band RANSAC redesigned to majority-vote, rain-filtered matchups, catchment-area winsorized) improved to RMSE 1.259 m / R² 0.626 / bias +0.148 m — better on every metric than any earlier configuration. This NW/CLP evaluation moved the opposite direction over the same changes: RMSE rose from 0.998 m to 1.128 m and R² fell from 0.436 to 0.389. That's a real, unresolved tension worth keeping visible rather than averaging away: whatever changed about the model to help it generalize better *within* the training region's HUC8 structure did not carry over to this specific out-of-region transfer, and may have made it modestly worse. Plausible contributors not yet investigated: catchment-area winsorization changes the model's relationship to catchment size specifically in a range NW/CLP's reservoirs may or may not fall into similarly to the training region's; a different holdout seed trains on a different subset of hard basins, which could shift what the model has learned to generalize from in ways that don't track equally across every downstream application.
+**The filters shape which data are evaluated, not how well the model does on them.** The siteSR QA removes most of the record: 321,637 raw scene–site rows become 128,078. Pixel QA accounts for the largest cut (41%), followed by scene cloud cover, and band RANSAC removes a further 4%. The applicability checks then remove about a third of the QA'd scenes. Most of these fall outside the training range of at least one input, which excludes 92 of 397 sites entirely. Smaller cuts come from the seasonal window and the AOA. Matched scenes are almost all in-domain, however: only 24 of the 754 QA'd matched pairs fail an applicability check. Performance with and without the checks is effectively identical (RMSE 1.105 m vs. 1.103 m). The out-of-domain scenes are concentrated at sites and times without field data, which is where the checks matter most for any operational use of these estimates (see `NW_CLP_full_predictions.feather`, which carries every image's pass/fail flags).
 
-**The bias also got more negative** (underprediction deepened from −0.130 m to −0.321 m), the same direction as the R²/RMSE degradation, consistent with a genuine shift in how the model transfers to this basin rather than two unrelated effects. The regional holdout's own bias moved the other way (+0.400 m or worse in every earlier configuration, down to +0.148 m now) — the two directions moving apart is itself part of the same open question above.
+**The model underpredicts in NW/CLP, while it overpredicts on the regional holdout** (holdout RMSE 1.259 m, bias +0.148 m). The two errors run in opposite directions, so the transfer error here is a basin-specific shift, not a general calibration offset. Four reservoirs carry most of the underprediction: Shadow Mountain Lake (bias −0.82 m), Lake Granby (−0.55 m), Grand Lake (−0.45 m), and Windy Gap Reservoir (−1.53 m). Horsetooth Reservoir (+0.22 m), Carter Lake (+0.23 m), and Willow Creek Reservoir (+0.13 m) are close to unbiased.
 
-**Per-reservoir performance**, on de-duplicated, rain-screened samples ranging n=29 to n=251: Windy Gap Reservoir remains the worst performer (RMSE 1.86 m, R² 0.16, n=29). Horsetooth Reservoir remains the best performer (RMSE 0.80 m, R² 0.34, n=231). Grand Lake (n=216) and Shadow Mountain Lake (n=251) remain the two largest-sample reservoirs; Shadow Mountain's RMSE rose more than most (0.89→1.27 m) while Grand Lake moved less (0.90→1.03 m) — the per-reservoir picture isn't uniform, another reason to treat the aggregate transfer-degradation finding as something to investigate rather than a single simple cause.
+**Per-reservoir performance** (n = 15 to 156 matched pairs): Horsetooth Reservoir is the best performer (RMSE 0.73 m, n = 151). Windy Gap Reservoir is the worst (RMSE 1.96 m, R² 0.21, n = 15), though its sample is small. Willow Creek Reservoir has the highest R² (0.60, n = 38). Columbine Lake has field data but no scenes that match within the window after QA.
 
-**Data-pipeline notes for future runs:**
+**Data-pipeline notes:**
 
-- Site characteristics resolved for **100% of sites** (408/408) via the fresh NHDPlusV2 spatial re-match — this file's own `comid`/`permanent_identifier` columns turned out to be unusable for LakeCat, but the spatial match closed that gap completely rather than leaving it as a partial degradation.
-- Weather fetch succeeded for 403/408 sites; the 5 failures all hit the same bug (`'by' must specify a uniquely valid column` in the rolling-summary merge step) — likely a handful of sites returning duplicate-date rows from gridMET. Low-impact (1.2% of sites) and not chased down here; the same merge pattern is used in `pull_weather_summaries.Rmd` for the regional training pull, so it's plausibly a live (if rare) issue there too.
-- `shore_flag` came out skewed toward 1 (364/408 sites, 89%) — noticeably higher than the training data's \~50/50 split. Plausible given NW/CLP's reservoirs tend to be smaller with proportionally more shoreline-proximate area, but worth keeping in mind when interpreting predictions for sites flagged this way.
+- Site characteristics resolved for **all 408 sites** that pass pixel QA, via a fresh NHDPlusV2 spatial match. This file's own `comid`/`permanent_identifier` columns cannot be used with LakeCat.
+- `shore_flag` is 1 for 364 of 408 sites (89%), well above the training data's roughly 50/50 split. This is plausible for this site set, in which many points sit on smaller reservoirs or near shore, and is worth keeping in mind when interpreting predictions for these sites.
+- Scene cloud cover comes from AquaMatch's scene metadata, which covers 95% of this file's scenes. The remaining 5% cannot be confirmed as clear and are excluded, the same treatment the regional data receive.

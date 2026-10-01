@@ -7,15 +7,15 @@ output:
     fig_retina: 1
 ---
 
-**Pipeline step 02 · R · run from the repository root**
+**Pipeline step 02a · R · run from the repository root**
 
 - **Purpose:** Match filtered SDD to siteSR within a 5-day window, drop matchups with a rain event in the gap, and keep the closest image per in situ sample.
 - **Inputs:** `aquamatch_files/`: `sdd_quality_filter.parquet`, `siteSR_DSWE1_regional_band_filtered.parquet`, `huc4_filtered.gdb`, `states.gdb`, `row_loss_log_01.csv`; site metadata CSV; gridMET (cached).
 - **Outputs:** `aquamatch_files/`: `filtered_regional_sdd.parquet` (modeling matchups), `regional_sdd_not_closest.parquet`, `sdd_regional_siteSR_matchups_5d.parquet`, `match_gap_precip_raw.feather`, `row_loss_log.csv`.
-- **Previous:** [01 · Filter AquaMatch data](01_filter_AquaMatch_Data.Rmd) · **Next:** [site characteristics](pull_site_characteristics.Rmd) and [weather summaries](pull_weather_summaries.Rmd) (when the site set changes), then [03 · Split data](03_split_data.ipynb)
+- **Previous:** [01 · Filter AquaMatch data](01_filter_AquaMatch_Data.Rmd) · **Next:** [02b · Pull site characteristics](02b_pull_site_characteristics.Rmd), [02c · Pull weather summaries](02c_pull_weather_summaries.Rmd), then [03 · Split data](03_split_data.ipynb)
 
 This code creates matchups between the filtered AquaMatch SDD and siteSR
-files (from `01_filter_AquaMatch_Data.Rmd`) using a generous 5-day window.
+files (from `01_filter_AquaMatch_Data.Rmd`) using a 5-day window.
 Both inputs are already scoped to the HUC4 basins that make up this
 project's 6-state regional AOI (that scoping happens in
 `01_filter_AquaMatch_Data.Rmd`, before the expensive per-site filtering
@@ -28,6 +28,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Setup
 
+Load packages and set paths to the filtered SDD and siteSR caches from
+[01](01_filter_AquaMatch_Data.Rmd) and to AquaMatch's site metadata.
+`AquaMatchr` performs the matching. `climateR` and `parallel` support the
+rain screen further below. `tmap` draws the maps.
+
 ```{r libraries, , message = FALSE, warning=FALSE}
 # load libraries
 library(AquaMatchr) # if install needed: remotes::install_github(repo = "AquaSat/AquaMatchr")
@@ -37,7 +42,7 @@ library(sf)
 library(tmap)
 library(tigris)
 library(tidyverse)
-library(climateR) # gap-period rain check's own gridMET fetch
+library(climateR)
 library(parallel)
 
 aquamatch_raw_data_dir <- "regional_clarity/aquamatch_files/downloads"
@@ -61,6 +66,11 @@ format for this AquaMatchr function. Our filtered caches from script 01 are
 parquet (see that script's note on preferring parquet everywhere it isn't
 required to be otherwise), so we write throwaway feather copies just for
 this call and delete them immediately after.
+
+Only SDD observations that RANSAC kept (or could not evaluate) are passed
+to the matcher. Every siteSR observation at the same site within ±5 days of
+an SDD sample becomes a candidate matchup. The result is cached, so later
+renders read it from disk.
 
 ```{r run-siteSR-wqp-match, message = FALSE, warning=FALSE}
 out_file <- file.path(filtered_aquamatch_dir, "sdd_regional_siteSR_matchups_5d.parquet")
@@ -114,9 +124,14 @@ nrow(lake_sdd) == nrow(sdd_match)
 
 ## Summary Figures
 
+Read AquaMatch's site metadata for site coordinates.
+
 ```{r site-list, message = FALSE, warning=FALSE}
 sites <- read_csv(sr_sites, show_col_types = FALSE)
 ```
+
+Convert the sites that have at least one matchup to spatial points and keep
+those within the contiguous United States (CONUS) for mapping.
 
 ```{r conus-only, , message = FALSE, warning=FALSE}
 sites_w_matches <- sites %>%
@@ -133,7 +148,7 @@ lake_locs_CONUS <- sites_w_matches %>%
   st_transform(., st_crs(sites_w_matches))
 ```
 
-And plot
+Map every site with at least one matchup.
 
 ```{r}
 tm_shape(conus) +
@@ -142,7 +157,7 @@ tm_shape(conus) +
   tm_dots()
 ```
 
-Make some summary tables
+Count matchups per site and attach the counts to the site locations.
 
 ```{r summary-by-site}
 # summarize by number of matches per site
@@ -156,7 +171,8 @@ lake_locs_with_matches <- lake_locs_CONUS %>%
   left_join(., five_day_summary)
 ```
 
-Plot locations colored by number of matches
+Plot site locations colored by number of matchups (all Landsat missions
+combined).
 
 ```{r plot-all-missions}
 # plot all missions
@@ -174,7 +190,9 @@ tm_shape(conus) +
             legend.frame = TRUE)
 ```
 
-And also by number of matches per mission
+Repeat the map for each Landsat mission separately. Each panel title gives
+that mission's total matchups and sites, which shows how the record is
+distributed across sensors.
 
 ```{r summary-by-mission}
 # and per site per mission
@@ -252,6 +270,10 @@ states <- st_read(file.path(filtered_aquamatch_dir, "states.gdb"),
   standardize_geom_col()
 ```
 
+Label each matched site with the HUC4 it falls in and carry that label onto
+the matchups. The printed message confirms that every matched site falls
+inside the regional footprint.
+
 ```{r huc4-label-join}
 # add huc info - this is a labeling join (and a sanity check on the
 # upstream regional scoping), not an additional filter: `left = FALSE` drops
@@ -284,9 +306,9 @@ regional_sdd <- sdd_match %>%
 ## Screen for heavy rain events between image and field dates
 
 For each candidate match (every SDD/siteSR pair within the 5-day window,
-before any closest-in-time selection), was there a heavy single-day rain
-event between the image date and the field (SDD) date - in either order? If
-so, the reflectance and the target describe genuinely different water
+before any closest-in-time selection) we check to see if there was a heavy single-day rain
+event between the image date and the field (SDD) date (in either order). If
+so, the reflectance and the target likely describe genuinely different water
 states, and the matchup shouldn't be trusted regardless of which one came
 first. NOAA/EPA's "heavy precipitation day" cut of 1 inch (25.4 mm) in 24
 hours, peak single-day intensity within the gap (not cumulative gap-total,
@@ -302,10 +324,10 @@ closest-in-time selection fall back to that next-best candidate instead.
 
 Needs raw daily gridMET precipitation for every candidate site, over each
 site's full candidate-date range - a broader, coarser need than
-`pull_weather_summaries.Rmd`'s antecedent-window feature fetch (which only
+`02c_pull_weather_summaries.Rmd`'s antecedent-window feature fetch (which only
 needs narrow 1-30 day windows ending at each *already-matched* row's date),
 so this is its own fetch rather than a reuse of that cache. Also breaks a
-real circularity: `pull_weather_summaries.Rmd` fetches weather for the
+real circularity: `02c_pull_weather_summaries.Rmd` fetches weather for the
 *output* of this script, so it isn't available yet at this point in the
 pipeline.
 
@@ -365,6 +387,12 @@ if (file.exists(rain_check_weather_raw_path)) {
 }
 ```
 
+For each candidate matchup, find the largest single-day precipitation total
+between the earlier and later of the image and field dates (excluding the
+earlier date itself). Candidates with a day at or above 25.4 mm are removed.
+A `data.table` interval join performs this lookup in one pass over all
+candidates.
+
 ```{r rain-check-apply}
 # peak single-day precip strictly BETWEEN gap_start and gap_end (exclusive of
 # gap_start itself, the "day of" whichever event is earlier) - a data.table
@@ -398,8 +426,8 @@ regional_sdd <- regional_sdd %>%
 
 Make sure we're using the observation closest in time to the measurement.
 This assures we're not using multiple satellites for the same data point in our
-training dataset. We will also export those that are not included as a possible
-additional test set.
+training dataset. We will also export those that are dismissed at this point as a 
+possible additional test set.
 
 ```{r closest-obs}
 # grab the observation closes in date to a satellite flyover, from the
@@ -440,7 +468,8 @@ ggplot(regional_long_record, aes(x = date, y = harmonized_value)) +
   theme_bw()
 ```
 
-Look at data spatially by site
+Map the number of final matchups at each site, overlaid on the regional
+HUC4 boundaries.
 
 ```{r plot-sites-spatial}
 tm_shape(HUC4_filtered) +
@@ -455,7 +484,8 @@ tm_shape(HUC4_filtered) +
           fill.scale = tm_scale_continuous(values = "viridis"))
 ```
 
-And summarize by HUC4
+Summarize the final matchups by HUC4. Basins with no matchups are outlined
+but left unfilled.
 
 ```{r plot-huc-summary}
 regional_huc_summary <- reg_sdd_closest %>%
@@ -507,6 +537,10 @@ row_log <- read_csv(file.path(filtered_aquamatch_dir, "row_loss_log_01.csv"),
 write_csv(row_log, file.path(filtered_aquamatch_dir, "row_loss_log.csv"))
 ```
 
+Tabulate the log: for each pipeline (SDD, siteSR, and matched), the rows
+and sites remaining after each step, as a percentage of the previous step
+and of the pipeline's starting count.
+
 ```{r row-log-table}
 row_log_display <- row_log %>%
   mutate(pipeline = factor(pipeline, levels = c("SDD", "siteSR", "matched"))) %>%
@@ -532,6 +566,9 @@ knitr::kable(row_log_display,
   kableExtra::collapse_rows(columns = 1, valign = "top")
 ```
 
+The same retention counts as a bar chart, one panel per pipeline, with steps
+ordered top to bottom.
+
 ```{r row-log-figure, fig.height=8}
 row_log_display %>%
   # fct_inorder() alone would put the first (largest) step at the bottom
@@ -550,6 +587,11 @@ row_log_display %>%
 ```
 
 ## Export data
+
+Write the final modeling matchups: one closest-in-time, rain-screened
+image per SDD observation. This file is the input to the site
+characteristics and weather pulls and to
+[03 · Split data](03_split_data.ipynb).
 
 ```{r export}
 write_parquet(reg_sdd_closest,

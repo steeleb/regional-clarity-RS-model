@@ -82,7 +82,7 @@ def coarsen_site_features(df: pd.DataFrame) -> pd.DataFrame:
     heavily-resampled or catchment-outlier waterbody's static LakeCat
     values - identical for every site and every date on that waterbody,
     since they're joined once per NHDPlusV2 comid (see
-    pull_site_characteristics.Rmd) - can't act as a de facto waterbody ID
+    02b_pull_site_characteristics.Rmd) - can't act as a de facto waterbody ID
     for the model to key a memorized SDD value off of ("this is Pathfinder,
     therefore SDD = X"; "this is Lake Powell, therefore SDD = Y").
 

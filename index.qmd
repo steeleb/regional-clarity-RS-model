@@ -16,8 +16,9 @@ Data preparation and application run in R. Modeling runs in Python notebooks tha
 |---|---|---|
 | 00 | [Download AquaMatch data](regional_clarity/00_download_AquaMatch_data.Rmd) | Download AquaMatch SDD and siteSR; apply Landsat 7-referenced handoffs. |
 | 01 | [Filter AquaMatch data](regional_clarity/01_filter_AquaMatch_Data.Rmd) | Scope to the 6-state HUC4 region; SDD QC and RANSAC; siteSR scene QA and band RANSAC. |
-| 02 | [Make matchups](regional_clarity/02_make_matches.Rmd) | 5-day matchups, rain-event filter, closest image per sample. |
-| – | [Site characteristics](regional_clarity/pull_site_characteristics.Rmd), [weather summaries](regional_clarity/pull_weather_summaries.Rmd) | Elevation, LakeCat, and gridMET antecedent-weather features. |
+| 02a | [Make matchups](regional_clarity/02a_make_matches.Rmd) | 5-day matchups, rain-event filter, closest image per sample. |
+| 02b | [Pull site characteristics](regional_clarity/02b_pull_site_characteristics.Rmd) | Elevation and LakeCat catchment features per site. |
+| 02c | [Pull weather summaries](regional_clarity/02c_pull_weather_summaries.Rmd) | gridMET antecedent-weather features (1/3/7/30-day windows). |
 | 03 | [Split data](regional_clarity/03_split_data.ipynb) | Join features; fixed HUC8 holdout and CV folds. |
 | 04 | [Make models](regional_clarity/04_make_models.ipynb) | Per-seed feature selection, tuning, and 4-fold XGBoost (10 seeds × 4 folds). |
 | 05 | [Evaluate ensemble](regional_clarity/05_evaluate_ensemble.ipynb) | Ensemble holdout performance and SHAP. |

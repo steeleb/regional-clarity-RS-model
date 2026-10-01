@@ -7,9 +7,9 @@ project:
     - index.qmd
     - regional_clarity/00_download_AquaMatch_data.Rmd
     - regional_clarity/01_filter_AquaMatch_Data.Rmd
-    - regional_clarity/02_make_matches.Rmd
-    - regional_clarity/pull_site_characteristics.Rmd
-    - regional_clarity/pull_weather_summaries.Rmd
+    - regional_clarity/02a_make_matches.Rmd
+    - regional_clarity/02b_pull_site_characteristics.Rmd
+    - regional_clarity/02c_pull_weather_summaries.Rmd
     - regional_clarity/03_split_data.ipynb
     - regional_clarity/04_make_models.ipynb
     - regional_clarity/05_evaluate_ensemble.ipynb
@@ -41,12 +41,12 @@ website:
             href: regional_clarity/00_download_AquaMatch_data.Rmd
           - text: "01 · Filter AquaMatch data"
             href: regional_clarity/01_filter_AquaMatch_Data.Rmd
-          - text: "02 · Make matchups"
-            href: regional_clarity/02_make_matches.Rmd
-          - text: "Pull site characteristics"
-            href: regional_clarity/pull_site_characteristics.Rmd
-          - text: "Pull weather summaries"
-            href: regional_clarity/pull_weather_summaries.Rmd
+          - text: "02a · Make matchups"
+            href: regional_clarity/02a_make_matches.Rmd
+          - text: "02b · Pull site characteristics"
+            href: regional_clarity/02b_pull_site_characteristics.Rmd
+          - text: "02c · Pull weather summaries"
+            href: regional_clarity/02c_pull_weather_summaries.Rmd
       - section: "Modeling (Python)"
         contents:
           - text: "03 · Split data for modeling"

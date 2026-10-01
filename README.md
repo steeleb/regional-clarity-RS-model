@@ -20,9 +20,9 @@ flowchart TD
   subgraph PREP ["Data preparation (R)"]
     S00["00 · Download AquaMatch data"]
     S01["01 · Filter AquaMatch data"]
-    S02["02 · Make matchups"]
-    SC["Site characteristics"]
-    WX["Weather summaries"]
+    S02["02a · Make matchups"]
+    SC["02b · Site characteristics"]
+    WX["02c · Weather summaries"]
   end
 
   subgraph MODEL ["Modeling (Python)"]
@@ -66,8 +66,9 @@ flowchart TD
 |---|---|---|
 | 00 | [`00_download_AquaMatch_data.Rmd`](regional_clarity/00_download_AquaMatch_data.Rmd) | Download AquaMatch SDD and siteSR; apply Landsat 7-referenced handoffs. Run by hand only when AquaMatch changes. |
 | 01 | [`01_filter_AquaMatch_Data.Rmd`](regional_clarity/01_filter_AquaMatch_Data.Rmd) | Scope to the 6-state HUC4 region; SDD QC and RANSAC; siteSR scene QA and band RANSAC. |
-| 02 | [`02_make_matches.Rmd`](regional_clarity/02_make_matches.Rmd) | 5-day matchups, rain-event filter, closest image per sample. |
-| – | [`pull_site_characteristics.Rmd`](regional_clarity/pull_site_characteristics.Rmd), [`pull_weather_summaries.Rmd`](regional_clarity/pull_weather_summaries.Rmd) | Elevation, LakeCat, and gridMET antecedent-weather features. Re-run only when the site set changes. |
+| 02a | [`02a_make_matches.Rmd`](regional_clarity/02a_make_matches.Rmd) | 5-day matchups, rain-event filter, closest image per sample. |
+| 02b | [`02b_pull_site_characteristics.Rmd`](regional_clarity/02b_pull_site_characteristics.Rmd) | Elevation and LakeCat catchment features per site. Cached; re-run only when the site set changes. |
+| 02c | [`02c_pull_weather_summaries.Rmd`](regional_clarity/02c_pull_weather_summaries.Rmd) | gridMET antecedent-weather features (1/3/7/30-day windows). Cached; re-run only when the site set or date range changes. |
 | 03 | [`03_split_data.ipynb`](regional_clarity/03_split_data.ipynb) | Join features; fixed HUC8 holdout and CV folds. |
 | 04 | [`04_make_models.ipynb`](regional_clarity/04_make_models.ipynb) | Per-seed feature selection, tuning, and 4-fold XGBoost (10 seeds × 4 folds). |
 | 05 | [`05_evaluate_ensemble.ipynb`](regional_clarity/05_evaluate_ensemble.ipynb) | Ensemble holdout performance and SHAP. |
@@ -101,7 +102,7 @@ The site is a [Quarto](https://quarto.org) website (`_quarto.yml`, `index.qmd`).
 
 ```
 quarto render                                          # whole site, into _site/
-quarto render regional_clarity/02_make_matches.Rmd     # one page
+quarto render regional_clarity/02a_make_matches.Rmd     # one page
 quarto preview                                         # local preview with live reload
 quarto publish gh-pages                                # render and push to the gh-pages branch
 ```

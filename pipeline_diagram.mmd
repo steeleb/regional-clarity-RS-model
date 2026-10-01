@@ -4,9 +4,9 @@ flowchart TD
   subgraph PREP ["Data preparation (R)"]
     S00["00 · Download AquaMatch data"]
     S01["01 · Filter AquaMatch data"]
-    S02["02 · Make matchups"]
-    SC["Site characteristics"]
-    WX["Weather summaries"]
+    S02["02a · Make matchups"]
+    SC["02b · Site characteristics"]
+    WX["02c · Weather summaries"]
   end
 
   subgraph MODEL ["Modeling (Python)"]
@@ -22,7 +22,7 @@ flowchart TD
   end
 
   S00 -->|"sdd_cache.parquet<br/>siteSR_DSWE1_LS7corr.parquet"| S01
-  S01 -->|"sdd_quality_filter.parquet<br/>siteSR_DSWE1_regional_band_filtered.parquet"| S02
+  S01 -->|"sdd_quality_filter.parquet<br/>siteSR_DSWE1_regional_band_filtered.parquet"| S02 
   S02 -->|"filtered_regional_sdd.parquet"| S03
   S02 --> SC
   S02 --> WX

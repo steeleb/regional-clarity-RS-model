@@ -11,7 +11,7 @@ output:
 - **Purpose:** Define the 6-state HUC4 area of interest, then quality-filter SDD (tier/flag QC, per-site RANSAC) and siteSR (scene metadata QA, majority-vote band RANSAC) within it.
 - **Inputs:** `aquamatch_files/downloads/`: `sdd_cache.parquet`, `siteSR_DSWE1_LS7corr.parquet`, `sceneMetadata_Landsat*.csv`, site metadata CSV; national WBD geodatabase.
 - **Outputs:** `aquamatch_files/`: `sdd_quality_filter.parquet`, `siteSR_DSWE1_regional_band_filtered.parquet`, `siteSR_DSWE1_regional_band_ransac_diagnostics.parquet`, `huc4_filtered.gdb`, `states.gdb`, `row_loss_log_01.csv`.
-- **Previous:** [00 · Download AquaMatch data](00_download_AquaMatch_data.Rmd) · **Next:** [02 · Make matchups](02_make_matches.Rmd)
+- **Previous:** [00 · Download AquaMatch data](00_download_AquaMatch_data.Rmd) · **Next:** [02a · Make matchups](02a_make_matches.Rmd)
 
 This step applies some filters to the SDD and siteSR data.
 
@@ -21,6 +21,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Setup
 
+Load packages and set the two working directories: the raw downloads from
+[00](00_download_AquaMatch_data.Rmd) and the destination for this step's
+filtered outputs. `tigris` supplies state boundaries, `hydrogeofetch` the
+HUC4 watershed boundaries, and `igraph` the site de-duplication further
+below.
+
 ```{r libraries, , message = FALSE, warning=FALSE}
 # load libraries
 library(igraph)
@@ -28,7 +34,7 @@ library(parallel)
 library(arrow)
 library(sf)
 library(tigris)
-library(hydrogeofetch) # NHD/WBD fetch toolchain - used below for get_huc()
+library(hydrogeofetch)
 library(tidyverse)
 
 aquamatch_raw_data_dir <- "regional_clarity/aquamatch_files/downloads"
@@ -41,8 +47,12 @@ Every filter below (SDD quality/RANSAC filtering, siteSR outlier filtering)
 operates per-site and needs no broader/national context, so we determine our
 6-state region's HUC4 footprint here, up front, and scope both pipelines down
 to it before any of the expensive per-site processing runs - rather than
-waiting until `02_make_matches.Rmd` to subset down to it after matching and
+waiting until `02a_make_matches.Rmd` to subset down to it after matching and
 after the costly RANSAC fits have already run on out-of-region data.
+
+First, pull the boundaries of the six states that make up the region
+(Colorado, Wyoming, Utah, Idaho, Montana, and New Mexico) and dissolve them
+into a single polygon.
 
 ```{r states-aoi, message = FALSE, warning=FALSE}
 states <- states(progress_bar = FALSE) %>%
@@ -146,7 +156,7 @@ st_write(states,
 
 Initialize a row-count log to track how much data survives each filtering
 step below, so we can summarize retention/loss once the full pipeline
-(through `02_make_matches.Rmd`) has run.
+(through `02a_make_matches.Rmd`) has run.
 
 ```{r init-row-log}
 row_log <- tibble(pipeline = character(), step = character(),
@@ -163,6 +173,27 @@ log_step <- function(log, pipeline, step, n_rows, n_sites = NA_real_) {
 This section applies a ransac-style filter to sites with greater numbers of
 SDD observations to remove obvious outliers based on historical patterns and
 trends.
+
+The chunk below runs in three stages:
+
+1. **Quality filters.** Keep only higher-tier AquaMatch records (`tier < 3`)
+   with a plausible depth (≥ 0.1 m), no miscellaneous or bottom-hit flags,
+   agreement among any aggregated same-day measurements (CV ≤ 0.25), and a
+   monitoring location typed as a lake, reservoir, or impoundment.
+2. **Regional restriction.** Keep only sites that fall inside the HUC4
+   footprint defined above.
+3. **Per-site RANSAC.** `ransac_site()` repeatedly fits a linear trend
+   through time to a random subsample of 10 observations at a site and
+   counts how often each observation lands within a robust (MAD-based)
+   threshold of that fit. Observations that are inliers in at least 60% of
+   the iterations are retained. An observation is never flagged if it lies
+   within 1 m of the fitted trend, or if it falls inside the range of the
+   site's own inliers (narrowed at each end by 15% of the site's mean SDD). 
+   Sites with 10 or fewer observations are left unlabeled (`NA`).
+   Same-day aggregated values that already passed the CV check are always
+   kept. The labeled table is cached to `sdd_quality_filter.parquet`.
+
+The row-count log records the number of rows and sites remaining after each stage.
 
 ```{r}
 sdd_raw_path <- file.path(aquamatch_raw_data_dir, "sdd_cache.parquet")
@@ -308,7 +339,7 @@ if (!file.exists(sdd_filtered_path)) {
 
 Check whether flagging concentrates at the SDD extremes rather than spreading
 evenly across the distribution. A high-end concentration here isn't necessarily
-a problem here: we expect a lot of what lands in
+a problem: we expect a lot of what lands in
 the far right tail of raw SDD is genuinely implausible (deeper than the
 water body, deeper than the instrument's rope, transcription errors, etc.)
 rather than real high-clarity variability - the point of this check is to
@@ -318,7 +349,9 @@ tell those two cases apart before trusting the filter.
 sdd_ransac_check <- read_parquet(sdd_filtered_path)
 ```
 
-Let's look at highly-flagged sites as a spot-check.
+Let's look at highly-flagged sites as a spot-check. Each plot is one site's
+SDD time series, with points colored by whether RANSAC kept them (four or
+more flagged observations).
 
 ```{r}
 high_flag_sites <- sdd_ransac_check %>%
@@ -340,10 +373,14 @@ map(.x = high_flag_sites$MonitoringLocationIdentifier,
 ```
 
 There are clearly a couple overflagging examples here, but it's a bit out
-of scope to refine the ransac futher.
+of scope to refine the ransac further.
+
+Record the number of SDD rows that continue to matching. Observations flagged as
+outliers (`is_inlier == FALSE`) are excluded. Unresolved observations (`NA`,
+from sites with too few points for RANSAC) are kept.
 
 ```{r}
-# rows that will actually reach 02_make_matches.Rmd - is_inlier == FALSE is
+# rows that will actually reach 02a_make_matches.Rmd - is_inlier == FALSE is
 # excluded there before matching; NA (RANSAC never resolved, e.g. too few
 # points) is kept, same treatment as the siteSR band RANSAC below
 sdd_for_matching <- sdd_ransac_check %>%
@@ -354,7 +391,8 @@ row_log <- log_step(row_log, "SDD", "3_ransac_inliers_for_matching",
                     n_sites = n_distinct(sdd_for_matching$MonitoringLocationIdentifier))
 ```
 
-Re-summarize and look again:
+Re-summarize and look again, this time lowering the bar to sites with three
+or more flagged observations to see a broader set of examples:
 
 ```{r}
 high_flag_sites <- sdd_ransac_check %>%
@@ -375,7 +413,10 @@ map(.x = high_flag_sites$MonitoringLocationIdentifier,
       labs(title = .x))
 ```
 
-Let's also look to see what fraction of observations are indicated to be outliers:
+Let's also look to see what fraction of observations are indicated to be
+outliers across the range of observed Secchi depth. Each bar shows the
+share of observations in that depth bin that were flagged (red) versus
+kept (grey):
 
 ```{r}
 ggplot(sdd_ransac_check, aes(x = harmonized_value, fill = is_inlier)) +
@@ -416,8 +457,11 @@ scene_metadata <- map(.x = scene_metadata_paths,
   bind_rows()
 ```
 
-We'll also do some site filtering - sites that are very close to
-shore and may have contamination should be removed from training.
+Next, build the site table used to scope the reflectance data. Starting from
+AquaMatch's site metadata, keep only sites whose point buffer
+intersects a single waterbody (`number_int_wb == 1`), carry the waterbody
+identifiers and shoreline flags through, and restrict to sites inside the
+regional HUC4 footprint. Each site is tagged with its `huc4`.
 
 ```{r}
 sites_geom_qa <- read_csv(file.path(aquamatch_raw_data_dir, "siteSR_collated_WQP_NWIS_sites_with_NHD_info_2025-06-04.csv"),
@@ -432,7 +476,7 @@ sites_geom_qa <- read_csv(file.path(aquamatch_raw_data_dir, "siteSR_collated_WQP
 # restrict to sites within our 6-state region's HUC4 footprint (see
 # "Regional AOI" above) - none of the site-level QA below (de-duping,
 # ransac) needs regional context, so scope down before it runs rather than
-# waiting until 02_make_matches.Rmd to subset down after matching
+# waiting until 02a_make_matches.Rmd to subset down after matching
 sites <- sites_geom_qa %>%
   st_as_sf(coords = c("WGS84_Longitude", "WGS84_Latitude"), crs = 4326,
            remove = FALSE) %>%
@@ -540,7 +584,7 @@ precise (but not pushdown-able) HUC4/geometry scoping below.
 than one waterbody (`number_int_wb == 1`) *and* restricts to sites falling
 within our 6-state region's HUC4 footprint (see "Regional AOI" at the top of
 this script) - this is the precise regional scoping that used to happen only
-at the very end of `02_make_matches.Rmd`, after matching.
+at the very end of `02a_make_matches.Rmd`, after matching.
 - **Metadata QA**: `pCount_dswe1/pCount_dswe_gt0 > 0.5`, `pCount_dswe1 > 8`,
 `prop_clouds == 0` pretty generous filters to remove possbile contamination
 - **Scene-level cloud QA**: `sat_id` is further restricted to scenes in
@@ -732,7 +776,7 @@ siteSR_huc2 <- siteSR_full %>% filter(huc2 %in% regional_huc2)
 
 # precise regional scoping: single-waterbody geometry QA (done above when
 # `sites` was built) and the 6-state HUC4 footprint, applied here before
-# collecting rather than after matching in 02_make_matches.Rmd
+# collecting rather than after matching in 02a_make_matches.Rmd
 siteSR_geom_huc4 <- siteSR_huc2 %>% 
   filter(siteSR_id %in% sites$siteSR_id)
 row_log <- log_step(row_log, "siteSR", "1_geometry_and_HUC4_scoped",
@@ -1035,6 +1079,8 @@ walk(decile10_sites, function(site) {
 
 Can still see some related sites in here, but will leave as is for now.
 
+Release the large diagnostic objects before moving on to save memory.
+
 ```{r diagnostics-cleanup}
 rm(siteSR_regional_corr, siteSR_regional_corr_df, band_cols,
    high_flag_sr_sites, spotcheck_sites,
@@ -1047,7 +1093,7 @@ gc()
 ## Row-count log
 
 Persist the SDD and siteSR row/site counts logged at each filtering step
-above so `02_make_matches.Rmd` can append its own matching/QA steps and
+above so `02a_make_matches.Rmd` can append its own matching/QA steps and
 render a combined retention summary.
 
 ```{r write-row-log}

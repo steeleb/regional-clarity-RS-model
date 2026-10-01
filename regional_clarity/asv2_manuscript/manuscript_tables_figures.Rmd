@@ -270,7 +270,7 @@ plausible estimate.
 
 SDD and siteSR counts come from the row log written by
 `01_filter_AquaMatch_Data.Rmd`. Matched counts are taken directly from the
-parquet outputs of `02_make_matches.Rmd` so they always reflect the matchup
+parquet outputs of `02a_make_matches.Rmd` so they always reflect the matchup
 data the models were trained on. The rain-screened candidate pool is the
 final closest-observation set plus the non-closest candidates set aside after
 closest-in-time selection.
