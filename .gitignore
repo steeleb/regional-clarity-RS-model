@@ -29,8 +29,6 @@ regional_clarity/xg_models/hypertune/
 # rendered Quarto site (published to the gh-pages branch, not tracked on main)
 /_site/
 
-# local symlink to the NASA_NW OneDrive data folder (Northern Water application input)
-/data
 
 # Python virtual environment (see README: Python environment)
 /.venv/

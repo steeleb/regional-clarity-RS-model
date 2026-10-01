@@ -6,6 +6,8 @@ toc: false
 
 This site presents the workflow behind the regional Secchi disc depth (SDD) model, which is built from Landsat Collection 2 surface reflectance via the AquaSat v2 data products (siteSR). Each page is one step of the workflow, shown with its code and outputs. Every page opens with a header giving its purpose, inputs, outputs, and the previous and next steps.
 
+The [model card](model_card.qmd) summarizes the production model: intended use, training data, performance, applicability checks, and limitations.
+
 Data preparation and application run in R. Modeling runs in Python notebooks that share the modules in `regional_clarity/python/`. Arrows are labeled with the main file each step hands to the next.
 
 ```{mermaid}
@@ -24,6 +26,5 @@ Data preparation and application run in R. Modeling runs in Python notebooks tha
 | 05 | [Evaluate ensemble](regional_clarity/05_evaluate_ensemble.ipynb) | Ensemble holdout performance and SHAP. |
 | 06 | [Test-set sensitivity](regional_clarity/06_test_set_sensitivity.ipynb) | Holdout RMSE across 16 holdout draws. |
 | 07 | [Regional application](regional_clarity/07_regional_application.Rmd) | Apply the ensemble at in situ SDD locations, with training-domain and AOA checks. |
-| – | [Northern Water / CLP](NW_CLP_application/Northern_Water_application.Rmd) | Out-of-sample application to Northern Water / Cache la Poudre. |
 
 Source code: [rossyndicate/regional-clarity-RS-model](https://github.com/rossyndicate/regional-clarity-RS-model).

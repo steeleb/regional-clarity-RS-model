@@ -8,6 +8,10 @@ This repository is covered by the MIT use license. We request that all downstrea
 
 **Rendered workflow:** <https://rossyndicate.github.io/regional-clarity-RS-model/>. Every step below is also a page on that site, with its code and outputs.
 
+## Model card
+
+The model card for the production ensemble is [`regional_clarity/xg_models/v3_production/README.md`](regional_clarity/xg_models/v3_production/README.md). It is formatted for the Hugging Face Hub (YAML metadata, including evaluation results), so that folder can be pushed to the Hub as is. The Quarto site shows the same file as its [Model card](https://rossyndicate.github.io/regional-clarity-RS-model/model_card.html) page (`model_card.qmd`), so edit the card in the model folder only.
+
 ## Workflow
 
 Data preparation and application run in R (`.Rmd`). Modeling runs in Python notebooks (`.ipynb`) that share the modules in `regional_clarity/python/`. Arrows are labeled with the main file each step hands to the next. Data files live under `regional_clarity/aquamatch_files/` and models under `regional_clarity/xg_models/`; neither is tracked in git.
@@ -34,7 +38,6 @@ flowchart TD
 
   subgraph APPLY ["Application (R)"]
     S07["07 · Regional application"]
-    NW["Northern Water / CLP"]
   end
 
   S00 -->|"sdd_cache.parquet<br/>siteSR_DSWE1_LS7corr.parquet"| S01
@@ -49,13 +52,12 @@ flowchart TD
   S04 -->|"per-seed features + parameters"| S06
   S05 -->|"ensemble_mean_abs_shap.csv"| S07
   S04 -->|"40 fold models"| S07
-  S04 -->|"40 fold models"| NW
 
   classDef src fill:#eeeeee,stroke:#555555,color:#111111
   classDef rstep fill:#ffffff,stroke:#1f5fa8,stroke-width:2px,color:#111111
   classDef pystep fill:#ffffff,stroke:#a85a00,stroke-width:2px,color:#111111
   class AM src
-  class S00,S01,S02,SC,WX,S07,NW rstep
+  class S00,S01,S02,SC,WX,S07 rstep
   class S03,S04,S05,S06 pystep
   style PREP fill:#e3eefb,stroke:#1f5fa8,color:#0b2e55
   style MODEL fill:#fdf0e0,stroke:#a85a00,color:#4a2800
@@ -74,7 +76,6 @@ flowchart TD
 | 05 | [`05_evaluate_ensemble.ipynb`](regional_clarity/05_evaluate_ensemble.ipynb) | Ensemble holdout performance and SHAP. |
 | 06 | [`06_test_set_sensitivity.ipynb`](regional_clarity/06_test_set_sensitivity.ipynb) | Holdout RMSE across 16 holdout draws. |
 | 07 | [`07_regional_application.Rmd`](regional_clarity/07_regional_application.Rmd) | Apply the ensemble at in situ SDD locations, with training-domain and AOA checks. |
-| – | [`Northern_Water_application.Rmd`](NW_CLP_application/Northern_Water_application.Rmd) | Out-of-sample application to Northern Water / Cache la Poudre. |
 
 Manuscript tables and figures are built by [`manuscript_tables_figures.Rmd`](regional_clarity/asv2_manuscript/manuscript_tables_figures.Rmd), kept for reproducibility and not part of the rendered site.
 
@@ -110,7 +111,6 @@ quarto publish gh-pages                                # render and push to the 
 - **Notebooks are never executed by Quarto.** Their pages use the outputs saved in the `.ipynb`, so run a notebook and save it before rendering.
 - **Rmds are executed, then frozen.** Results are stored in `_freeze/` (tracked in git) and reused until that Rmd's source changes. Commit `_freeze/` along with the Rmd so the site can be rebuilt without the data. The slow steps inside each Rmd are cached to disk, so a re-render mostly reloads those caches.
 - The two `pull_*` Rmds are shown as code only (`execute: eval: false` in their front matter) so a site build never re-runs the web fetches.
-- `Northern_Water_application.Rmd` reads the NW Secchi record through a `data/` symlink at the repository root (untracked), pointing to the `NASA_NW` data folder on the ROSS team OneDrive, and reads the NW/CLP remote sensing data from a sibling clone of `NW-CLP-RS`.
 - Keep the diagram above in sync with `pipeline_diagram.mmd`.
 
 ## Secrets/credentials
