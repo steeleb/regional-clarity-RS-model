@@ -127,8 +127,9 @@ Each model folder ([`regional_clarity/xg_models/v3_production/`](regional_clarit
 
 | File | Language | What it does |
 |---|---|---|
+| [`regional_clarity/R/siteSR_qa.R`](regional_clarity/R/siteSR_qa.R) | R | Apply the training data's observation QA to siteSR sites and observations: site geometry, pixel, temperature, and scene QA, and the per-site band-outlier filter. Step 01 uses the same functions. |
 | [`regional_clarity/R/prepare_model_inputs.R`](regional_clarity/R/prepare_model_inputs.R) | R | Build model inputs from AquaMatch siteSR sites and QA'd observations: elevation, LakeCat catchment metrics, gridMET antecedent weather, spectral indices, and site-feature coarsening. `site_and_weather = FALSE` builds the band-only model's inputs without the web fetches. Steps 07 and 07b use the same functions. |
-| [`regional_clarity/python/apply_model.py`](regional_clarity/python/apply_model.py) | Python | Load either 40-booster ensemble, predict SDD, and run the applicability checks against that model folder's `applicability/` files. |
+| [`regional_clarity/python/apply_model.py`](regional_clarity/python/apply_model.py) | Python | Load either 40-booster ensemble, predict SDD, and flag observations outside the training domain with the applicability checks, using that model folder's `applicability/` files. |
 
 Each model card's "How to use" section has a worked example, and the site's [Applying the model](https://rossyndicate.github.io/regional-clarity-RS-model/applying_the_model.html) page walks through the full process.
 

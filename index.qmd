@@ -52,8 +52,9 @@ Each model folder holds only the fitted ensemble and the files the applicability
 
 | File | Language | What it does |
 |---|---|---|
+| [`regional_clarity/R/siteSR_qa.R`](https://github.com/rossyndicate/regional-clarity-RS-model/blob/main/regional_clarity/R/siteSR_qa.R) | R | Apply the training data's observation QA to siteSR sites and observations: site geometry, pixel, temperature, and scene QA, and the per-site band-outlier filter. [Step 01](regional_clarity/01_filter_AquaMatch_Data.Rmd) uses the same functions. |
 | [`regional_clarity/R/prepare_model_inputs.R`](https://github.com/rossyndicate/regional-clarity-RS-model/blob/main/regional_clarity/R/prepare_model_inputs.R) | R | Build model inputs from AquaMatch siteSR sites and QA'd observations: elevation, LakeCat catchment metrics, gridMET antecedent weather, spectral indices, and site-feature coarsening. `site_and_weather = FALSE` builds the band-only model's inputs without the web fetches. Steps [07](regional_clarity/07_regional_application.Rmd) and [07b](regional_clarity/07b_regional_application_band_only.Rmd) use the same functions. |
-| [`regional_clarity/python/apply_model.py`](https://github.com/rossyndicate/regional-clarity-RS-model/blob/main/regional_clarity/python/apply_model.py) | Python | Load either 40-booster ensemble, predict SDD, and run the applicability checks against that model folder's `applicability/` files. |
+| [`regional_clarity/python/apply_model.py`](https://github.com/rossyndicate/regional-clarity-RS-model/blob/main/regional_clarity/python/apply_model.py) | Python | Load either 40-booster ensemble, predict SDD, and flag observations outside the training domain with the applicability checks, using that model folder's `applicability/` files. |
 
 [Applying the model](applying_the_model.qmd) walks through accessing either model and using these helpers step by step.
 

@@ -25,10 +25,13 @@
 # `sites`: one row per siteSR_id, columns siteSR_id, WGS84_Latitude,
 #   WGS84_Longitude, wb_nhd_id (NHDPlusV2 COMID), wb_nhd_source,
 #   flag_wb, flag_optical_shoreline - as in AquaMatch's siteSR site table.
-#   With site_and_weather = FALSE, only siteSR_id is used.
+#   With site_and_weather = FALSE, only siteSR_id and the coordinates are
+#   used. The coordinates are carried into the output for the training-region
+#   check.
 # `sitesr_rows`: siteSR observations that passed the scene QA in
-#   01_filter_AquaMatch_Data.Rmd, columns siteSR_id, date, mission,
-#   {red,green,blue,nir,swir1,swir2}_corr_7, surfacetemp_corr_7.
+#   01_filter_AquaMatch_Data.Rmd (see R/siteSR_qa.R), columns siteSR_id,
+#   date, mission, {red,green,blue,nir,swir1,swir2}_corr_7,
+#   surfacetemp_corr_7.
 
 library(tidyverse)
 library(sf)
@@ -267,17 +270,21 @@ assemble_model_inputs <- function(sitesr_rows, site_char = NULL, site_cells = NU
 # All of the above in one call. Weather for cells that fail to fetch is left
 # missing, so those rows fail the completeness check downstream. With
 # site_and_weather = FALSE, nothing is fetched and the output holds only the
-# band-only model's inputs.
+# band-only model's inputs. Either way, each row carries its site's
+# WGS84_Latitude and WGS84_Longitude for the training-region check.
 prepare_model_inputs <- function(sites, sitesr_rows, keep = character(), n_workers = 8,
                                  site_and_weather = TRUE) {
   sitesr_rows <- sitesr_rows %>% mutate(date = as.Date(date))
-  if (!site_and_weather) {
-    return(assemble_model_inputs(sitesr_rows, keep = keep))
-  }
   sites <- sites %>% filter(siteSR_id %in% unique(sitesr_rows$siteSR_id))
+  site_coords <- sites %>% distinct(siteSR_id, WGS84_Latitude, WGS84_Longitude)
+  if (!site_and_weather) {
+    return(assemble_model_inputs(sitesr_rows, keep = keep) %>%
+             left_join(site_coords, by = "siteSR_id"))
+  }
   site_char <- fetch_site_characteristics(sites)
   site_cells <- gridmet_cells(sites)
   weather <- fetch_gridmet(gridmet_cell_ranges(sitesr_rows, site_cells), n_workers = n_workers)
   if (nrow(weather$failed) > 0) warning(nrow(weather$failed), " gridMET cells failed to fetch")
-  assemble_model_inputs(sitesr_rows, site_char, site_cells, summarize_weather(weather$weather), keep = keep)
+  assemble_model_inputs(sitesr_rows, site_char, site_cells, summarize_weather(weather$weather), keep = keep) %>%
+    left_join(site_coords, by = "siteSR_id")
 }
