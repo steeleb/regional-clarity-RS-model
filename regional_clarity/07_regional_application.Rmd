@@ -684,7 +684,7 @@ axis_max <- ceiling(max(superseded_passing$obs, superseded_passing$pred))
 
 ggplot(superseded_passing, aes(obs, pred)) +
   geom_abline(linetype = "dashed", colour = "grey50") +
-  geom_point(alpha = 0.3, size = 1) +
+  geom_point(alpha = 0.3, size = 1.25) +
   geom_text(data = panel_labels, aes(x = 0, y = axis_max, label = label),
             hjust = 0, vjust = 1, size = 3.2, lineheight = 0.9) +
   coord_equal(xlim = c(0, axis_max), ylim = c(0, axis_max)) +

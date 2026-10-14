@@ -42,6 +42,8 @@ model-index:
 
 An ensemble of 40 XGBoost regressors that estimates Secchi disc depth (SDD, in meters) for lakes and reservoirs from Landsat Collection 2 surface reflectance. It also uses antecedent weather and static catchment characteristics. The model covers six states in the intermountain West (Colorado, Idaho, Montana, New Mexico, Utah, and Wyoming) across Landsat 4, 5, 7, 8, and 9, 1984–2023.
 
+A [band-only counterpart](https://huggingface.co/bgsteele/intermountain-west-regional-clarity-sdd-landsat-band-only), built with the same data and procedure from the Landsat-derived features alone, is published separately. See [Related model](#related-model) for a comparison.
+
 On a fixed holdout of whole HUC8 basins that no ensemble member trained on, the model reaches an RMSE of 1.26 m, an MAE of 0.94 m, and an R² of 0.63. It is most accurate below about 6 m SDD and underestimates very clear water (see [Limitations](#limitations)).
 
 The full workflow, with code and outputs for every step, is published at <https://rossyndicate.github.io/regional-clarity-RS-model/>.
@@ -128,6 +130,8 @@ X["pred_sdd"] = predict_sdd(load_ensemble(model_dir), X)   # 40 members
 flags = check_applicability(X, model_dir, pred_sdd=X["pred_sdd"])   # one pass_* column per check, plus di
 usable = X[flags["pass_all"]]
 ```
+
+Always screen with the `applicability/` files from the same model folder you predict with: the production and band-only models' training ranges and areas of applicability differ.
 
 To stay in R, follow the prediction and applicability sections of step 07, which give the same results.
 
@@ -279,6 +283,23 @@ Check 1, scene QA, has to be applied upstream when the reflectance data are prep
 - **Point estimates only.** The ensemble spread (about 0.12 m) reflects model variance, not total predictive uncertainty. Typical error is about 1.3 m, and up to about 2 m for unfavorable sets of basins.
 - **Static catchment features.** Land cover is fixed at NLCD 2006 for all dates, so land-use change is not represented.
 - **Sensor balance.** Landsat 8/9 make up 15% of training matchups. Landsat 4 contributes only 48 matchups.
+
+## Related model
+
+The [band-only model](https://huggingface.co/bgsteele/intermountain-west-regional-clarity-sdd-landsat-band-only) was built from the same data, holdout, CV folds, and procedure, with the candidate pool restricted to the harmonized bands, spectral indices, and LaSRC flag. Because each seed's folds are identical between the two models, every comparison below is paired.
+
+| | Production (this model) | Band-only |
+|---|---|---|
+| Inputs | Bands, indices, LaSRC flag, catchment, shoreline flag, antecedent weather | Bands, indices, LaSRC flag |
+| External data needed at inference | LakeCat (EPA StreamCat), elevation tiles, gridMET | None |
+| Features per seed | 26–33 | 12–13 |
+| Holdout RMSE / MAE | 1.257 / 0.941 m | 1.356 / 1.002 m |
+| Holdout bias / R² | +0.152 m / 0.627 | +0.082 m / 0.565 |
+| Holdout RMSE across 16 draws, mean (range) | 1.46 (1.01–1.99) m | 1.58 (1.05–2.19) m |
+| Superseded matchups passing all checks, RMSE | 1.19 m (n = 2,715) | 1.37 m (n = 2,728) |
+| Location-days passing all checks (step 07 / 07b) | 662,191 at 1,796 locations | 670,780 at 1,821 locations |
+
+The production model has the lower holdout RMSE on all 10 seeds and on all 16 holdout draws, by 0.03–0.26 m. Neither model has consistently smaller bias: across the 16 draws, the production model's absolute bias is the larger of the two on 7. Where both produce an estimate for the same location-day, the estimates correlate at r = 0.96, with a mean difference of −0.02 m and a standard deviation of 0.52 m.
 
 ## References
 

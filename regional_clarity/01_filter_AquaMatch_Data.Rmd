@@ -368,7 +368,7 @@ map(.x = high_flag_sites$MonitoringLocationIdentifier,
       ggplot(., aes(x = ActivityStartDate,
                     y = harmonized_value,
                     color = is_inlier)) +
-      geom_point() +
+      geom_point(size = 1.875) +
       labs(title = .x))
 ```
 
@@ -409,7 +409,7 @@ map(.x = high_flag_sites$MonitoringLocationIdentifier,
       ggplot(., aes(x = ActivityStartDate,
                     y = harmonized_value,
                     color = is_inlier)) +
-      geom_point() +
+      geom_point(size = 1.875) +
       labs(title = .x))
 ```
 
@@ -945,7 +945,7 @@ map(.x = spotcheck_sites,
                      values_to = "band_val") %>%
         ggplot(.,
                aes(x = date, y = band_val, color = is_band_inlier)) +
-        geom_point() +
+        geom_point(size = 1.875) +
         facet_grid(band ~ siteSR_id, scales = "free_y") +
         scale_color_manual(values = c(`TRUE` = "grey40", `FALSE` = "red")) +
         theme_bw()
@@ -1066,7 +1066,7 @@ walk(decile10_sites, function(site) {
     siteSR_band_long %>%
       filter(siteSR_id == site) %>%
       ggplot(aes(x = date, y = band_val, color = is_band_inlier)) +
-      geom_point() +
+      geom_point(size = 1.875) +
       geom_hline(data = band_p90_df, aes(yintercept = p90),
                  linetype = "dashed") +
       facet_wrap(~ band, scales = "free_y", ncol = 2) +

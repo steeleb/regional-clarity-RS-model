@@ -1,11 +1,15 @@
-"""Apply the production SDD ensemble and its applicability checks.
+"""Apply an SDD ensemble and its applicability checks.
 
-`model_dir` is the production model folder: a download of the Hugging Face
-model repository, or `xg_models/v3_production/` in this repository. `X` is
-one row per observation with every model input already engineered, as
-returned by `prepare_model_inputs()` in `R/prepare_model_inputs.R` (or, for
-inputs built in Python, after `add_spectral_indices()` and
-`coarsen_site_features()` from `features.py`).
+`model_dir` is a model folder: a download of one of the Hugging Face model
+repositories, or `xg_models/v3_production/` (production) or
+`xg_models/v3_band_only/` (band-only) in this repository. Predict and screen
+with the same folder; each model's applicability files are its own.
+
+`X` is one row per observation with every model input already engineered,
+as returned by `prepare_model_inputs()` in `R/prepare_model_inputs.R` (with
+`site_and_weather = FALSE` for the band-only model), or, for inputs built in
+Python, after `add_spectral_indices()` and `coarsen_site_features()` from
+`features.py`.
 
     from apply_model import load_ensemble, predict_sdd, check_applicability
 
@@ -14,9 +18,10 @@ inputs built in Python, after `add_spectral_indices()` and
     flags = check_applicability(X, model_dir, pred_sdd=X["pred_sdd"])
     usable = X[flags["pass_all"]]
 
-The checks mirror step 07 (07_regional_application.Rmd), which writes the
-`applicability/` files this module reads. Scene QA (check 1 in the model
-card) has to be applied upstream and is not repeated here.
+The checks mirror steps 07 and 07b (07_regional_application.Rmd and
+07b_regional_application_band_only.Rmd), which write the `applicability/`
+files this module reads. Scene QA (check 1 in the model cards) has to be
+applied upstream and is not repeated here.
 """
 import json
 from pathlib import Path
