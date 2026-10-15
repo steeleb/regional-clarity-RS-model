@@ -51,6 +51,24 @@ def train_fold_models(folds: list, feats: list, target: str, params: dict, weigh
     return models
 
 
+def cv_num_rounds(fold_models: list) -> int:
+    """Boosting rounds for a full-data refit: the mean of the fold models'
+    early-stopped round counts (each saved fold model is already truncated
+    to its best iteration, so its round count is that fold's optimum)."""
+    return int(round(np.mean([m.num_boosted_rounds() for m in fold_models])))
+
+
+def train_full_model(train_df, feats: list, target: str, params: dict, num_rounds: int, weight_fn=None):
+    """Refit on every training row with CV-selected features, hyperparameters,
+    and round count (the ENMeval-style alternative to averaging fold models).
+    There is no validation set to early-stop against, so `num_rounds` comes
+    from cv_num_rounds()."""
+    w = weight_fn(train_df[target].values) if weight_fn is not None else None
+    dtrain = xgb.DMatrix(train_df[feats], label=train_df[target], weight=w)
+    full_params = dict(booster="gbtree", objective="reg:squarederror", **params)
+    return xgb.train(full_params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
+
+
 def predict_ensemble(models: list, X) -> np.ndarray:
     d = xgb.DMatrix(X)
     preds = np.column_stack([m.predict(d) for m in models])
